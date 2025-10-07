@@ -2,21 +2,37 @@ import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { practices } from "@/data/practices";
 import { Button } from "@/components/ui/button";
-import { Play, Pause, X } from "lucide-react";
+import { Play, Pause, X, ChevronDown } from "lucide-react";
+import { TimeWheelPicker } from "@/components/TimeWheelPicker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function TimerPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const practiceId = searchParams.get("practice");
   const durationParam = searchParams.get("duration");
   
-  const practice = practices.find((p) => p.id === practiceId);
-  const totalSeconds = durationParam ? parseInt(durationParam) * 60 : 600;
+  const [selectedPracticeId, setSelectedPracticeId] = useState(practiceId || practices[0].id);
+  const [hours, setHours] = useState(0);
+  const [minutes, setMinutes] = useState(durationParam ? parseInt(durationParam) : 10);
+  const [hasStarted, setHasStarted] = useState(false);
+  
+  const practice = practices.find((p) => p.id === selectedPracticeId);
+  const totalSeconds = (hours * 3600) + (minutes * 60);
   
   const [secondsLeft, setSecondsLeft] = useState(totalSeconds);
   const [isRunning, setIsRunning] = useState(false);
   const [isWarmup, setIsWarmup] = useState(true);
   const [warmupSeconds, setWarmupSeconds] = useState(10);
+  
+  // Mock recent practices (last 3 unique practices)
+  const recentPractices = practices.slice(0, 3);
   
   useEffect(() => {
     if (!isRunning) return;
@@ -46,6 +62,10 @@ export default function TimerPage() {
   }, [isRunning, isWarmup, practiceId, durationParam, navigate]);
   
   const handleStart = () => {
+    if (!hasStarted) {
+      setHasStarted(true);
+      setSecondsLeft(totalSeconds);
+    }
     setIsRunning(true);
   };
   
@@ -54,7 +74,8 @@ export default function TimerPage() {
   };
   
   const handleEnd = () => {
-    navigate(`/session-complete?practice=${practiceId}&duration=${durationParam}`);
+    const durationMinutes = Math.ceil(totalSeconds / 60);
+    navigate(`/session-complete?practice=${selectedPracticeId}&duration=${durationMinutes}`);
   };
   
   const formatTime = (seconds: number) => {
@@ -88,7 +109,67 @@ export default function TimerPage() {
         
         {/* Timer Display */}
         <div className="flex-1 flex flex-col items-center justify-center px-4">
-          {isWarmup ? (
+          {!hasStarted ? (
+            <div className="w-full max-w-sm space-y-8">
+              {/* Practice Selector */}
+              <div className="space-y-3">
+                <label className="text-sm text-muted-foreground uppercase tracking-wide">
+                  Select Practice
+                </label>
+                <Select value={selectedPracticeId} onValueChange={setSelectedPracticeId}>
+                  <SelectTrigger className="w-full h-12">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                      Recent
+                    </div>
+                    {recentPractices.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        <div className="flex flex-col items-start">
+                          <span className="font-medium">{p.title}</span>
+                          <span className="text-xs text-muted-foreground">{p.teacher.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                    <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-t mt-1">
+                      All Practices
+                    </div>
+                    {practices.filter(p => !recentPractices.includes(p)).map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        <div className="flex flex-col items-start">
+                          <span className="font-medium">{p.title}</span>
+                          <span className="text-xs text-muted-foreground">{p.teacher.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Time Wheel Picker */}
+              <div className="space-y-3">
+                <label className="text-sm text-muted-foreground uppercase tracking-wide">
+                  Duration
+                </label>
+                <div className="flex items-center justify-center gap-6 py-4">
+                  <TimeWheelPicker
+                    value={hours}
+                    onChange={setHours}
+                    max={24}
+                    label="Hours"
+                  />
+                  <div className="text-3xl font-bold text-muted-foreground self-center mt-6">:</div>
+                  <TimeWheelPicker
+                    value={minutes}
+                    onChange={setMinutes}
+                    max={59}
+                    label="Minutes"
+                  />
+                </div>
+              </div>
+            </div>
+          ) : isWarmup ? (
             <div className="text-center">
               <p className="text-sm text-muted-foreground mb-4">Get ready...</p>
               <div className="text-6xl font-bold text-primary mb-2">
@@ -131,12 +212,13 @@ export default function TimerPage() {
           )}
           
           {/* Controls */}
-          <div className="flex gap-4">
+          <div className="flex gap-4 mt-8">
             {!isRunning ? (
               <Button
                 size="lg"
                 onClick={handleStart}
                 className="w-24 h-24 rounded-full"
+                disabled={!hasStarted && hours === 0 && minutes === 0}
               >
                 <Play className="w-8 h-8" />
               </Button>
