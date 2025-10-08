@@ -3,9 +3,30 @@ import { practices } from "@/data/practices";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { MasteryRing } from "@/components/MasteryRing";
 import { Sparkline } from "@/components/Sparkline";
 import { ArrowLeft, Play } from "lucide-react";
+
+import sarahChen from "@/assets/teacher-portraits/sarah-chen.jpg";
+import thichNhatHanh from "@/assets/teacher-portraits/thich-nhat-hanh.jpg";
+import sharonSalzberg from "@/assets/teacher-portraits/sharon-salzberg.jpg";
+import jackKornfield from "@/assets/teacher-portraits/jack-kornfield.jpg";
+import taraBrach from "@/assets/teacher-portraits/tara-brach.jpg";
+import jonKabatZinn from "@/assets/teacher-portraits/jon-kabat-zinn.jpg";
+import pemaChodon from "@/assets/teacher-portraits/pema-chodron.jpg";
+import josephGoldstein from "@/assets/teacher-portraits/joseph-goldstein.jpg";
+
+const teacherImages: Record<string, string> = {
+  "sarah-chen": sarahChen,
+  "thich-nhat-hanh": thichNhatHanh,
+  "sharon-salzberg": sharonSalzberg,
+  "jack-kornfield": jackKornfield,
+  "tara-brach": taraBrach,
+  "jon-kabat-zinn": jonKabatZinn,
+  "pema-chodron": pemaChodon,
+  "joseph-goldstein": josephGoldstein,
+};
 
 export default function PracticeDetail() {
   const { id } = useParams();
@@ -42,6 +63,18 @@ export default function PracticeDetail() {
         </header>
         
         <div className="px-4 py-6 space-y-6">
+          {/* Teacher Portrait */}
+          <div className="flex items-center gap-4">
+            <Avatar className="w-20 h-20">
+              <AvatarImage src={teacherImages[practice.teacher.image]} alt={practice.teacher.name} />
+              <AvatarFallback>{practice.teacher.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+            </Avatar>
+            <div>
+              <h2 className="font-semibold text-foreground text-lg">{practice.teacher.name}</h2>
+              <p className="text-sm text-muted-foreground">Teacher</p>
+            </div>
+          </div>
+          
           {/* Tabs */}
           <Tabs defaultValue="teacher" className="w-full">
             <TabsList className="w-full grid grid-cols-4">

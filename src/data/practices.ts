@@ -4,6 +4,7 @@ export interface Practice {
   teacher: {
     name: string;
     bio: string;
+    image: string;
   };
   scholar: {
     name: string;
@@ -36,6 +37,7 @@ export const practices: Practice[] = [
     teacher: {
       name: "Kelly Smith",
       bio: "Focus on the natural rhythm of your breath. This foundational practice builds concentration by anchoring attention to the sensations of breathing—at the nostrils, chest, or belly. When the mind wanders, gently return to the breath without judgment.",
+      image: "sarah-chen",
     },
     scholar: {
       name: "Dr. N. Sujato",
@@ -79,6 +81,7 @@ export const practices: Practice[] = [
     teacher: {
       name: "Sharon Salzberg",
       bio: "Mettā practice cultivates warm-hearted, unconditional goodwill toward yourself and others. Begin with phrases like 'May I be happy, may I be safe,' then extend this care outward—to loved ones, neutral people, difficult people, and all beings.",
+      image: "sharon-salzberg",
     },
     scholar: {
       name: "Dr. Analayo",
@@ -122,6 +125,7 @@ export const practices: Practice[] = [
     teacher: {
       name: "Jon Kabat-Zinn",
       bio: "The body scan is a systematic journey through the body, bringing gentle, curious attention to each part. Notice sensations—warmth, tingling, tension, or ease—without trying to change anything. This practice builds somatic awareness and releases held tension.",
+      image: "jon-kabat-zinn",
     },
     scholar: {
       name: "Dr. Joanna Macy",
@@ -165,6 +169,7 @@ export const practices: Practice[] = [
     teacher: {
       name: "Joseph Goldstein",
       bio: "Open monitoring is a choiceless awareness practice. Rather than focusing on one object (like the breath), you remain receptive to whatever arises—sounds, sensations, thoughts, emotions. Notice each experience as it comes and goes, without grasping or pushing away.",
+      image: "joseph-goldstein",
     },
     scholar: {
       name: "Dr. B. Alan Wallace",
@@ -208,6 +213,7 @@ export const practices: Practice[] = [
     teacher: {
       name: "Thich Nhat Hanh",
       bio: "Walking meditation brings mindfulness into movement. Walk slowly and deliberately, coordinating your steps with your breath. Feel your feet touching the earth. Each step is an arrival, not a means to an end. This practice integrates body, breath, and awareness.",
+      image: "thich-nhat-hanh",
     },
     scholar: {
       name: "Dr. Gil Fronsdal",
@@ -251,6 +257,7 @@ export const practices: Practice[] = [
     teacher: {
       name: "Shinzen Young",
       bio: "Noting is a precision tool for developing mindfulness. As experiences arise, give them a brief mental label: 'seeing,' 'hearing,' 'thinking,' 'feeling.' The label should be light and quick, like a Post-it note. This practice sharpens concentration and builds equanimity.",
+      image: "jack-kornfield",
     },
     scholar: {
       name: "Dr. Daniel Ingram",
@@ -294,6 +301,7 @@ export const practices: Practice[] = [
     teacher: {
       name: "Shunryu Suzuki",
       bio: "Zazen is not meditation on something—it is just sitting. Sit upright with eyes half-open, gazing softly downward. Let thoughts come and go like clouds. Don't chase them or push them away. This is shikantaza: 'nothing but precisely sitting.'",
+      image: "tara-brach",
     },
     scholar: {
       name: "Dr. Taigen Dan Leighton",
@@ -337,6 +345,7 @@ export const practices: Practice[] = [
     teacher: {
       name: "Pema Chödrön",
       bio: "Tonglen reverses our usual logic. On the in-breath, breathe in suffering—yours or others'. On the out-breath, send out relief, spaciousness, whatever would help. This counterintuitive practice develops courage and compassion by leaning into, rather than away from, difficulty.",
+      image: "pema-chodron",
     },
     scholar: {
       name: "Dr. Reginald Ray",
