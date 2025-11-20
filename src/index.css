@@ -2,56 +2,68 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Star Constellation Theme - Dark, elegant meditation aesthetic */
 
 @layer base {
   :root {
-    /* Contempla Design System - Serene, scholarly meditation aesthetic */
-    
-    /* Base colors - soft warm neutrals */
-    --background: 30 20% 97%;  /* soft off-white */
-    --foreground: 30 10% 20%;  /* dark charcoal */
+    /* Dark cosmic background */
+    --background: 225 45% 8%;  /* deep navy/black */
+    --foreground: 210 40% 98%; /* bright white for text */
 
-    /* Card system - pure white cards on warm background */
-    --card: 0 0% 100%;
-    --card-foreground: 30 10% 20%;
+    /* Card system - slightly lighter than background with glow */
+    --card: 225 35% 12%;
+    --card-foreground: 210 40% 98%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 30 10% 20%;
+    --popover: 225 35% 12%;
+    --popover-foreground: 210 40% 98%;
 
-    /* Primary - muted sage-teal accent */
-    --primary: 165 35% 45%;  /* sage-teal */
-    --primary-foreground: 0 0% 100%;
+    /* Primary - glowing constellation blue */
+    --primary: 210 100% 70%;  /* bright blue glow */
+    --primary-foreground: 225 45% 8%;
 
-    /* Secondary - warm beige */
-    --secondary: 30 25% 92%;
-    --secondary-foreground: 30 10% 20%;
+    /* Secondary - muted cosmic purple */
+    --secondary: 250 40% 30%;
+    --secondary-foreground: 210 40% 98%;
 
-    /* Muted - light warm gray */
-    --muted: 30 15% 90%;
-    --muted-foreground: 30 8% 45%;
+    /* Muted - darker gray for subtle elements */
+    --muted: 225 25% 18%;
+    --muted-foreground: 215 20% 65%;
 
-    /* Accent - slightly warmer teal for highlights */
-    --accent: 165 40% 55%;
-    --accent-foreground: 0 0% 100%;
+    /* Accent - bright cyan for highlights */
+    --accent: 185 100% 60%;
+    --accent-foreground: 225 45% 8%;
 
-    --destructive: 0 70% 50%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 85% 60%;
+    --destructive-foreground: 210 40% 98%;
 
-    /* Borders - very subtle */
-    --border: 30 10% 88%;
-    --input: 30 10% 88%;
-    --ring: 165 35% 45%;
+    /* Borders - subtle glow */
+    --border: 225 25% 20%;
+    --input: 225 25% 20%;
+    --ring: 210 100% 70%;
 
-    /* Generous rounded corners */
+    /* Rounded corners for constellation aesthetic */
     --radius: 1rem;
 
-    /* Custom tokens for Contempla */
-    --scholar-text: 30 10% 30%;  /* darker for scholarly content */
-    --mastery-ring: 165 35% 45%;  /* primary color for progress rings */
-    --session-complete: 165 50% 50%;  /* brighter for completion state */
+    /* Custom constellation tokens */
+    --glow-star: 210 100% 70%;
+    --glow-shadow: 0 0 20px hsl(210 100% 70% / 0.3);
+    --constellation-line: 215 30% 35%;
+  }
+
+  /* Animations for floating stars */
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+
+  @keyframes glow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -1000px 0; }
+    100% { background-position: 1000px 0; }
   }
 }
 
@@ -62,10 +74,29 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    background-image: 
+      radial-gradient(circle at 20% 50%, hsl(210 100% 70% / 0.05) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, hsl(185 100% 60% / 0.05) 0%, transparent 50%);
+  }
+
+  /* Glowing button effect */
+  .glow-button {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.4);
+    transition: all 0.3s ease;
+  }
+
+  .glow-button:hover {
+    box-shadow: 0 0 30px hsl(var(--primary) / 0.6);
+    transform: translateY(-2px);
+  }
+
+  /* Constellation line effect */
+  .constellation-line {
+    background: linear-gradient(90deg, transparent, hsl(var(--constellation-line)), transparent);
   }
 }
 
-/* Hide scrollbar for wheel picker */
+/* Hide scrollbar */
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }

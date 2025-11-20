@@ -3,15 +3,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { BottomNav } from "./components/BottomNav";
+import Auth from "./pages/Auth";
 import Library from "./pages/Library";
-import PracticeDetail from "./pages/PracticeDetail";
-import TimerPage from "./pages/TimerPage";
-import SessionComplete from "./pages/SessionComplete";
-import Progress from "./pages/Progress";
-import Settings from "./pages/Settings";
-import Onboarding from "./pages/Onboarding";
-import NotFound from "./pages/NotFound";
+import Timer from "./pages/Timer";
 
 const queryClient = new QueryClient();
 
@@ -22,14 +16,10 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/" element={<><Library /><BottomNav /></>} />
-          <Route path="/practice/:id" element={<><PracticeDetail /><BottomNav /></>} />
-          <Route path="/timer" element={<><TimerPage /><BottomNav /></>} />
-          <Route path="/session-complete" element={<><SessionComplete /><BottomNav /></>} />
-          <Route path="/progress" element={<><Progress /><BottomNav /></>} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="*" element={<NotFound />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/" element={<Library />} />
+          <Route path="/timer" element={<Timer />} />
+          <Route path="*" element={<Auth />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
