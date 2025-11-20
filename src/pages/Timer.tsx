@@ -81,6 +81,7 @@ export default function Timer() {
         user_id: user.id,
         technique_id: techniqueId,
         duration_minutes: actualMinutes,
+        manual_entry: false,
       });
 
       if (sessionError) throw sessionError;
@@ -123,7 +124,45 @@ export default function Timer() {
       return;
     }
 
-    await handleSessionComplete(enteredMinutes);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !techniqueId) return;
+
+      // Record manual session
+      const { error: sessionError } = await supabase.from("sessions").insert({
+        user_id: user.id,
+        technique_id: techniqueId,
+        duration_minutes: enteredMinutes,
+        manual_entry: true,
+      });
+
+      if (sessionError) throw sessionError;
+
+      // Update mastery
+      const { error: masteryError } = await supabase.rpc(
+        "update_mastery_after_session",
+        {
+          p_user_id: user.id,
+          p_technique_id: techniqueId,
+          p_duration_minutes: enteredMinutes,
+        }
+      );
+
+      if (masteryError) throw masteryError;
+
+      toast({
+        title: "Session logged!",
+        description: `${enteredMinutes} minutes of practice recorded.`,
+      });
+
+      navigate("/");
+    } catch (error: any) {
+      toast({
+        title: "Error logging session",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const formatTime = (seconds: number) => {

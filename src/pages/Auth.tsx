@@ -32,6 +32,9 @@ export default function Auth() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/`,
+          },
         });
         if (error) throw error;
         toast({ title: "Account created! Welcome to your practice." });
@@ -73,9 +76,9 @@ export default function Auth() {
           <div className="flex justify-center mb-4">
             <Sparkles className="w-12 h-12 text-primary" />
           </div>
-          <h1 className="text-3xl font-bold">Constellation</h1>
+          <h1 className="text-3xl font-bold">Contempla</h1>
           <p className="text-muted-foreground">
-            Track your meditation mastery
+            Your personal meditation constellation
           </p>
         </div>
 
