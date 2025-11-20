@@ -124,6 +124,7 @@ export type Database = {
           instructions: string
           is_favorite: boolean | null
           name: string
+          tags: string[] | null
           tradition: string
           updated_at: string | null
           user_id: string
@@ -134,6 +135,7 @@ export type Database = {
           instructions: string
           is_favorite?: boolean | null
           name: string
+          tags?: string[] | null
           tradition: string
           updated_at?: string | null
           user_id: string
@@ -144,6 +146,7 @@ export type Database = {
           instructions?: string
           is_favorite?: boolean | null
           name?: string
+          tags?: string[] | null
           tradition?: string
           updated_at?: string | null
           user_id?: string
