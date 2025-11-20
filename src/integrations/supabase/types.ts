@@ -20,6 +20,7 @@ export type Database = {
           last_decay_applied_at: string | null
           last_practiced_at: string | null
           mastery_score: number | null
+          streak: number | null
           technique_id: string
           updated_at: string | null
           user_id: string
@@ -29,6 +30,7 @@ export type Database = {
           last_decay_applied_at?: string | null
           last_practiced_at?: string | null
           mastery_score?: number | null
+          streak?: number | null
           technique_id: string
           updated_at?: string | null
           user_id: string
@@ -38,6 +40,7 @@ export type Database = {
           last_decay_applied_at?: string | null
           last_practiced_at?: string | null
           mastery_score?: number | null
+          streak?: number | null
           technique_id?: string
           updated_at?: string | null
           user_id?: string
@@ -52,11 +55,36 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string | null
+          profile_preferences: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id: string
+          name?: string | null
+          profile_preferences?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string | null
+          profile_preferences?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       sessions: {
         Row: {
           created_at: string | null
           duration_minutes: number
           id: string
+          manual_entry: boolean | null
           session_date: string | null
           technique_id: string
           user_id: string
@@ -65,6 +93,7 @@ export type Database = {
           created_at?: string | null
           duration_minutes: number
           id?: string
+          manual_entry?: boolean | null
           session_date?: string | null
           technique_id: string
           user_id: string
@@ -73,6 +102,7 @@ export type Database = {
           created_at?: string | null
           duration_minutes?: number
           id?: string
+          manual_entry?: boolean | null
           session_date?: string | null
           technique_id?: string
           user_id?: string
