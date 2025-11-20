@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { TechniqueCard } from "@/components/TechniqueCard";
+import { StarTechniqueCard } from "@/components/StarTechniqueCard";
+import { ConstellationLines } from "@/components/ConstellationLines";
 import { TutorialModal } from "@/components/TutorialModal";
 import { Plus, HelpCircle, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -22,6 +23,7 @@ interface Technique {
   tradition: string;
   is_favorite: boolean;
   mastery?: number;
+  lastPracticed?: string;
 }
 
 export default function Library() {
@@ -61,16 +63,23 @@ export default function Library() {
 
       const { data: masteryData } = await supabase
         .from("mastery_scores")
-        .select("technique_id, mastery_score");
+        .select("technique_id, mastery_score, last_practiced_at");
 
       const masteryMap = new Map(
-        masteryData?.map((m) => [m.technique_id, m.mastery_score]) || []
+        masteryData?.map((m) => [m.technique_id, { 
+          mastery: m.mastery_score, 
+          lastPracticed: m.last_practiced_at 
+        }]) || []
       );
 
-      const techniquesWithMastery = techniquesData?.map((t) => ({
-        ...t,
-        mastery: masteryMap.get(t.id) || 0,
-      })) || [];
+      const techniquesWithMastery = techniquesData?.map((t) => {
+        const masteryInfo = masteryMap.get(t.id);
+        return {
+          ...t,
+          mastery: masteryInfo?.mastery || 0,
+          lastPracticed: masteryInfo?.lastPracticed,
+        };
+      }) || [];
 
       setTechniques(techniquesWithMastery);
     } catch (error: any) {
@@ -133,6 +142,23 @@ export default function Library() {
     navigate("/auth");
   };
 
+  // Spatial positioning for traditions
+  const traditionPositions: Record<string, { x: string; y: string }> = {
+    "Zen": { x: "15%", y: "20%" },
+    "Vipassana": { x: "70%", y: "25%" },
+    "Tibetan": { x: "25%", y: "60%" },
+    "Theravada": { x: "65%", y: "65%" },
+    "Mahayana": { x: "40%", y: "35%" },
+    "Vajrayana": { x: "80%", y: "50%" },
+    "Ch'an": { x: "20%", y: "40%" },
+    "Pure Land": { x: "55%", y: "45%" },
+    "default": { x: "45%", y: "50%" },
+  };
+
+  const getPositionForTradition = (tradition: string) => {
+    return traditionPositions[tradition] || traditionPositions.default;
+  };
+
   const groupedTechniques = techniques.reduce((acc, technique) => {
     if (!acc[technique.tradition]) {
       acc[technique.tradition] = [];
@@ -187,27 +213,75 @@ export default function Library() {
             </Button>
           </div>
         ) : (
-          <div className="space-y-8">
-            {Object.entries(groupedTechniques).map(([tradition, techs]) => (
-              <section key={tradition}>
-                <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                  {tradition}
-                </h2>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {techs.map((technique) => (
-                    <TechniqueCard
-                      key={technique.id}
-                      technique={technique}
-                      onToggleFavorite={() =>
-                        handleToggleFavorite(technique.id, technique.is_favorite)
-                      }
-                      onViewDetails={() => setSelectedTechnique(technique)}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))}
+          <div className="relative min-h-[600px] w-full overflow-hidden">
+            {/* Constellation canvas */}
+            <div className="absolute inset-0">
+              {Object.entries(groupedTechniques).map(([tradition, techs]) => {
+                const basePosition = getPositionForTradition(tradition);
+                
+                return (
+                  <div key={tradition} className="absolute" style={{ 
+                    left: basePosition.x, 
+                    top: basePosition.y,
+                    transform: 'translate(-50%, -50%)'
+                  }}>
+                    {/* Tradition label */}
+                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 text-center">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                        <span className="font-semibold">{tradition}</span>
+                      </div>
+                    </div>
+
+                    {/* Stars clustered around this tradition */}
+                    <div className="relative">
+                      {/* Constellation connecting lines */}
+                      {techs.length > 1 && (
+                        <ConstellationLines 
+                          points={techs.map((technique, index) => {
+                            const angle = (index / techs.length) * 2 * Math.PI;
+                            const radius = techs.length > 1 ? 80 + (index % 3) * 40 : 0;
+                            return {
+                              x: Math.cos(angle) * radius,
+                              y: Math.sin(angle) * radius,
+                              id: technique.id,
+                            };
+                          })}
+                        />
+                      )}
+
+                      {techs.map((technique, index) => {
+                        // Create a scattered cluster effect
+                        const angle = (index / techs.length) * 2 * Math.PI;
+                        const radius = techs.length > 1 ? 80 + (index % 3) * 40 : 0;
+                        const offsetX = Math.cos(angle) * radius;
+                        const offsetY = Math.sin(angle) * radius;
+
+                        return (
+                          <div
+                            key={technique.id}
+                            className="absolute"
+                            style={{
+                              left: `${offsetX}px`,
+                              top: `${offsetY}px`,
+                              transform: 'translate(-50%, -50%)',
+                            }}
+                          >
+                            <StarTechniqueCard
+                              technique={technique}
+                              onToggleFavorite={() =>
+                                handleToggleFavorite(technique.id, technique.is_favorite)
+                              }
+                              onViewDetails={() => setSelectedTechnique(technique)}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
