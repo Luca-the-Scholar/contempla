@@ -152,9 +152,8 @@ export function TimerView() {
     setTimerState('running');
   };
 
-  const handleStop = async () => {
-    const minutesPracticed = Math.floor((initialDuration * 60 - secondsLeft) / 60);
-    await logSession(minutesPracticed, true);
+  const handleStop = () => {
+    handleReset();
   };
 
   const handleTimerComplete = async () => {
