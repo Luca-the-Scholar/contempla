@@ -2,112 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Star Constellation Theme - Dark, elegant meditation aesthetic */
-
 @layer base {
   :root {
-    /* Dark cosmic background */
-    --background: 225 45% 8%;  /* deep navy/black */
-    --foreground: 210 40% 98%; /* bright white for text */
-
-    /* Card system - slightly lighter than background with glow */
-    --card: 225 35% 12%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 225 35% 12%;
-    --popover-foreground: 210 40% 98%;
-
-    /* Primary - glowing constellation blue */
-    --primary: 210 100% 70%;  /* bright blue glow */
-    --primary-foreground: 225 45% 8%;
-
-    /* Secondary - muted cosmic purple */
-    --secondary: 250 40% 30%;
-    --secondary-foreground: 210 40% 98%;
-
-    /* Muted - darker gray for subtle elements */
-    --muted: 225 25% 18%;
-    --muted-foreground: 215 20% 65%;
-
-    /* Accent - bright cyan for highlights */
-    --accent: 185 100% 60%;
-    --accent-foreground: 225 45% 8%;
-
+    --background: 240 15% 8%;
+    --foreground: 240 5% 96%;
+    --card: 240 12% 12%;
+    --card-foreground: 240 5% 96%;
+    --popover: 240 12% 12%;
+    --popover-foreground: 240 5% 96%;
+    --primary: 270 80% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 8% 18%;
+    --secondary-foreground: 240 5% 96%;
+    --muted: 240 8% 18%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 270 60% 25%;
+    --accent-foreground: 240 5% 96%;
     --destructive: 0 85% 60%;
-    --destructive-foreground: 210 40% 98%;
-
-    /* Borders - subtle glow */
-    --border: 225 25% 20%;
-    --input: 225 25% 20%;
-    --ring: 210 100% 70%;
-
-    /* Rounded corners for constellation aesthetic */
-    --radius: 1rem;
-
-    /* Custom constellation tokens */
-    --glow-star: 210 100% 70%;
-    --glow-shadow: 0 0 20px hsl(210 100% 70% / 0.3);
-    --constellation-line: 215 30% 35%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 8% 22%;
+    --input: 240 8% 22%;
+    --ring: 270 80% 65%;
+    --radius: 0.75rem;
+    --chart-1: 270 80% 65%;
+    --chart-2: 200 70% 50%;
+    --chart-3: 320 65% 55%;
+    --chart-4: 30 80% 55%;
+    --chart-5: 160 60% 45%;
   }
 
-  /* Animations for floating stars */
-  @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
-  }
-
-  @keyframes glow {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
-  }
-
-  @keyframes shimmer {
-    0% { background-position: -1000px 0; }
-    100% { background-position: 1000px 0; }
-  }
-
-  @keyframes twinkle {
-    0%, 100% { 
-      opacity: 1; 
-      transform: scale(1);
-    }
-    50% { 
-      opacity: 0.7; 
-      transform: scale(1.05);
-    }
-  }
-
-  .animate-twinkle {
-    animation: twinkle 2s ease-in-out infinite;
-  }
-}
-
-@layer base {
   * {
     @apply border-border;
   }
 
   body {
     @apply bg-background text-foreground;
-    background-image: 
-      radial-gradient(circle at 20% 50%, hsl(210 100% 70% / 0.05) 0%, transparent 50%),
-      radial-gradient(circle at 80% 80%, hsl(185 100% 60% / 0.05) 0%, transparent 50%);
-  }
-
-  /* Glowing button effect */
-  .glow-button {
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.4);
-    transition: all 0.3s ease;
-  }
-
-  .glow-button:hover {
-    box-shadow: 0 0 30px hsl(var(--primary) / 0.6);
-    transform: translateY(-2px);
-  }
-
-  /* Constellation line effect */
-  .constellation-line {
-    background: linear-gradient(90deg, transparent, hsl(var(--constellation-line)), transparent);
   }
 }
 

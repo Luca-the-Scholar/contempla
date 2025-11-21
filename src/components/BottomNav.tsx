@@ -1,61 +1,80 @@
-import { Home, Library, BarChart3, Timer } from "lucide-react";
+import { User, Library, BarChart3, Timer, Settings } from "lucide-react";
 
 interface BottomNavProps {
-  activeView: 'home' | 'library' | 'data' | 'timer';
-  onViewChange: (view: 'home' | 'library' | 'data' | 'timer') => void;
+  activeView: 'profile' | 'library' | 'stats' | 'settings' | 'timer';
+  onViewChange: (view: 'profile' | 'library' | 'stats' | 'settings' | 'timer') => void;
 }
 
 export function BottomNav({ activeView, onViewChange }: BottomNavProps) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-lg border-t border-border z-50">
-      <div className="flex items-end justify-around px-4 py-2 max-w-2xl mx-auto">
-        <button
-          onClick={() => onViewChange('library')}
-          className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all ${
-            activeView === 'library'
-              ? 'text-primary'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Library className="w-6 h-6" />
-          <span className="text-xs font-medium">Library</span>
-        </button>
-
-        <button
-          onClick={() => onViewChange('home')}
-          className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all ${
-            activeView === 'home'
-              ? 'text-primary'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Home className="w-6 h-6" />
-          <span className="text-xs font-medium">Home</span>
-        </button>
-
-        <button
-          onClick={() => onViewChange('data')}
-          className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all ${
-            activeView === 'data'
-              ? 'text-primary'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <BarChart3 className="w-6 h-6" />
-          <span className="text-xs font-medium">Data</span>
-        </button>
-
+    <nav className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-xl border-t border-border z-50">
+      <div className="relative max-w-2xl mx-auto">
+        {/* Centered prominent timer button */}
         <button
           onClick={() => onViewChange('timer')}
-          className={`flex flex-col items-center gap-1 px-6 py-3 rounded-2xl -mb-2 transition-all shadow-lg ${
+          className={`absolute left-1/2 -translate-x-1/2 -top-8 flex flex-col items-center gap-1 px-6 py-4 rounded-2xl transition-all shadow-2xl ${
             activeView === 'timer'
               ? 'bg-primary text-primary-foreground scale-110'
-              : 'bg-primary/20 text-primary hover:bg-primary/30'
+              : 'bg-primary/90 text-primary-foreground hover:bg-primary hover:scale-105'
           }`}
         >
           <Timer className="w-7 h-7" />
           <span className="text-xs font-bold">Timer</span>
         </button>
+
+        {/* Four horizontal nav items */}
+        <div className="flex items-center justify-around px-4 py-3">
+          <button
+            onClick={() => onViewChange('profile')}
+            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all ${
+              activeView === 'profile'
+                ? 'text-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <User className="w-6 h-6" />
+            <span className="text-xs font-medium">Profile</span>
+          </button>
+
+          <button
+            onClick={() => onViewChange('library')}
+            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all ${
+              activeView === 'library'
+                ? 'text-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Library className="w-6 h-6" />
+            <span className="text-xs font-medium">Library</span>
+          </button>
+
+          {/* Spacer for centered timer */}
+          <div className="w-16" />
+
+          <button
+            onClick={() => onViewChange('stats')}
+            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all ${
+              activeView === 'stats'
+                ? 'text-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <BarChart3 className="w-6 h-6" />
+            <span className="text-xs font-medium">Stats</span>
+          </button>
+
+          <button
+            onClick={() => onViewChange('settings')}
+            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all ${
+              activeView === 'settings'
+                ? 'text-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Settings className="w-6 h-6" />
+            <span className="text-xs font-medium">Settings</span>
+          </button>
+        </div>
       </div>
     </nav>
   );

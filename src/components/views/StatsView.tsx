@@ -27,7 +27,7 @@ interface Session {
   manual_entry: boolean;
 }
 
-export function DataView() {
+export function StatsView() {
   const [techniquesData, setTechniquesData] = useState<TechniqueData[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -112,7 +112,7 @@ export function DataView() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Loading data...</p>
+        <p className="text-muted-foreground">Loading stats...</p>
       </div>
     );
   }
@@ -134,7 +134,7 @@ export function DataView() {
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 bg-background/95 backdrop-blur-lg border-b border-border z-40 px-4 py-4">
         <div className="max-w-2xl mx-auto">
-          <h1 className="text-2xl font-bold">Practice Data</h1>
+          <h1 className="text-2xl font-bold">Practice Stats</h1>
           <p className="text-sm text-muted-foreground">
             Track your progress across all techniques
           </p>

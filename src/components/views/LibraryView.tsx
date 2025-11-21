@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Star, X } from "lucide-react";
+import { Plus, Star, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 
@@ -43,7 +43,7 @@ const AVAILABLE_TAGS = [
   "Mantra",
 ];
 
-export function LibraryView({ onClose }: { onClose?: () => void }) {
+export function LibraryView() {
   const [techniques, setTechniques] = useState<Technique[]>([]);
   const [loading, setLoading] = useState(true);
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -148,6 +148,26 @@ export function LibraryView({ onClose }: { onClose?: () => void }) {
     );
   };
 
+  const handleDeleteTechnique = async (techniqueId: string) => {
+    try {
+      const { error } = await supabase
+        .from("techniques")
+        .delete()
+        .eq("id", techniqueId);
+
+      if (error) throw error;
+
+      toast({ title: "Technique deleted" });
+      fetchTechniques();
+    } catch (error: any) {
+      toast({
+        title: "Error deleting technique",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const formatLastPracticed = (lastPracticed?: string) => {
     if (!lastPracticed) return "Never practiced";
     const date = new Date(lastPracticed);
@@ -174,22 +194,15 @@ export function LibraryView({ onClose }: { onClose?: () => void }) {
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 bg-background/95 backdrop-blur-lg border-b border-border z-40 px-4 py-4">
-        <div className="flex items-center justify-between max-w-2xl mx-auto">
-          <div>
-            <h1 className="text-2xl font-bold">Library</h1>
-            <p className="text-sm text-muted-foreground">
-              {techniques.length} {techniques.length === 1 ? "technique" : "techniques"}
-            </p>
-          </div>
-          {onClose && (
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="w-5 h-5" />
-            </Button>
-          )}
+        <div className="max-w-2xl mx-auto">
+          <h1 className="text-2xl font-bold">Library</h1>
+          <p className="text-sm text-muted-foreground">
+            {techniques.length} {techniques.length === 1 ? "technique" : "techniques"}
+          </p>
         </div>
       </header>
 
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-3">
+      <div className="max-w-2xl mx-auto px-4 py-6">
         {techniques.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground mb-4">
@@ -201,35 +214,41 @@ export function LibraryView({ onClose }: { onClose?: () => void }) {
             </Button>
           </div>
         ) : (
-          <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {techniques.map((technique) => (
-              <Card key={technique.id} className="p-4 hover:bg-accent/50 transition-colors">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold truncate">{technique.name}</h3>
-                      {technique.is_favorite && (
-                        <Star className="w-4 h-4 fill-primary text-primary flex-shrink-0" />
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      {technique.tradition}
-                    </p>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      {formatLastPracticed(technique.lastPracticed)}
-                    </p>
-                    {technique.tags && technique.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {technique.tags.map((tag) => (
-                          <Badge key={tag} variant="secondary" className="text-xs">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
+              <Card key={technique.id} className="p-4 hover:bg-accent/50 transition-colors relative group">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => handleDeleteTechnique(technique.id)}
+                >
+                  <Trash2 className="w-4 h-4 text-destructive" />
+                </Button>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold truncate">{technique.name}</h3>
+                    {technique.is_favorite && (
+                      <Star className="w-4 h-4 fill-primary text-primary flex-shrink-0" />
                     )}
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <div className="text-2xl font-bold text-primary">
+                  <p className="text-sm text-muted-foreground">
+                    {technique.tradition}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatLastPracticed(technique.lastPracticed)}
+                  </p>
+                  {technique.tags && technique.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {technique.tags.map((tag) => (
+                        <Badge key={tag} variant="secondary" className="text-xs">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  <div className="text-center pt-2 border-t border-border mt-3">
+                    <div className="text-xl font-bold text-primary">
                       {technique.mastery?.toFixed(0) || 0}%
                     </div>
                     <div className="text-xs text-muted-foreground">mastery</div>
@@ -237,7 +256,7 @@ export function LibraryView({ onClose }: { onClose?: () => void }) {
                 </div>
               </Card>
             ))}
-          </>
+          </div>
         )}
       </div>
 

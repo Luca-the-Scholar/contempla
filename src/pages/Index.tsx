@@ -2,15 +2,16 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { BottomNav } from "@/components/BottomNav";
+import { ProfileView } from "@/components/views/ProfileView";
 import { LibraryView } from "@/components/views/LibraryView";
-import { HomeView } from "@/components/views/HomeView";
-import { DataView } from "@/components/views/DataView";
+import { StatsView } from "@/components/views/StatsView";
+import { SettingsView } from "@/components/views/SettingsView";
 import { TimerView } from "@/components/views/TimerView";
 
-type ViewType = 'home' | 'library' | 'data' | 'timer';
+type ViewType = 'profile' | 'library' | 'stats' | 'settings' | 'timer';
 
 const Index = () => {
-  const [activeView, setActiveView] = useState<ViewType>('home');
+  const [activeView, setActiveView] = useState<ViewType>('timer');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -26,9 +27,10 @@ const Index = () => {
 
   return (
     <>
-      {activeView === 'library' && <LibraryView onClose={() => setActiveView('home')} />}
-      {activeView === 'home' && <HomeView />}
-      {activeView === 'data' && <DataView />}
+      {activeView === 'profile' && <ProfileView />}
+      {activeView === 'library' && <LibraryView />}
+      {activeView === 'stats' && <StatsView />}
+      {activeView === 'settings' && <SettingsView />}
       {activeView === 'timer' && <TimerView />}
       
       <BottomNav activeView={activeView} onViewChange={setActiveView} />
