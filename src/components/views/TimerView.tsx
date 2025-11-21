@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import {
   Select,
@@ -470,6 +471,21 @@ export function TimerView() {
                 step={1}
                 className="py-4"
               />
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  value={duration}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 1;
+                    setDuration(Math.max(1, Math.min(120, val)));
+                  }}
+                  min={1}
+                  max={120}
+                  className="text-center"
+                  placeholder="Enter minutes"
+                />
+                <span className="text-sm text-muted-foreground whitespace-nowrap">minutes</span>
+              </div>
             </div>
           </div>
         </div>
