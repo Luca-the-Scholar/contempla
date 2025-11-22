@@ -319,12 +319,12 @@ export function TimerView() {
 
   // Setup Screen
   return <div className="min-h-screen bg-background pb-24 px-4">
-      <div className="max-w-2xl mx-auto pt-6 space-y-6">
+      <div className="max-w-2xl mx-auto pt-4 space-y-5">
         {/* Manual Entry Toggle */}
-        <div className="flex items-center justify-center gap-3">
+        <div className="flex items-center justify-center gap-2">
           <button
             onClick={() => setManualEntry(false)}
-            className={`px-4 py-2 rounded-lg transition-colors ${
+            className={`px-6 py-3 rounded-lg transition-colors min-h-[44px] ${
               !manualEntry ? 'bg-primary text-primary-foreground' : 'bg-accent text-muted-foreground'
             }`}
           >
@@ -332,7 +332,7 @@ export function TimerView() {
           </button>
           <button
             onClick={() => setManualEntry(true)}
-            className={`px-4 py-2 rounded-lg transition-colors ${
+            className={`px-6 py-3 rounded-lg transition-colors min-h-[44px] ${
               manualEntry ? 'bg-primary text-primary-foreground' : 'bg-accent text-muted-foreground'
             }`}
           >
@@ -343,22 +343,22 @@ export function TimerView() {
         {/* Technique Selector */}
         <div className="space-y-3">
           <div className="text-center">
-            <h1 className="text-2xl font-bold mb-1">{manualEntry ? "Log Session" : "Begin Practice"}</h1>
+            <h1 className="text-xl font-bold mb-1">{manualEntry ? "Log Session" : "Begin Practice"}</h1>
             <p className="text-sm text-muted-foreground">
               {manualEntry ? "Enter session details" : "Choose a technique and duration"}
             </p>
           </div>
 
-          <Card className="p-3">
+          <Card className="p-4">
             {selectedTechnique ? <div className="flex items-center justify-between gap-3">
-                <div className="flex-1 cursor-pointer" onClick={() => document.getElementById('technique-select')?.click()}>
-                  <h3 className="font-semibold">{selectedTechnique.name}</h3>
+                <div className="flex-1 cursor-pointer min-h-[44px] flex flex-col justify-center" onClick={() => document.getElementById('technique-select')?.click()}>
+                  <h3 className="font-semibold text-base">{selectedTechnique.name}</h3>
                   <p className="text-xs text-muted-foreground">{selectedTechnique.tradition}</p>
                 </div>
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                      <Info className="w-4 h-4" />
+                    <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]">
+                      <Info className="w-5 h-5" />
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
@@ -395,7 +395,7 @@ export function TimerView() {
         {/* Duration/Manual Entry Section */}
         {manualEntry ? (
           <div className="space-y-4">
-            <div className="space-y-2">
+              <div className="space-y-2">
               <label className="text-sm font-medium">Duration (minutes)</label>
               <Input
                 type="number"
@@ -403,10 +403,10 @@ export function TimerView() {
                 onChange={(e) => setManualMinutes(e.target.value)}
                 min={1}
                 placeholder="Enter minutes practiced"
-                className="text-center text-lg h-12"
+                className="text-center text-lg min-h-[52px]"
               />
             </div>
-            <Button onClick={handleManualEntry} size="lg" className="w-full h-14">
+            <Button onClick={handleManualEntry} size="lg" className="w-full min-h-[52px] text-base">
               <Check className="w-5 h-5 mr-2" />
               Log Session
             </Button>
@@ -417,9 +417,9 @@ export function TimerView() {
               <div>
                 <h3 className="font-semibold mb-3 text-center text-sm">Duration</h3>
                 <div className="grid grid-cols-4 gap-2 mb-4">
-                  {presetDurations.map(preset => <Button key={preset} variant={duration === preset ? "default" : "outline"} onClick={() => setDuration(preset)} className="h-14">
+                  {presetDurations.map(preset => <Button key={preset} variant={duration === preset ? "default" : "outline"} onClick={() => setDuration(preset)} className="min-h-[56px]">
                       <div className="text-center">
-                        <div className="text-xl font-bold">{preset}</div>
+                        <div className="text-2xl font-bold">{preset}</div>
                         <div className="text-xs opacity-80">min</div>
                       </div>
                     </Button>)}
@@ -436,7 +436,7 @@ export function TimerView() {
             </div>
 
             {/* Start Button */}
-            <Button onClick={handleStart} size="lg" className="w-full h-14">
+            <Button onClick={handleStart} size="lg" className="w-full min-h-[52px] text-base">
               <Play className="w-5 h-5 mr-2" />
               Start Session
             </Button>

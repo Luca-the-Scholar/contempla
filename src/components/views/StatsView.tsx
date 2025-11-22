@@ -139,16 +139,16 @@ export function StatsView() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <header className="sticky top-0 bg-background/95 backdrop-blur-lg border-b border-border z-40 px-4 py-4">
+      <header className="sticky top-0 bg-background/95 backdrop-blur-lg border-b border-border z-40 px-4 py-3">
         <div className="max-w-2xl mx-auto">
-          <h1 className="text-2xl font-bold">Stats</h1>
+          <h1 className="text-xl font-bold">Stats</h1>
           <p className="text-sm text-muted-foreground">
             Track your progress across all techniques
           </p>
         </div>
       </header>
 
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
         {/* Summary Stats */}
         <Card className="p-6 bg-gradient-to-br from-primary/10 to-primary/5">
           <h2 className="text-lg font-semibold mb-4">Overall Progress</h2>
@@ -172,12 +172,12 @@ export function StatsView() {
 
         {/* Per-Technique Stats */}
         <div>
-          <h2 className="text-lg font-semibold mb-3 px-1">By Technique</h2>
-          <div className="space-y-4">
+          <h2 className="text-base font-semibold mb-2 px-1">By Technique</h2>
+          <div className="space-y-3">
             {techniquesData.map((technique) => (
           <Collapsible key={technique.id}>
             <Card className="overflow-hidden">
-              <CollapsibleTrigger className="w-full p-4 hover:bg-accent/50 transition-colors">
+              <CollapsibleTrigger className="w-full p-4 hover:bg-accent/50 transition-colors min-h-[60px]">
                 <div className="space-y-3">
                   <div className="flex items-start justify-between">
                     <div className="text-left">
