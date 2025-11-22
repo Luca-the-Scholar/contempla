@@ -203,41 +203,41 @@ export function LibraryView() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <header className="sticky top-0 bg-background/95 backdrop-blur-lg border-b border-border z-40 px-4 py-4">
+      <header className="sticky top-0 bg-background/95 backdrop-blur-lg border-b border-border z-40 px-4 py-3">
         <div className="max-w-2xl mx-auto">
-          <h1 className="text-2xl font-bold">Library</h1>
+          <h1 className="text-xl font-bold">Library</h1>
           <p className="text-sm text-muted-foreground">
             {techniques.length} {techniques.length === 1 ? "technique" : "techniques"}
           </p>
         </div>
       </header>
 
-      <div className="max-w-2xl mx-auto px-4 py-6">
+      <div className="max-w-2xl mx-auto px-4 py-4">
         {techniques.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground mb-4">
               Your library is empty. Add your first technique.
             </p>
-            <Button onClick={() => setAddModalOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
+            <Button onClick={() => setAddModalOpen(true)} size="lg" className="min-h-[48px]">
+              <Plus className="w-5 h-5 mr-2" />
               Add Technique
             </Button>
           </div>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-6">
             {traditions.map((tradition) => (
               <div key={tradition}>
-                <h2 className="text-lg font-semibold mb-3 px-1">{tradition}</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <h2 className="text-base font-semibold mb-2 px-1">{tradition}</h2>
+                <div className="grid grid-cols-1 gap-3">
                   {groupedByTradition[tradition].map((technique) => (
                     <Card key={technique.id} className="p-4 hover:bg-accent/50 transition-colors relative group">
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity min-h-[40px] min-w-[40px]"
                         onClick={() => handleDeleteTechnique(technique.id)}
                       >
-                        <Trash2 className="w-4 h-4 text-destructive" />
+                        <Trash2 className="w-5 h-5 text-destructive" />
                       </Button>
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
@@ -276,7 +276,7 @@ export function LibraryView() {
 
       <Button
         onClick={() => setAddModalOpen(true)}
-        className="fixed bottom-24 right-4 w-14 h-14 rounded-full shadow-lg z-40"
+        className="fixed bottom-24 right-4 min-w-[56px] min-h-[56px] rounded-full shadow-lg z-40"
         size="icon"
       >
         <Plus className="w-6 h-6" />
@@ -328,7 +328,7 @@ export function LibraryView() {
                 ))}
               </div>
             </div>
-            <Button type="submit" className="w-full">
+            <Button type="submit" className="w-full min-h-[48px] text-base">
               Add Technique
             </Button>
           </form>

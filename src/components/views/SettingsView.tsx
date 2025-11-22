@@ -107,13 +107,13 @@ export function SettingsView() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <header className="sticky top-0 bg-background/95 backdrop-blur-lg border-b border-border z-40 px-4 py-4">
+      <header className="sticky top-0 bg-background/95 backdrop-blur-lg border-b border-border z-40 px-4 py-3">
         <div className="max-w-2xl mx-auto">
-          <h1 className="text-2xl font-bold">Settings</h1>
+          <h1 className="text-xl font-bold">Settings</h1>
         </div>
       </header>
 
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
         {/* Profile Settings */}
         <Card className="p-6">
           <div className="flex items-center gap-3 mb-4">
@@ -129,8 +129,9 @@ export function SettingsView() {
                   value={userName}
                   onChange={(e) => setUserName(e.target.value)}
                   placeholder="Enter your name"
+                  className="min-h-[44px]"
                 />
-                <Button onClick={handleSaveName} disabled={saving}>
+                <Button onClick={handleSaveName} disabled={saving} className="min-h-[44px] px-6">
                   Save
                 </Button>
               </div>
@@ -182,7 +183,7 @@ export function SettingsView() {
         <Button
           onClick={handleSignOut}
           variant="destructive"
-          className="w-full"
+          className="w-full min-h-[48px]"
           size="lg"
         >
           <LogOut className="w-5 h-5 mr-2" />
