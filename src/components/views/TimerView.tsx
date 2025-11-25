@@ -355,23 +355,12 @@ export function TimerView() {
               <label className="text-sm font-medium mb-2 block">Select Technique</label>
               <Select value={selectedTechniqueId} onValueChange={setSelectedTechniqueId}>
                 <SelectTrigger className="min-h-[52px] text-base focus-visible:ring-2 focus-visible:ring-ring">
-                  <SelectValue>
-                    {selectedTechnique && (
-                      <div className="flex flex-col items-start w-full overflow-visible">
-                        <div className="font-semibold truncate-none w-full">{selectedTechnique.name}</div>
-                        <div className="text-xs text-muted-foreground truncate-none">{selectedTechnique.tradition}</div>
-                      </div>
-                    )}
-                    {!selectedTechnique && "Choose a technique"}
-                  </SelectValue>
+                  <SelectValue placeholder="Choose a technique" />
                 </SelectTrigger>
                 <SelectContent className="bg-popover z-50 max-h-[300px]">
                   {techniques.map(technique => (
                     <SelectItem key={technique.id} value={technique.id} className="text-base py-3 cursor-pointer">
-                      <div>
-                        <div className="font-semibold">{technique.name}</div>
-                        <div className="text-xs text-muted-foreground">{technique.tradition}</div>
-                      </div>
+                      {technique.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
