@@ -7,9 +7,8 @@ import { LibraryView } from "@/components/views/LibraryView";
 import { StatsView } from "@/components/views/StatsView";
 import { SettingsView } from "@/components/views/SettingsView";
 import { TimerView } from "@/components/views/TimerView";
-import { HealthView } from "@/components/views/HealthView";
 
-type ViewType = 'community' | 'library' | 'stats' | 'settings' | 'timer' | 'health';
+type ViewType = 'community' | 'library' | 'stats' | 'settings' | 'timer';
 
 const Index = () => {
   const [activeView, setActiveView] = useState<ViewType>('timer');
@@ -31,7 +30,6 @@ const Index = () => {
       {activeView === 'community' && <CommunityView />}
       {activeView === 'library' && <LibraryView />}
       {activeView === 'stats' && <StatsView />}
-      {activeView === 'health' && <HealthView />}
       {activeView === 'settings' && <SettingsView />}
       {activeView === 'timer' && <TimerView />}
       
