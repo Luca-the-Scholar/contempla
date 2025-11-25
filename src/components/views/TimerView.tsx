@@ -244,14 +244,14 @@ export function TimerView() {
                 <span className="text-primary font-semibold">+{masteryGain.toFixed(1)}%</span>
               </div>
               <div className="flex items-center gap-3">
-                <div className="flex-1 text-center">
-                  <div className="text-2xl font-bold">{masteryBefore.toFixed(0)}%</div>
-                  <div className="text-xs text-muted-foreground">Before</div>
-                </div>
+                                 <div className="flex-1 text-center">
+                                   <div className="text-2xl font-bold">{masteryBefore.toFixed(0)}%</div>
+                                   <div className="text-sm text-muted-foreground">Before</div>
+                                 </div>
                 <div className="text-muted-foreground">→</div>
                 <div className="flex-1 text-center">
-                  <div className="text-2xl font-bold text-primary">{masteryAfter.toFixed(0)}%</div>
-                  <div className="text-xs text-muted-foreground">After</div>
+                                   <div className="text-2xl font-bold text-primary">{masteryAfter.toFixed(0)}%</div>
+                                   <div className="text-sm text-muted-foreground">After</div>
                 </div>
               </div>
             </div>
@@ -376,7 +376,7 @@ export function TimerView() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <h3 className="font-semibold text-base">Instructions</h3>
-                      <span className="text-xs text-muted-foreground">Tap to view</span>
+                      <span className="text-sm text-muted-foreground">Tap to view</span>
                     </div>
                     <p className="text-sm text-muted-foreground line-clamp-2">
                       {selectedTechnique.instructions}
@@ -441,16 +441,16 @@ export function TimerView() {
                 <h3 className="font-semibold mb-3 text-center text-sm">Duration</h3>
                 <div className="grid grid-cols-4 gap-2 mb-4">
                   {presetDurations.map(preset => <Button key={preset} variant={duration === preset ? "default" : "outline"} onClick={() => setDuration(preset)} className="min-h-[56px]">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold">{preset}</div>
-                        <div className="text-xs opacity-80">min</div>
-                      </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{preset}</div>
+                  <div className="text-sm opacity-80">min</div>
+                </div>
                     </Button>)}
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Custom</span>
+                    <span className="text-sm text-muted-foreground">Custom</span>
                     <span className="text-sm font-semibold">{duration} min</span>
                   </div>
                   <Slider value={[duration]} onValueChange={vals => setDuration(vals[0])} min={1} max={120} step={1} className="py-2" />

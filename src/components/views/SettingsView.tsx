@@ -270,7 +270,7 @@ export function SettingsView() {
                   <SelectItem value="private">Private - Only you</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-sm text-muted-foreground mt-1">
                 Control who can see your meditation profile and stats
               </p>
             </div>
@@ -278,7 +278,7 @@ export function SettingsView() {
             <div className="flex items-center justify-between">
               <div className="flex-1 pr-4">
                 <Label>Show Practice History</Label>
-                <p className="text-xs text-muted-foreground">Allow others to see your detailed practice history</p>
+                <p className="text-sm text-muted-foreground">Allow others to see your detailed practice history</p>
               </div>
               <Switch
                 checked={showPracticeHistory}
@@ -293,7 +293,7 @@ export function SettingsView() {
             <div className="flex items-center justify-between">
               <div className="flex-1 pr-4">
                 <Label>Show Streak to Friends</Label>
-                <p className="text-xs text-muted-foreground">Let friends see your current meditation streak</p>
+                <p className="text-sm text-muted-foreground">Let friends see your current meditation streak</p>
               </div>
               <Switch
                 checked={showStreakToFriends}
@@ -308,7 +308,7 @@ export function SettingsView() {
             <div className="flex items-center justify-between">
               <div className="flex-1 pr-4">
                 <Label>Show Techniques to Friends</Label>
-                <p className="text-xs text-muted-foreground">Allow friends to see which techniques you practice</p>
+                <p className="text-sm text-muted-foreground">Allow friends to see which techniques you practice</p>
               </div>
               <Switch
                 checked={showTechniquesToFriends}
@@ -332,7 +332,7 @@ export function SettingsView() {
           <div className="flex items-center justify-between">
             <div className="flex-1 pr-4">
               <Label>Share Health Data for Research</Label>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-sm text-muted-foreground mt-1">
                 Contribute anonymized health and meditation data to help research on meditation benefits. 
                 Opting out means your data stays private and won't be used for analytics or research purposes.
               </p>

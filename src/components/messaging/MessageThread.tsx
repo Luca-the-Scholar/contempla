@@ -145,7 +145,7 @@ export function MessageThread({ conversationId, friendName, friendId, onBack }: 
         </Button>
         <div>
           <h3 className="font-semibold">{friendName}</h3>
-          <p className="text-xs text-muted-foreground">Direct Message</p>
+          <p className="text-sm text-muted-foreground">Direct Message</p>
         </div>
       </div>
 
@@ -166,7 +166,7 @@ export function MessageThread({ conversationId, friendName, friendId, onBack }: 
                   }`}
                 >
                   <p className="text-sm">{message.content}</p>
-                  <p className={`text-xs mt-1 ${isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                  <p className={`text-sm mt-1 ${isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                     {formatTime(message.created_at)}
                   </p>
                 </div>

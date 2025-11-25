@@ -288,20 +288,20 @@ export function StatsView() {
             {/* Summary Stats */}
             <Card className="p-6 bg-gradient-to-br from-primary/10 to-primary/5">
               <h2 className="text-lg font-semibold mb-4">Overall Progress</h2>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-primary">
                     {totalHours}h {remainingMinutes}m
                   </div>
-                  <div className="text-xs text-muted-foreground">Total Time</div>
+                  <div className="text-sm text-muted-foreground">Total Time</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-primary">{totalSessions}</div>
-                  <div className="text-xs text-muted-foreground">Sessions</div>
+                  <div className="text-sm text-muted-foreground">Sessions</div>
                 </div>
-                <div className="text-center">
+                <div className="text-center col-span-2 sm:col-span-1">
                   <div className="text-2xl font-bold text-primary">{avgSessionMinutes}m</div>
-                  <div className="text-xs text-muted-foreground">Avg Session</div>
+                  <div className="text-sm text-muted-foreground">Avg Session</div>
                 </div>
               </div>
             </Card>
@@ -354,7 +354,7 @@ export function StatsView() {
                               <div className="text-2xl font-bold text-primary">
                                 {formatTime(technique.totalMinutes)}
                               </div>
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-sm text-muted-foreground">
                                 Total Time
                               </div>
                             </div>
@@ -365,7 +365,7 @@ export function StatsView() {
                                   {technique.streak}
                                 </span>
                               </div>
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-sm text-muted-foreground">
                                 Day Streak
                               </div>
                             </div>
@@ -393,12 +393,12 @@ export function StatsView() {
                                     <div className="text-sm font-medium">
                                       {formatTime(session.duration_minutes)}
                                     </div>
-                                    <div className="text-xs text-muted-foreground">
+                                    <div className="text-sm text-muted-foreground">
                                       {formatDate(session.session_date)}
                                     </div>
                                   </div>
                                   {session.manual_entry && (
-                                    <span className="text-xs text-muted-foreground italic">
+                                    <span className="text-sm text-muted-foreground italic">
                                       Manual
                                     </span>
                                   )}
@@ -429,7 +429,7 @@ export function StatsView() {
                   Track correlations between your meditation practice and health metrics like sleep, heart rate, and mood.
                 </p>
                 
-                <Badge variant="outline" className="mt-2">
+                <Badge variant="outline" className="mt-2 text-sm">
                   <Info className="h-3 w-3 mr-1" />
                   Demo Mode - Uses simulated data only
                 </Badge>
@@ -449,7 +449,7 @@ export function StatsView() {
                       <div className="flex-1">
                         <h3 className="font-semibold mb-2">Correlation Insight</h3>
                         <p className="text-sm text-muted-foreground mb-3">{correlation.insight}</p>
-                        <div className="grid grid-cols-3 gap-3 text-sm">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
                           <div>
                             <div className="text-muted-foreground">Avg Meditation</div>
                             <div className="font-medium">{correlation.avgMeditation} min/day</div>
@@ -458,7 +458,7 @@ export function StatsView() {
                             <div className="text-muted-foreground">Avg Stress</div>
                             <div className="font-medium">{correlation.avgStress}/5</div>
                           </div>
-                          <div>
+                          <div className="col-span-2 sm:col-span-1">
                             <div className="text-muted-foreground">Avg Mood</div>
                             <div className="font-medium">{correlation.avgMood}/5</div>
                           </div>
@@ -476,9 +476,10 @@ export function StatsView() {
                       <XAxis 
                         dataKey="date" 
                         tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        className="text-xs"
+                        className="text-sm"
+                        tick={{ fontSize: 12 }}
                       />
-                      <YAxis className="text-xs" />
+                      <YAxis className="text-sm" tick={{ fontSize: 12 }} />
                       <Tooltip />
                       <Legend />
                       <Line type="monotone" dataKey="meditation_minutes" stroke="#2F6FAF" name="Meditation (min)" strokeWidth={2} />
@@ -495,9 +496,10 @@ export function StatsView() {
                       <XAxis 
                         dataKey="date" 
                         tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        className="text-xs"
+                        className="text-sm"
+                        tick={{ fontSize: 12 }}
                       />
-                      <YAxis className="text-xs" />
+                      <YAxis className="text-sm" tick={{ fontSize: 12 }} />
                       <Tooltip />
                       <Legend />
                       <Line type="monotone" dataKey="mood_score" stroke="#2F6FAF" name="Mood Score" strokeWidth={2} />
@@ -585,7 +587,7 @@ export function StatsView() {
               </li>
             </ul>
             
-            <p className="text-xs text-muted-foreground pt-2">
+            <p className="text-sm text-muted-foreground pt-2">
               In a production app, this would request actual Apple Health permissions. 
               This demo uses generated data to show the UX flow.
             </p>

@@ -359,12 +359,12 @@ export function CommunityView() {
                         </Button>
                       </div>
 
-                       <div className="grid grid-cols-3 gap-3 pt-3 border-t border-border">
+                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 border-t border-border">
                         <div className="text-center">
                           <div className="text-xl font-bold text-primary">
                             {formatTime(stats.totalMinutes)}
                           </div>
-                          <div className="text-xs text-muted-foreground">Total Time</div>
+                          <div className="text-sm text-muted-foreground">Total Time</div>
                         </div>
                         <div className="text-center">
                           <div className="flex items-center justify-center gap-1">
@@ -373,13 +373,13 @@ export function CommunityView() {
                               {stats.currentStreak}
                             </span>
                           </div>
-                          <div className="text-xs text-muted-foreground">Day Streak</div>
+                          <div className="text-sm text-muted-foreground">Day Streak</div>
                         </div>
-                        <div className="text-center">
+                        <div className="text-center col-span-2 sm:col-span-1">
                           <div className="text-xl font-bold text-primary">
                             {stats.totalSessions}
                           </div>
-                          <div className="text-xs text-muted-foreground">Sessions</div>
+                          <div className="text-sm text-muted-foreground">Sessions</div>
                         </div>
                       </div>
 
