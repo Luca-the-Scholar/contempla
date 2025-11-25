@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -276,16 +277,20 @@ export function LibraryView() {
 
       <Button
         onClick={() => setAddModalOpen(true)}
-        className="fixed bottom-24 right-4 min-w-[56px] min-h-[56px] rounded-full shadow-lg z-40"
+        className="fixed bottom-24 right-4 min-w-[56px] min-h-[56px] rounded-full shadow-lg z-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         size="icon"
+        aria-label="Add new technique"
       >
         <Plus className="w-6 h-6" />
       </Button>
 
       <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Technique</DialogTitle>
+            <DialogDescription>
+              Create a new meditation technique to add to your library
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleAddTechnique} className="space-y-4">
             <Input

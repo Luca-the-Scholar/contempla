@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Play, Pause, Square, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 interface Technique {
@@ -354,12 +354,12 @@ export function TimerView() {
             <div>
               <label className="text-sm font-medium mb-2 block">Select Technique</label>
               <Select value={selectedTechniqueId} onValueChange={setSelectedTechniqueId}>
-                <SelectTrigger className="min-h-[52px] text-base">
+                <SelectTrigger className="min-h-[52px] text-base focus-visible:ring-2 focus-visible:ring-ring">
                   <SelectValue placeholder="Choose a technique" />
                 </SelectTrigger>
-                <SelectContent className="bg-popover">
+                <SelectContent className="bg-popover z-50 max-h-[300px]">
                   {techniques.map(technique => (
-                    <SelectItem key={technique.id} value={technique.id} className="text-base py-3">
+                    <SelectItem key={technique.id} value={technique.id} className="text-base py-3 cursor-pointer">
                       <div>
                         <div className="font-semibold">{technique.name}</div>
                         <div className="text-xs text-muted-foreground">{technique.tradition}</div>
@@ -393,11 +393,14 @@ export function TimerView() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <DialogTitle className="text-xl">{selectedTechnique.name}</DialogTitle>
-                          <p className="text-sm text-muted-foreground mt-1">{selectedTechnique.tradition}</p>
+                          <DialogDescription className="text-sm text-muted-foreground mt-1">
+                            {selectedTechnique.tradition}
+                          </DialogDescription>
                         </div>
                         <button
                           onClick={() => setInstructionsModalOpen(false)}
                           className="rounded-full p-2 hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          aria-label="Close instructions"
                         >
                           <X className="w-5 h-5" />
                         </button>

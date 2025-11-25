@@ -30,6 +30,7 @@ interface Session {
 export function StatsView() {
   const [techniquesData, setTechniquesData] = useState<TechniqueData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [openTechniques, setOpenTechniques] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -175,9 +176,23 @@ export function StatsView() {
           <h2 className="text-base font-semibold mb-2 px-1">By Technique</h2>
           <div className="space-y-3">
             {techniquesData.map((technique) => (
-          <Collapsible key={technique.id}>
+          <Collapsible 
+            key={technique.id}
+            open={openTechniques.has(technique.id)}
+            onOpenChange={(isOpen) => {
+              setOpenTechniques(prev => {
+                const next = new Set(prev);
+                if (isOpen) {
+                  next.add(technique.id);
+                } else {
+                  next.delete(technique.id);
+                }
+                return next;
+              });
+            }}
+          >
             <Card className="overflow-hidden">
-              <CollapsibleTrigger className="w-full p-4 hover:bg-accent/50 transition-colors min-h-[60px]">
+              <CollapsibleTrigger className="w-full p-4 hover:bg-accent/50 transition-colors min-h-[60px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
                 <div className="space-y-3">
                   <div className="flex items-start justify-between">
                     <div className="text-left">
@@ -186,7 +201,7 @@ export function StatsView() {
                         {technique.tradition}
                       </p>
                     </div>
-                    <ChevronDown className="w-5 h-5 text-muted-foreground transition-transform" />
+                    <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform ${openTechniques.has(technique.id) ? 'rotate-180' : ''}`} />
                   </div>
 
                   <div className="space-y-2">
