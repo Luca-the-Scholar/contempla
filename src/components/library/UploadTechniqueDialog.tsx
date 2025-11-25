@@ -30,10 +30,18 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
   });
 
   const handleSubmit = async () => {
-    if (!formData.name || !formData.tradition || !formData.instructions) {
+    // Validate all required fields
+    const filledTexts = formData.relevant_texts.filter(t => t.trim());
+    const filledLinks = formData.external_links.filter(l => l.trim());
+    const filledTags = formData.tags.filter(t => t.trim());
+
+    if (!formData.name || !formData.tradition || !formData.instructions ||
+        !formData.origin_story || !formData.worldview_context ||
+        !formData.lineage_info || !formData.home_region ||
+        filledTexts.length === 0 || filledLinks.length === 0 || filledTags.length === 0) {
       toast({
         title: "Missing required fields",
-        description: "Please fill in name, tradition, and instructions.",
+        description: "Please fill in all required fields including at least one text, link, and tag.",
         variant: "destructive",
       });
       return;
@@ -50,13 +58,13 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
           name: formData.name,
           tradition: formData.tradition,
           instructions: formData.instructions,
-          origin_story: formData.origin_story || null,
-          worldview_context: formData.worldview_context || null,
-          lineage_info: formData.lineage_info || null,
-          home_region: formData.home_region || null,
-          relevant_texts: formData.relevant_texts.filter(t => t.trim()),
-          external_links: formData.external_links.filter(l => l.trim()),
-          tags: formData.tags.filter(t => t.trim()),
+          origin_story: formData.origin_story,
+          worldview_context: formData.worldview_context,
+          lineage_info: formData.lineage_info,
+          home_region: formData.home_region,
+          relevant_texts: filledTexts,
+          external_links: filledLinks,
+          tags: filledTags,
           submitted_by: user.id,
           approval_status: 'pending'
         });
@@ -134,6 +142,7 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
                 value={formData.name}
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                 placeholder="e.g., Loving-Kindness Meditation"
+                required
               />
             </div>
 
@@ -144,6 +153,7 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
                 value={formData.tradition}
                 onChange={(e) => setFormData(prev => ({ ...prev, tradition: e.target.value }))}
                 placeholder="e.g., Theravada Buddhism, Secular Mindfulness"
+                required
               />
             </div>
 
@@ -155,61 +165,67 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
                 onChange={(e) => setFormData(prev => ({ ...prev, instructions: e.target.value }))}
                 placeholder="Provide detailed, step-by-step instructions..."
                 rows={6}
+                required
               />
             </div>
 
             <div>
-              <Label htmlFor="origin">Origin Story</Label>
+              <Label htmlFor="origin">Origin Story *</Label>
               <Textarea
                 id="origin"
                 value={formData.origin_story}
                 onChange={(e) => setFormData(prev => ({ ...prev, origin_story: e.target.value }))}
                 placeholder="How did you learn this technique? What inspired you?"
                 rows={3}
+                required
               />
             </div>
 
             <div>
-              <Label htmlFor="worldview">Cultural / Religious Context</Label>
+              <Label htmlFor="worldview">Cultural / Religious Context *</Label>
               <Textarea
                 id="worldview"
                 value={formData.worldview_context}
                 onChange={(e) => setFormData(prev => ({ ...prev, worldview_context: e.target.value }))}
                 placeholder="Describe the worldview or influences behind this technique..."
                 rows={3}
+                required
               />
             </div>
 
             <div>
-              <Label htmlFor="lineage">Lineage Information</Label>
+              <Label htmlFor="lineage">Lineage Information *</Label>
               <Textarea
                 id="lineage"
                 value={formData.lineage_info}
                 onChange={(e) => setFormData(prev => ({ ...prev, lineage_info: e.target.value }))}
                 placeholder="Any relevant teachers or lineage information..."
                 rows={2}
+                required
               />
             </div>
 
             <div>
-              <Label htmlFor="region">Home Region</Label>
+              <Label htmlFor="region">Home Region *</Label>
               <Input
                 id="region"
                 value={formData.home_region}
                 onChange={(e) => setFormData(prev => ({ ...prev, home_region: e.target.value }))}
                 placeholder="e.g., Southeast Asia, California"
+                required
               />
             </div>
 
             <div>
-              <Label>Relevant Texts (up to 3)</Label>
+              <Label>Relevant Texts (at least 1, up to 3) *</Label>
               {formData.relevant_texts.map((text, idx) => (
                 <div key={idx} className="flex gap-2 mt-2">
-                  <Input
-                    value={text}
-                    onChange={(e) => updateArrayField('relevant_texts', idx, e.target.value)}
-                    placeholder="e.g., The Heart of Buddhist Meditation"
-                  />
+                <Input
+                  value={text}
+                  onChange={(e) => updateArrayField('relevant_texts', idx, e.target.value)}
+                  placeholder="e.g., The Heart of Buddhist Meditation"
+                  required
+                />
                   {formData.relevant_texts.length > 1 && (
                     <Button
                       variant="ghost"
@@ -235,15 +251,16 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
             </div>
 
             <div>
-              <Label>External Links (up to 3)</Label>
+              <Label>External Links (at least 1, up to 3) *</Label>
               {formData.external_links.map((link, idx) => (
                 <div key={idx} className="flex gap-2 mt-2">
-                  <Input
-                    value={link}
-                    onChange={(e) => updateArrayField('external_links', idx, e.target.value)}
-                    placeholder="https://..."
-                    type="url"
-                  />
+                <Input
+                  value={link}
+                  onChange={(e) => updateArrayField('external_links', idx, e.target.value)}
+                  placeholder="https://..."
+                  type="url"
+                  required
+                />
                   {formData.external_links.length > 1 && (
                     <Button
                       variant="ghost"
@@ -269,14 +286,15 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
             </div>
 
             <div>
-              <Label>Tags</Label>
+              <Label>Tags (at least 1) *</Label>
               {formData.tags.map((tag, idx) => (
                 <div key={idx} className="flex gap-2 mt-2">
-                  <Input
-                    value={tag}
-                    onChange={(e) => updateArrayField('tags', idx, e.target.value)}
-                    placeholder="e.g., compassion, breath"
-                  />
+                <Input
+                  value={tag}
+                  onChange={(e) => updateArrayField('tags', idx, e.target.value)}
+                  placeholder="e.g., compassion, breath"
+                  required
+                />
                   {formData.tags.length > 1 && (
                     <Button
                       variant="ghost"
