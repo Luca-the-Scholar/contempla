@@ -9,66 +9,66 @@ export function BottomNav({ activeView, onViewChange }: BottomNavProps) {
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-xl border-t border-border z-50">
       <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-around px-4 py-3 gap-2">
+        <div className="flex items-center justify-between px-2 py-2 gap-1">
           <button
             onClick={() => onViewChange('community')}
-            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+            className={`flex flex-col items-center gap-0.5 px-2 py-2 rounded-lg transition-all min-w-[60px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
               activeView === 'community'
                 ? 'text-primary'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            <Users className="w-6 h-6" />
-            <span className="text-xs font-medium">Community</span>
+            <Users className="w-5 h-5" />
+            <span className="text-[10px] font-medium leading-tight">Community</span>
           </button>
 
           <button
             onClick={() => onViewChange('library')}
-            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+            className={`flex flex-col items-center gap-0.5 px-2 py-2 rounded-lg transition-all min-w-[60px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
               activeView === 'library'
                 ? 'text-primary'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            <Library className="w-6 h-6" />
-            <span className="text-xs font-medium">Library</span>
+            <Library className="w-5 h-5" />
+            <span className="text-[10px] font-medium leading-tight">Library</span>
           </button>
 
           {/* Emphasized timer button */}
           <button
             onClick={() => onViewChange('timer')}
-            className={`flex flex-col items-center gap-1 px-6 py-3 rounded-2xl transition-all shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+            className={`flex flex-col items-center gap-0.5 px-3 py-2.5 rounded-2xl transition-all shadow-lg min-w-[70px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
               activeView === 'timer'
                 ? 'bg-primary text-primary-foreground scale-105'
                 : 'bg-primary/90 text-primary-foreground hover:bg-primary hover:scale-[1.02]'
             }`}
           >
-            <Timer className="w-7 h-7" />
-            <span className="text-xs font-bold">Timer</span>
+            <Timer className="w-6 h-6" />
+            <span className="text-[11px] font-bold leading-tight">Timer</span>
           </button>
 
           <button
             onClick={() => onViewChange('stats')}
-            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+            className={`flex flex-col items-center gap-0.5 px-2 py-2 rounded-lg transition-all min-w-[60px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
               activeView === 'stats'
                 ? 'text-primary'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            <BarChart3 className="w-6 h-6" />
-            <span className="text-xs font-medium">Stats</span>
+            <BarChart3 className="w-5 h-5" />
+            <span className="text-[10px] font-medium leading-tight">Stats</span>
           </button>
 
           <button
             onClick={() => onViewChange('settings')}
-            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+            className={`flex flex-col items-center gap-0.5 px-2 py-2 rounded-lg transition-all min-w-[60px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
               activeView === 'settings'
                 ? 'text-primary'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            <Settings className="w-6 h-6" />
-            <span className="text-xs font-medium">Settings</span>
+            <Settings className="w-5 h-5" />
+            <span className="text-[10px] font-medium leading-tight">Settings</span>
           </button>
         </div>
       </div>
