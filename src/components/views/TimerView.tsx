@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Play, Pause, Square, Check, Info } from "lucide-react";
+import { Play, Pause, Square, Check, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 interface Technique {
   id: string;
@@ -31,6 +32,7 @@ export function TimerView() {
   const [masteryAfter, setMasteryAfter] = useState(0);
   const [manualEntry, setManualEntry] = useState(false);
   const [manualMinutes, setManualMinutes] = useState("");
+  const [instructionsOpen, setInstructionsOpen] = useState(false);
   const presetDurations = [5, 15, 30, 60];
   useEffect(() => {
     fetchTechniques();
@@ -349,47 +351,43 @@ export function TimerView() {
             </p>
           </div>
 
-          <Card className="p-4">
-            {selectedTechnique ? <div className="flex items-center justify-between gap-3">
-                <div className="flex-1 cursor-pointer min-h-[44px] flex flex-col justify-center" onClick={() => document.getElementById('technique-select')?.click()}>
-                  <h3 className="font-semibold text-base">{selectedTechnique.name}</h3>
-                  <p className="text-xs text-muted-foreground">{selectedTechnique.tradition}</p>
-                </div>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]">
-                      <Info className="w-5 h-5" />
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>{selectedTechnique.name}</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-3">
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Select Technique</label>
+              <Select value={selectedTechniqueId} onValueChange={setSelectedTechniqueId}>
+                <SelectTrigger className="min-h-[52px] text-base">
+                  <SelectValue placeholder="Choose a technique" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  {techniques.map(technique => (
+                    <SelectItem key={technique.id} value={technique.id} className="text-base py-3">
                       <div>
-                        <p className="text-sm font-medium text-muted-foreground mb-1">Tradition</p>
-                        <p className="text-sm">{selectedTechnique.tradition}</p>
+                        <div className="font-semibold">{technique.name}</div>
+                        <div className="text-xs text-muted-foreground">{technique.tradition}</div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground mb-1">Instructions</p>
-                        <p className="text-sm">{selectedTechnique.instructions}</p>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </div> : <p className="text-muted-foreground text-sm">Select a technique</p>}
-          </Card>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <Select value={selectedTechniqueId} onValueChange={setSelectedTechniqueId}>
-            <SelectTrigger id="technique-select" className="sr-only">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {techniques.map(technique => <SelectItem key={technique.id} value={technique.id}>
-                  {technique.name}
-                </SelectItem>)}
-            </SelectContent>
-          </Select>
+            {selectedTechnique && (
+              <Collapsible open={instructionsOpen} onOpenChange={setInstructionsOpen}>
+                <Card className="p-4">
+                  <CollapsibleTrigger className="flex items-center justify-between w-full min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md">
+                    <div className="text-left">
+                      <h3 className="font-semibold text-base">Instructions</h3>
+                      <p className="text-xs text-muted-foreground">{selectedTechnique.tradition}</p>
+                    </div>
+                    <ChevronDown className={`w-5 h-5 transition-transform ${instructionsOpen ? 'rotate-180' : ''}`} />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-3">
+                    <p className="text-sm leading-relaxed">{selectedTechnique.instructions}</p>
+                  </CollapsibleContent>
+                </Card>
+              </Collapsible>
+            )}
+          </div>
         </div>
 
         {/* Duration/Manual Entry Section */}
