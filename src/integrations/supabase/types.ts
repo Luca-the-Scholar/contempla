@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      conversations: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_message_at: string | null
+          participant_one: string
+          participant_two: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_message_at?: string | null
+          participant_one: string
+          participant_two: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_message_at?: string | null
+          participant_one?: string
+          participant_two?: string
+        }
+        Relationships: []
+      }
       friendships: {
         Row: {
           created_at: string
@@ -38,6 +62,66 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      global_techniques: {
+        Row: {
+          approval_status: string
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string | null
+          external_links: string[] | null
+          home_region: string | null
+          id: string
+          instructions: string
+          lineage_info: string | null
+          name: string
+          origin_story: string | null
+          relevant_texts: string[] | null
+          submitted_by: string
+          tags: string[] | null
+          tradition: string
+          updated_at: string | null
+          worldview_context: string | null
+        }
+        Insert: {
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          external_links?: string[] | null
+          home_region?: string | null
+          id?: string
+          instructions: string
+          lineage_info?: string | null
+          name: string
+          origin_story?: string | null
+          relevant_texts?: string[] | null
+          submitted_by: string
+          tags?: string[] | null
+          tradition: string
+          updated_at?: string | null
+          worldview_context?: string | null
+        }
+        Update: {
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          external_links?: string[] | null
+          home_region?: string | null
+          id?: string
+          instructions?: string
+          lineage_info?: string | null
+          name?: string
+          origin_story?: string | null
+          relevant_texts?: string[] | null
+          submitted_by?: string
+          tags?: string[] | null
+          tradition?: string
+          updated_at?: string | null
+          worldview_context?: string | null
         }
         Relationships: []
       }
@@ -78,6 +162,41 @@ export type Database = {
             columns: ["technique_id"]
             isOneToOne: false
             referencedRelation: "techniques"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string | null
+          id: string
+          read_at: string | null
+          sender_id: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string | null
+          id?: string
+          read_at?: string | null
+          sender_id: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string | null
+          id?: string
+          read_at?: string | null
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
             referencedColumns: ["id"]
           },
         ]
@@ -240,6 +359,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -250,6 +390,10 @@ export type Database = {
         Args: { duration_minutes: number }
         Returns: number
       }
+      get_or_create_conversation: {
+        Args: { other_user_id: string }
+        Returns: string
+      }
       get_user_profile_stats: {
         Args: { profile_user_id: string }
         Returns: {
@@ -258,6 +402,13 @@ export type Database = {
           total_minutes: number
           total_sessions: number
         }[]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
       }
       update_mastery_after_session: {
         Args: {
@@ -269,7 +420,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "user" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -396,6 +547,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["user", "admin"],
+    },
   },
 } as const

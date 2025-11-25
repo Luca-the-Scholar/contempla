@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -28,9 +29,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Star, Trash2 } from "lucide-react";
+import { Plus, Star, Trash2, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { GlobalLibraryTab } from "@/components/library/GlobalLibraryTab";
+import { UploadTechniqueDialog } from "@/components/library/UploadTechniqueDialog";
 
 interface Technique {
   id: string;
@@ -58,6 +61,7 @@ export function LibraryView() {
   const [techniques, setTechniques] = useState<Technique[]>([]);
   const [loading, setLoading] = useState(true);
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [techniqueToDelete, setTechniqueToDelete] = useState<Technique | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -106,8 +110,6 @@ export function LibraryView() {
           };
         })
         .sort((a, b) => {
-          // Sort by most recently practiced
-          if (!a.lastPracticed && !b.lastPracticed) return 0;
           if (!a.lastPracticed) return 1;
           if (!b.lastPracticed) return -1;
           return new Date(b.lastPracticed).getTime() - new Date(a.lastPracticed).getTime();
@@ -125,17 +127,25 @@ export function LibraryView() {
     }
   };
 
-  const handleAddTechnique = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddTechnique = async () => {
+    if (!formData.name || !formData.instructions || !formData.tradition) {
+      toast({
+        title: "Missing fields",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
 
       const { error } = await supabase.from("techniques").insert({
         user_id: user.id,
-        ...formData,
+        name: formData.name,
+        instructions: formData.instructions,
+        tradition: formData.tradition,
         tags: selectedTags,
       });
 
@@ -155,18 +165,14 @@ export function LibraryView() {
     }
   };
 
-  const toggleTag = (tag: string) => {
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
-  };
+  const handleDeleteTechnique = async () => {
+    if (!techniqueToDelete) return;
 
-  const handleDeleteTechnique = async (techniqueId: string) => {
     try {
       const { error } = await supabase
         .from("techniques")
         .delete()
-        .eq("id", techniqueId);
+        .eq("id", techniqueToDelete.id);
 
       if (error) throw error;
 
@@ -188,38 +194,33 @@ export function LibraryView() {
     setDeleteDialogOpen(true);
   };
 
-  const formatLastPracticed = (lastPracticed?: string) => {
-    if (!lastPracticed) return "Never practiced";
-    const date = new Date(lastPracticed);
+  const formatLastPracticed = (dateString?: string) => {
+    if (!dateString) return "Never practiced";
+    const date = new Date(dateString);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffHours / 24);
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffHours < 1) return "Less than an hour ago";
-    if (diffHours < 24) return `${diffHours} hours ago`;
+    if (diffDays === 0) return "Today";
     if (diffDays === 1) return "Yesterday";
     if (diffDays < 7) return `${diffDays} days ago`;
     return date.toLocaleDateString();
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Loading techniques...</p>
-      </div>
-    );
-  }
-
-  // Group techniques by tradition
-  const groupedByTradition = techniques.reduce((acc, technique) => {
-    const tradition = technique.tradition || "Uncategorized";
+  const groupedTechniques = techniques.reduce((acc, technique) => {
+    const tradition = technique.tradition || "Other";
     if (!acc[tradition]) acc[tradition] = [];
     acc[tradition].push(technique);
     return acc;
   }, {} as Record<string, Technique[]>);
 
-  const traditions = Object.keys(groupedByTradition).sort();
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center pb-32">
+        <p className="text-muted-foreground">Loading library...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-32">
@@ -227,152 +228,221 @@ export function LibraryView() {
         <div className="max-w-2xl mx-auto">
           <h1 className="text-xl font-bold">Library</h1>
           <p className="text-sm text-muted-foreground">
-            {techniques.length} {techniques.length === 1 ? "technique" : "techniques"}
+            Your personal collection and global techniques
           </p>
         </div>
       </header>
 
       <div className="max-w-2xl mx-auto px-4 py-4">
-        {techniques.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground mb-4">
-              Your library is empty. Add your first technique.
-            </p>
-            <Button onClick={() => setAddModalOpen(true)} size="lg" className="min-h-[48px]">
-              <Plus className="w-5 h-5 mr-2" />
-              Add Technique
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {traditions.map((tradition) => (
-              <div key={tradition}>
-                <h2 className="text-base font-semibold mb-2 px-1">{tradition}</h2>
-                <div className="grid grid-cols-1 gap-3">
-                  {groupedByTradition[tradition].map((technique) => (
-                    <Card key={technique.id} className="p-4 hover:bg-accent/50 transition-colors relative group">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity min-h-[40px] min-w-[40px]"
-                        onClick={() => openDeleteDialog(technique)}
-                      >
-                        <Trash2 className="w-5 h-5 text-destructive" />
-                      </Button>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold truncate">{technique.name}</h3>
-                          {technique.is_favorite && (
-                            <Star className="w-4 h-4 fill-primary text-primary flex-shrink-0" />
+        <Tabs defaultValue="personal" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="personal">My Library</TabsTrigger>
+            <TabsTrigger value="global">Global Library</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="personal" className="space-y-4">
+            {techniques.length === 0 ? (
+              <Card className="p-8 text-center">
+                <h3 className="text-lg font-semibold mb-2">No techniques yet</h3>
+                <p className="text-muted-foreground mb-4">
+                  Add your first technique to get started
+                </p>
+                <Button onClick={() => setAddModalOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Technique
+                </Button>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {Object.entries(groupedTechniques).map(([tradition, techs]) => (
+                  <div key={tradition} className="space-y-3">
+                    <h2 className="text-base font-semibold px-1">{tradition}</h2>
+                    {techs.map((technique) => (
+                      <Card key={technique.id} className="p-4">
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold">{technique.name}</h3>
+                                {technique.is_favorite && (
+                                  <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" />
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {formatLastPracticed(technique.lastPracticed)}
+                              </p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openDeleteDialog(technique)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                          {technique.tags && technique.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {technique.tags.map((tag, idx) => (
+                                <Badge key={idx} variant="secondary" className="text-xs">
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
                           )}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {formatLastPracticed(technique.lastPracticed)}
-                        </p>
-                        {technique.tags && technique.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {technique.tags.map((tag) => (
-                              <Badge key={tag} variant="secondary" className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
+
+                          <div className="pt-2 border-t">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">Mastery</span>
+                              <span className="font-semibold">
+                                {technique.mastery?.toFixed(1) || 0}%
+                              </span>
+                            </div>
                           </div>
-                        )}
-                        <div className="text-center pt-2 border-t border-border mt-3">
-                          <div className="text-xl font-bold text-primary">
-                            {technique.mastery?.toFixed(0) || 0}%
-                          </div>
-                          <div className="text-xs text-muted-foreground">mastery</div>
                         </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
+                      </Card>
+                    ))}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+            )}
+          </TabsContent>
+
+          <TabsContent value="global" className="space-y-4">
+            <div className="flex justify-end mb-4">
+              <Button onClick={() => setUploadDialogOpen(true)}>
+                <Upload className="h-4 w-4 mr-2" />
+                Contribute Technique
+              </Button>
+            </div>
+            <GlobalLibraryTab />
+          </TabsContent>
+        </Tabs>
       </div>
 
-      <Button
+      {/* Add floating action button for personal library */}
+      <button
         onClick={() => setAddModalOpen(true)}
-        className="fixed bottom-24 right-4 min-w-[56px] min-h-[56px] rounded-full shadow-lg z-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        size="icon"
-        aria-label="Add new technique"
+        className="fixed bottom-24 right-6 bg-primary text-primary-foreground rounded-full p-4 shadow-lg hover:scale-110 transition-transform z-40"
       >
-        <Plus className="w-6 h-6" />
-      </Button>
+        <Plus className="h-6 w-6" />
+      </button>
 
+      {/* Add Technique Dialog */}
       <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Add New Technique</DialogTitle>
             <DialogDescription>
-              Create a new meditation technique to add to your library
+              Add a meditation technique to your personal library
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleAddTechnique} className="space-y-4">
-            <Input
-              placeholder="Technique Name"
-              value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
-              required
-            />
-            <Textarea
-              placeholder="How to practice this technique..."
-              value={formData.instructions}
-              onChange={(e) =>
-                setFormData({ ...formData, instructions: e.target.value })
-              }
-              required
-              rows={4}
-            />
-            <Input
-              placeholder="Tradition or Community (e.g., Vipassana, Zen)"
-              value={formData.tradition}
-              onChange={(e) =>
-                setFormData({ ...formData, tradition: e.target.value })
-              }
-              required
-            />
+
+          <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium mb-2 block">Tags</label>
-              <div className="flex flex-wrap gap-2">
-                {AVAILABLE_TAGS.map((tag) => (
-                  <Badge
-                    key={tag}
-                    variant={selectedTags.includes(tag) ? "default" : "outline"}
-                    className="cursor-pointer"
-                    onClick={() => toggleTag(tag)}
-                  >
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
+              <Input
+                placeholder="Technique Name"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, name: e.target.value }))
+                }
+              />
             </div>
-            <Button type="submit" className="w-full min-h-[48px] text-base">
-              Add Technique
-            </Button>
-          </form>
+
+            <div>
+              <Input
+                placeholder="Tradition/Community"
+                value={formData.tradition}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, tradition: e.target.value }))
+                }
+              />
+            </div>
+
+            <div>
+              <Textarea
+                placeholder="Instructions"
+                value={formData.instructions}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, instructions: e.target.value }))
+                }
+                rows={4}
+              />
+            </div>
+
+            <div>
+              <Select
+                value={selectedTags[0] || ""}
+                onValueChange={(value) => {
+                  if (!selectedTags.includes(value)) {
+                    setSelectedTags([...selectedTags, value]);
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Add tags (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {AVAILABLE_TAGS.map((tag) => (
+                    <SelectItem key={tag} value={tag}>
+                      {tag}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {selectedTags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {selectedTags.map((tag, idx) => (
+                    <Badge
+                      key={idx}
+                      variant="secondary"
+                      className="cursor-pointer"
+                      onClick={() =>
+                        setSelectedTags(selectedTags.filter((t) => t !== tag))
+                      }
+                    >
+                      {tag} ×
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <Button onClick={handleAddTechnique} className="flex-1">
+                Add Technique
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setAddModalOpen(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
+      {/* Upload Technique Dialog */}
+      <UploadTechniqueDialog
+        open={uploadDialogOpen}
+        onOpenChange={setUploadDialogOpen}
+      />
+
+      {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Technique</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{techniqueToDelete?.name}"? This action cannot be undone and will also delete all associated practice sessions and mastery progress.
+              Are you sure you want to delete "{techniqueToDelete?.name}"? This
+              action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => techniqueToDelete && handleDeleteTechnique(techniqueToDelete.id)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDeleteTechnique}>
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

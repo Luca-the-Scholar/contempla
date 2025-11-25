@@ -4,9 +4,10 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Users, UserPlus, Check, X, Search, Flame, User, Trash2 } from "lucide-react";
+import { Users, UserPlus, Check, X, Search, Flame, User, Trash2, MessageCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { MessageThread } from "@/components/messaging/MessageThread";
 
 interface FriendProfile {
   id: string;
@@ -48,6 +49,8 @@ export function CommunityView() {
   const [friendStats, setFriendStats] = useState<Record<string, FriendStats>>({});
   const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [messagingFriend, setMessagingFriend] = useState<{ id: string; name: string } | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -151,6 +154,25 @@ export function CommunityView() {
     });
   };
 
+  const startConversation = async (friendId: string, friendName: string) => {
+    try {
+      const { data, error } = await supabase.rpc('get_or_create_conversation', {
+        other_user_id: friendId
+      });
+
+      if (error) throw error;
+
+      setConversationId(data);
+      setMessagingFriend({ id: friendId, name: friendName });
+    } catch (error: any) {
+      toast({
+        title: "Error starting conversation",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const respondToRequest = async (friendshipId: string, accept: boolean) => {
     try {
       const { error } = await supabase
@@ -205,6 +227,22 @@ export function CommunityView() {
     return (
       <div className="min-h-screen flex items-center justify-center pb-32">
         <p className="text-muted-foreground">Loading community...</p>
+      </div>
+    );
+  }
+
+  if (messagingFriend && conversationId) {
+    return (
+      <div className="h-screen pb-24">
+        <MessageThread
+          conversationId={conversationId}
+          friendName={messagingFriend.name}
+          friendId={messagingFriend.id}
+          onBack={() => {
+            setMessagingFriend(null);
+            setConversationId(null);
+          }}
+        />
       </div>
     );
   }
@@ -345,15 +383,24 @@ export function CommunityView() {
                         </div>
                       </div>
 
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openProfileDialog(friendId)}
-                        className="w-full mt-3"
-                      >
-                        <User className="h-3 w-3 mr-1" />
-                        View Full Profile
-                      </Button>
+                      <div className="grid grid-cols-2 gap-2 mt-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openProfileDialog(friendId)}
+                        >
+                          <User className="h-3 w-3 mr-1" />
+                          Profile
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => startConversation(friendId, friendship.friend_profile?.name || 'Friend')}
+                        >
+                          <MessageCircle className="h-3 w-3 mr-1" />
+                          Message
+                        </Button>
+                      </div>
                     </div>
                   </Card>
                 );

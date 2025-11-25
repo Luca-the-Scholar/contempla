@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Bell, LogOut, User, Shield, Database } from "lucide-react";
+import { Bell, LogOut, User, Shield, Database, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { AdminApprovalPanel } from "@/components/admin/AdminApprovalPanel";
 
 export function SettingsView() {
   const [userName, setUserName] = useState("");
@@ -23,12 +24,14 @@ export function SettingsView() {
   const [showStreakToFriends, setShowStreakToFriends] = useState(true);
   const [showTechniquesToFriends, setShowTechniquesToFriends] = useState(true);
   const [shareHealthData, setShareHealthData] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchSettings();
+    checkAdminStatus();
   }, []);
 
   const fetchSettings = async () => {
@@ -56,6 +59,25 @@ export function SettingsView() {
       }
     } catch (error: any) {
       console.error("Error loading settings:", error);
+    }
+  };
+
+  const checkAdminStatus = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .single();
+
+      setIsAdmin(!!data);
+    } catch (error) {
+      // User is not admin, that's fine
+      setIsAdmin(false);
     }
   };
 
@@ -327,6 +349,27 @@ export function SettingsView() {
         </Card>
 
         <Separator className="my-6" />
+
+        {/* Admin Section */}
+        {isAdmin && (
+          <>
+            <Card className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <ShieldCheck className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-semibold">Admin Panel</h2>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Review and approve technique submissions for the global library.
+                </p>
+                <AdminApprovalPanel />
+              </div>
+            </Card>
+
+            <Separator className="my-6" />
+          </>
+        )}
 
         {/* Sign Out */}
         <Button
