@@ -202,7 +202,7 @@ export function TimerView() {
   };
   const progress = timerState === 'running' || timerState === 'paused' ? (initialDuration * 60 - secondsLeft) / (initialDuration * 60) * 100 : 0;
   if (techniques.length === 0) {
-    return <div className="min-h-screen flex items-center justify-center pb-24 px-4">
+    return <div className="min-h-screen flex items-center justify-center pb-32 px-4">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-2">No Techniques Yet</h2>
           <p className="text-muted-foreground">
@@ -319,7 +319,7 @@ export function TimerView() {
   }
 
   // Setup Screen
-  return <div className="min-h-screen bg-background pb-24 px-4">
+  return <div className="min-h-screen bg-background pb-32 px-4">
       <div className="max-w-2xl mx-auto pt-4 space-y-5">
         {/* Manual Entry Toggle */}
         <div className="flex items-center justify-center gap-2">

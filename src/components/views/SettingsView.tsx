@@ -106,7 +106,7 @@ export function SettingsView() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-32">
       <header className="sticky top-0 bg-background/95 backdrop-blur-lg border-b border-border z-40 px-4 py-3">
         <div className="max-w-2xl mx-auto">
           <h1 className="text-xl font-bold">Settings</h1>

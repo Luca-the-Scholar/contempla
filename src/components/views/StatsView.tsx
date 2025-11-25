@@ -120,7 +120,7 @@ export function StatsView() {
 
   if (techniquesData.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center pb-24 px-4">
+      <div className="min-h-screen flex items-center justify-center pb-32 px-4">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-2">No Data Yet</h2>
           <p className="text-muted-foreground">
@@ -139,7 +139,7 @@ export function StatsView() {
   const remainingMinutes = totalMinutes % 60;
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-32">
       <header className="sticky top-0 bg-background/95 backdrop-blur-lg border-b border-border z-40 px-4 py-3">
         <div className="max-w-2xl mx-auto">
           <h1 className="text-xl font-bold">Stats</h1>
