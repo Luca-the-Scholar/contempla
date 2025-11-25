@@ -355,7 +355,16 @@ export function TimerView() {
               <label className="text-sm font-medium mb-2 block">Select Technique</label>
               <Select value={selectedTechniqueId} onValueChange={setSelectedTechniqueId}>
                 <SelectTrigger className="min-h-[52px] text-base focus-visible:ring-2 focus-visible:ring-ring">
-                  <SelectValue placeholder="Choose a technique" />
+                  <SelectValue>
+                    {selectedTechnique ? (
+                      <div className="text-left">
+                        <div className="font-semibold">{selectedTechnique.name}</div>
+                        <div className="text-xs text-muted-foreground">{selectedTechnique.tradition}</div>
+                      </div>
+                    ) : (
+                      "Choose a technique"
+                    )}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent className="bg-popover z-50 max-h-[300px]">
                   {techniques.map(technique => (
@@ -388,10 +397,10 @@ export function TimerView() {
                 </Card>
 
                 <Dialog open={instructionsModalOpen} onOpenChange={setInstructionsModalOpen}>
-                  <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+                  <DialogContent className="max-w-lg max-h-[80vh] flex flex-col" hideClose>
                     <DialogHeader className="flex-shrink-0">
                       <div className="flex items-start justify-between">
-                        <div className="flex-1">
+                        <div className="flex-1 pr-2">
                           <DialogTitle className="text-xl">{selectedTechnique.name}</DialogTitle>
                           <DialogDescription className="text-sm text-muted-foreground mt-1">
                             {selectedTechnique.tradition}
@@ -399,7 +408,7 @@ export function TimerView() {
                         </div>
                         <button
                           onClick={() => setInstructionsModalOpen(false)}
-                          className="rounded-full p-2 hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="rounded-full p-2 hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring flex-shrink-0"
                           aria-label="Close instructions"
                         >
                           <X className="w-5 h-5" />
