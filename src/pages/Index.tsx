@@ -2,13 +2,13 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { BottomNav } from "@/components/BottomNav";
-import { ProfileView } from "@/components/views/ProfileView";
+import { CommunityView } from "@/components/views/CommunityView";
 import { LibraryView } from "@/components/views/LibraryView";
 import { StatsView } from "@/components/views/StatsView";
 import { SettingsView } from "@/components/views/SettingsView";
 import { TimerView } from "@/components/views/TimerView";
 
-type ViewType = 'profile' | 'library' | 'stats' | 'settings' | 'timer';
+type ViewType = 'community' | 'library' | 'stats' | 'settings' | 'timer';
 
 const Index = () => {
   const [activeView, setActiveView] = useState<ViewType>('timer');
@@ -27,7 +27,7 @@ const Index = () => {
 
   return (
     <>
-      {activeView === 'profile' && <ProfileView />}
+      {activeView === 'community' && <CommunityView />}
       {activeView === 'library' && <LibraryView />}
       {activeView === 'stats' && <StatsView />}
       {activeView === 'settings' && <SettingsView />}

@@ -1,8 +1,8 @@
 import { User, Library, BarChart3, Timer, Settings } from "lucide-react";
 
 interface BottomNavProps {
-  activeView: 'profile' | 'library' | 'stats' | 'settings' | 'timer';
-  onViewChange: (view: 'profile' | 'library' | 'stats' | 'settings' | 'timer') => void;
+  activeView: 'community' | 'library' | 'stats' | 'settings' | 'timer';
+  onViewChange: (view: 'community' | 'library' | 'stats' | 'settings' | 'timer') => void;
 }
 
 export function BottomNav({ activeView, onViewChange }: BottomNavProps) {
@@ -25,15 +25,15 @@ export function BottomNav({ activeView, onViewChange }: BottomNavProps) {
         {/* Four horizontal nav items */}
         <div className="flex items-center justify-around px-4 py-3">
           <button
-            onClick={() => onViewChange('profile')}
+            onClick={() => onViewChange('community')}
             className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-              activeView === 'profile'
+              activeView === 'community'
                 ? 'text-primary'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <User className="w-6 h-6" />
-            <span className="text-xs font-medium">Profile</span>
+            <span className="text-xs font-medium">Community</span>
           </button>
 
           <button
