@@ -1,4 +1,4 @@
-import { User, Library, BarChart3, Timer, Settings } from "lucide-react";
+import { User, Library, BarChart3, Timer, Settings, Users } from "lucide-react";
 
 interface BottomNavProps {
   activeView: 'community' | 'library' | 'stats' | 'settings' | 'timer';
@@ -32,7 +32,7 @@ export function BottomNav({ activeView, onViewChange }: BottomNavProps) {
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            <User className="w-6 h-6" />
+            <Users className="w-6 h-6" />
             <span className="text-xs font-medium">Community</span>
           </button>
 
