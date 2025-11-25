@@ -1,8 +1,8 @@
-import { User, Library, BarChart3, Timer, Settings, Users, Activity } from "lucide-react";
+import { Users, Library, BarChart3, Timer, Settings } from "lucide-react";
 
 interface BottomNavProps {
-  activeView: 'community' | 'library' | 'stats' | 'health' | 'settings' | 'timer';
-  onViewChange: (view: 'community' | 'library' | 'stats' | 'health' | 'settings' | 'timer') => void;
+  activeView: 'community' | 'library' | 'stats' | 'settings' | 'timer';
+  onViewChange: (view: 'community' | 'library' | 'stats' | 'settings' | 'timer') => void;
 }
 
 export function BottomNav({ activeView, onViewChange }: BottomNavProps) {
@@ -53,37 +53,25 @@ export function BottomNav({ activeView, onViewChange }: BottomNavProps) {
 
           <button
             onClick={() => onViewChange('stats')}
-            className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
               activeView === 'stats'
                 ? 'text-primary'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            <BarChart3 className="w-5 h-5" />
+            <BarChart3 className="w-6 h-6" />
             <span className="text-xs font-medium">Stats</span>
           </button>
 
           <button
-            onClick={() => onViewChange('health')}
-            className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-              activeView === 'health'
-                ? 'text-primary'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Activity className="w-5 h-5" />
-            <span className="text-xs font-medium">Health</span>
-          </button>
-
-          <button
             onClick={() => onViewChange('settings')}
-            className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
               activeView === 'settings'
                 ? 'text-primary'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            <Settings className="w-5 h-5" />
+            <Settings className="w-6 h-6" />
             <span className="text-xs font-medium">Settings</span>
           </button>
         </div>
