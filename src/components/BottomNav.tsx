@@ -49,7 +49,7 @@ export function BottomNav({ activeView, onViewChange }: BottomNavProps) {
           </button>
 
           {/* Spacer for centered timer */}
-          <div className="w-16" />
+          <div className="w-28" />
 
           <button
             onClick={() => onViewChange('stats')}
