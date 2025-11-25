@@ -6,8 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Play, Pause, Square, Check, ChevronDown } from "lucide-react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Play, Pause, Square, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 interface Technique {
   id: string;
@@ -32,7 +31,7 @@ export function TimerView() {
   const [masteryAfter, setMasteryAfter] = useState(0);
   const [manualEntry, setManualEntry] = useState(false);
   const [manualMinutes, setManualMinutes] = useState("");
-  const [instructionsOpen, setInstructionsOpen] = useState(false);
+  const [instructionsModalOpen, setInstructionsModalOpen] = useState(false);
   const presetDurations = [5, 15, 30, 60];
   useEffect(() => {
     fetchTechniques();
@@ -372,20 +371,46 @@ export function TimerView() {
             </div>
 
             {selectedTechnique && (
-              <Collapsible open={instructionsOpen} onOpenChange={setInstructionsOpen}>
-                <Card className="p-4">
-                  <CollapsibleTrigger className="flex items-center justify-between w-full min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md">
-                    <div className="text-left">
+              <>
+                <Card 
+                  className="p-4 cursor-pointer hover:bg-accent/50 transition-colors"
+                  onClick={() => setInstructionsModalOpen(true)}
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
                       <h3 className="font-semibold text-base">Instructions</h3>
-                      <p className="text-xs text-muted-foreground">{selectedTechnique.tradition}</p>
+                      <span className="text-xs text-muted-foreground">Tap to view</span>
                     </div>
-                    <ChevronDown className={`w-5 h-5 transition-transform ${instructionsOpen ? 'rotate-180' : ''}`} />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="pt-3">
-                    <p className="text-sm leading-relaxed">{selectedTechnique.instructions}</p>
-                  </CollapsibleContent>
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {selectedTechnique.instructions}
+                    </p>
+                  </div>
                 </Card>
-              </Collapsible>
+
+                <Dialog open={instructionsModalOpen} onOpenChange={setInstructionsModalOpen}>
+                  <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+                    <DialogHeader className="flex-shrink-0">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <DialogTitle className="text-xl">{selectedTechnique.name}</DialogTitle>
+                          <p className="text-sm text-muted-foreground mt-1">{selectedTechnique.tradition}</p>
+                        </div>
+                        <button
+                          onClick={() => setInstructionsModalOpen(false)}
+                          className="rounded-full p-2 hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </DialogHeader>
+                    <div className="flex-1 overflow-y-auto pr-2">
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                        {selectedTechnique.instructions}
+                      </p>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </>
             )}
           </div>
         </div>
