@@ -12,6 +12,16 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -48,6 +58,8 @@ export function LibraryView() {
   const [techniques, setTechniques] = useState<Technique[]>([]);
   const [loading, setLoading] = useState(true);
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [techniqueToDelete, setTechniqueToDelete] = useState<Technique | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     name: "",
@@ -159,6 +171,8 @@ export function LibraryView() {
       if (error) throw error;
 
       toast({ title: "Technique deleted" });
+      setDeleteDialogOpen(false);
+      setTechniqueToDelete(null);
       fetchTechniques();
     } catch (error: any) {
       toast({
@@ -167,6 +181,11 @@ export function LibraryView() {
         variant: "destructive",
       });
     }
+  };
+
+  const openDeleteDialog = (technique: Technique) => {
+    setTechniqueToDelete(technique);
+    setDeleteDialogOpen(true);
   };
 
   const formatLastPracticed = (lastPracticed?: string) => {
@@ -236,7 +255,7 @@ export function LibraryView() {
                         variant="ghost"
                         size="icon"
                         className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity min-h-[40px] min-w-[40px]"
-                        onClick={() => handleDeleteTechnique(technique.id)}
+                        onClick={() => openDeleteDialog(technique)}
                       >
                         <Trash2 className="w-5 h-5 text-destructive" />
                       </Button>
@@ -339,6 +358,26 @@ export function LibraryView() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Technique</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{techniqueToDelete?.name}"? This action cannot be undone and will also delete all associated practice sessions and mastery progress.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => techniqueToDelete && handleDeleteTechnique(techniqueToDelete.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
