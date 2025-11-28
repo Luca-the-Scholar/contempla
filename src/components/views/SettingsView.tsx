@@ -40,7 +40,7 @@ export function SettingsView() {
   const navigate = useNavigate();
   const { isSupported: hapticSupported, testVibration } = useHaptic();
   const { playSound, unlockAudio } = useTimerSound();
-  const { enabled: spotifyEnabled, playlistUrl, setSpotifyEnabled, setSpotifyPlaylistUrl, isValidPlaylistUrl } = useSpotify();
+  const { enabled: spotifyEnabled, playlistUrl, recentPlaylists, setSpotifyEnabled, setSpotifyPlaylistUrl, isValidPlaylistUrl } = useSpotify();
   const { isConnected: spotifyConnected, isReady: spotifyReady, error: spotifyError, connect: connectSpotify, disconnect: disconnectSpotify, playlists, loadingPlaylists } = useSpotifySDK();
 
   useEffect(() => {
@@ -521,6 +521,28 @@ export function SettingsView() {
                 
                 <div className="space-y-2">
                   {!spotifyConnected && <Label htmlFor="playlist-url">Spotify Playlist URL</Label>}
+                  
+                  {/* Recent playlists dropdown */}
+                  {recentPlaylists.length > 0 && (
+                    <Select
+                      value={playlistUrl}
+                      onValueChange={(value) => setSpotifyPlaylistUrl(value)}
+                    >
+                      <SelectTrigger className="min-h-[44px]">
+                        <SelectValue placeholder="Select from recent..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {recentPlaylists.map((url, index) => (
+                          <SelectItem key={index} value={url}>
+                            <span className="truncate max-w-[250px] block">
+                              {url.replace('https://open.spotify.com/playlist/', '').slice(0, 30)}...
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  
                   <Input
                     id="playlist-url"
                     placeholder="https://open.spotify.com/playlist/..."
