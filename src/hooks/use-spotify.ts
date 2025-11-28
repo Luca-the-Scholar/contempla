@@ -2,14 +2,16 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 const SPOTIFY_ENABLED_KEY = 'spotifyEnabled';
+const MAX_RECENT_PLAYLISTS = 5;
 
 export function useSpotify() {
   const [enabled, setEnabled] = useState(false);
   const [playlistUrl, setPlaylistUrl] = useState('');
+  const [recentPlaylists, setRecentPlaylists] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Load playlist URL from database
-  const loadPlaylistUrl = useCallback(async () => {
+  // Load playlist URL and recent playlists from database
+  const loadPlaylistData = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -28,9 +30,12 @@ export function useSpotify() {
         if (prefs.spotifyPlaylistUrl) {
           setPlaylistUrl(prefs.spotifyPlaylistUrl);
         }
+        if (prefs.recentSpotifyPlaylists) {
+          setRecentPlaylists(prefs.recentSpotifyPlaylists);
+        }
       }
     } catch (error) {
-      console.error('Error loading playlist URL:', error);
+      console.error('Error loading playlist data:', error);
     } finally {
       setLoading(false);
     }
@@ -40,8 +45,8 @@ export function useSpotify() {
     const storedEnabled = localStorage.getItem(SPOTIFY_ENABLED_KEY);
     if (storedEnabled !== null) setEnabled(storedEnabled === 'true');
     
-    loadPlaylistUrl();
-  }, [loadPlaylistUrl]);
+    loadPlaylistData();
+  }, [loadPlaylistData]);
 
   const setSpotifyEnabled = (value: boolean) => {
     setEnabled(value);
@@ -50,6 +55,12 @@ export function useSpotify() {
 
   const setSpotifyPlaylistUrl = async (url: string) => {
     setPlaylistUrl(url);
+    
+    if (!url) return;
+    
+    // Update recent playlists (add to front, remove duplicates, keep max 5)
+    const updatedRecent = [url, ...recentPlaylists.filter(p => p !== url)].slice(0, MAX_RECENT_PLAYLISTS);
+    setRecentPlaylists(updatedRecent);
     
     // Save to database
     try {
@@ -63,7 +74,11 @@ export function useSpotify() {
         .single();
 
       const currentPrefs = (profile?.profile_preferences as any) || {};
-      const updatedPrefs = { ...currentPrefs, spotifyPlaylistUrl: url };
+      const updatedPrefs = { 
+        ...currentPrefs, 
+        spotifyPlaylistUrl: url,
+        recentSpotifyPlaylists: updatedRecent,
+      };
 
       await supabase
         .from('profiles')
@@ -109,6 +124,7 @@ export function useSpotify() {
   return {
     enabled,
     playlistUrl,
+    recentPlaylists,
     loading,
     setSpotifyEnabled,
     setSpotifyPlaylistUrl,

@@ -438,15 +438,6 @@ export function TimerView() {
               </AlertDescription>
             </Alert>
           )}
-          
-          {/* iOS Tip */}
-          {isIOS && timerState === 'running' && (
-            <Alert className="bg-muted/50 border-muted">
-              <AlertDescription className="text-xs text-muted-foreground">
-                Tip: Keep Contempla in the foreground for reliable timer alerts on iOS.
-              </AlertDescription>
-            </Alert>
-          )}
           <div className="text-center space-y-2">
             <p className="text-sm text-muted-foreground">{selectedTechnique?.name}</p>
             <h2 className="text-lg font-semibold text-muted-foreground">
