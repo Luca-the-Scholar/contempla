@@ -165,10 +165,21 @@ export function useSpotifySDK() {
       }
 
       // Get client ID from secrets via edge function
-      const { data, error } = await supabase.functions.invoke('spotify-auth-url', {});
+      console.log('Calling spotify-auth-url edge function...');
+      const { data, error } = await supabase.functions.invoke('spotify-auth-url', {
+        body: {},
+      });
       
-      if (error || !data?.url) {
-        setError('Failed to get auth URL');
+      console.log('Edge function response:', { data, error });
+      
+      if (error) {
+        console.error('Edge function error:', error);
+        setError(`Failed to get auth URL: ${error.message || JSON.stringify(error)}`);
+        return;
+      }
+      
+      if (!data?.url) {
+        setError('Failed to get auth URL: No URL returned');
         return;
       }
       
