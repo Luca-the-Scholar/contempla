@@ -7,11 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Bell, LogOut, User, Shield, Database, ShieldCheck, Vibrate } from "lucide-react";
+import { Bell, LogOut, User, Shield, Database, ShieldCheck, Vibrate, Volume2, Play, Smartphone, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { AdminApprovalPanel } from "@/components/admin/AdminApprovalPanel";
 import { useHaptic } from "@/hooks/use-haptic";
+import { useTimerSound, TimerSound, SOUND_LABELS } from "@/hooks/use-timer-sound";
 
 export function SettingsView() {
   const [userName, setUserName] = useState("");
@@ -26,20 +27,33 @@ export function SettingsView() {
   const [showTechniquesToFriends, setShowTechniquesToFriends] = useState(true);
   const [shareHealthData, setShareHealthData] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  
+  // Timer alert settings
   const [hapticEnabled, setHapticEnabled] = useState(true);
+  const [selectedSound, setSelectedSound] = useState<TimerSound>('singing-bowl');
+  const [screenWakeLock, setScreenWakeLock] = useState(true);
+  const [visualFlash, setVisualFlash] = useState(true);
   
   const { toast } = useToast();
   const navigate = useNavigate();
   const { isSupported: hapticSupported, testVibration } = useHaptic();
+  const { playSound, unlockAudio } = useTimerSound();
 
   useEffect(() => {
     fetchSettings();
     checkAdminStatus();
-    // Load haptic preference
-    const stored = localStorage.getItem('hapticEnabled');
-    if (stored !== null) {
-      setHapticEnabled(stored === 'true');
-    }
+    // Load timer alert preferences
+    const hapticStored = localStorage.getItem('hapticEnabled');
+    if (hapticStored !== null) setHapticEnabled(hapticStored === 'true');
+    
+    const soundStored = localStorage.getItem('selectedSound');
+    if (soundStored) setSelectedSound(soundStored as TimerSound);
+    
+    const wakeLockStored = localStorage.getItem('screenWakeLock');
+    if (wakeLockStored !== null) setScreenWakeLock(wakeLockStored === 'true');
+    
+    const flashStored = localStorage.getItem('visualFlash');
+    if (flashStored !== null) setVisualFlash(flashStored === 'true');
   }, []);
 
   const fetchSettings = async () => {
@@ -250,43 +264,126 @@ export function SettingsView() {
           </div>
         </Card>
 
-        {/* Haptic Feedback */}
+        {/* Timer Alerts */}
         <Card className="p-6">
           <div className="flex items-center gap-3 mb-4">
-            <Vibrate className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold">Haptic Feedback</h2>
+            <Bell className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold">Timer Alerts</h2>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-5">
+            {/* Completion Sound */}
+            <div className="space-y-2">
+              <Label>Completion Sound</Label>
+              <div className="flex gap-2">
+                <Select 
+                  value={selectedSound} 
+                  onValueChange={(value) => {
+                    setSelectedSound(value as TimerSound);
+                    localStorage.setItem('selectedSound', value);
+                  }}
+                >
+                  <SelectTrigger className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <Volume2 className="w-4 h-4 text-muted-foreground" />
+                      <SelectValue />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(SOUND_LABELS) as TimerSound[]).map((sound) => (
+                      <SelectItem key={sound} value={sound}>
+                        {SOUND_LABELS[sound]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={async () => {
+                    await unlockAudio();
+                    playSound(selectedSound);
+                  }}
+                  disabled={selectedSound === 'none'}
+                  aria-label="Preview sound"
+                >
+                  <Play className="w-4 h-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Sound plays twice when timer completes for better alerting
+              </p>
+            </div>
+
+            {/* Vibration */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="haptic">Vibration</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Phone vibrates when timer ends
+                  </p>
+                </div>
+                <Switch
+                  id="haptic"
+                  checked={hapticEnabled}
+                  onCheckedChange={(checked) => {
+                    setHapticEnabled(checked);
+                    localStorage.setItem('hapticEnabled', String(checked));
+                  }}
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const success = testVibration();
+                  if (!success) {
+                    toast({ title: "Vibration not available", description: "Your device may not support haptic feedback", variant: "destructive" });
+                  }
+                }}
+                className="w-full"
+              >
+                <Vibrate className="w-4 h-4 mr-2" />
+                Test Vibration
+              </Button>
+            </div>
+
+            {/* Visual Flash */}
             <div className="flex items-center justify-between">
               <div>
-                <Label htmlFor="haptic">Vibration on Timer Complete</Label>
+                <Label htmlFor="visual-flash">Visual Flash</Label>
                 <p className="text-sm text-muted-foreground">
-                  Phone vibrates when meditation timer ends
+                  Screen flashes when timer completes
                 </p>
               </div>
               <Switch
-                id="haptic"
-                checked={hapticEnabled}
+                id="visual-flash"
+                checked={visualFlash}
                 onCheckedChange={(checked) => {
-                  setHapticEnabled(checked);
-                  localStorage.setItem('hapticEnabled', String(checked));
-                  toast({ title: checked ? "Haptic feedback enabled" : "Haptic feedback disabled" });
+                  setVisualFlash(checked);
+                  localStorage.setItem('visualFlash', String(checked));
                 }}
               />
             </div>
-            <Button
-              variant="outline"
-              onClick={() => {
-                const success = testVibration();
-                if (!success) {
-                  toast({ title: "Vibration not available", description: "Your device may not support haptic feedback", variant: "destructive" });
-                }
-              }}
-              className="w-full"
-            >
-              <Vibrate className="w-4 h-4 mr-2" />
-              Test Vibration
-            </Button>
+
+            {/* Screen Wake Lock */}
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="wake-lock">Keep Screen Awake</Label>
+                <p className="text-sm text-muted-foreground">
+                  Prevents screen from sleeping during meditation
+                </p>
+              </div>
+              <Switch
+                id="wake-lock"
+                checked={screenWakeLock}
+                onCheckedChange={(checked) => {
+                  setScreenWakeLock(checked);
+                  localStorage.setItem('screenWakeLock', String(checked));
+                }}
+              />
+            </div>
           </div>
         </Card>
 

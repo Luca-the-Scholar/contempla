@@ -43,18 +43,27 @@ export function TimerView() {
   const [showWakeLockWarning, setShowWakeLockWarning] = useState(false);
   const [selectedSound, setSelectedSound] = useState<TimerSound>('singing-bowl');
   const [hapticEnabled, setHapticEnabled] = useState(true);
+  const [visualFlashEnabled, setVisualFlashEnabled] = useState(true);
+  const [screenWakeLockEnabled, setScreenWakeLockEnabled] = useState(true);
   const [showCompletionFlash, setShowCompletionFlash] = useState(false);
   const presetDurations = [5, 15, 30, 60];
   
   // Detect iOS for specific tips
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
-  // Load haptic preference from localStorage
+  // Load timer alert preferences from localStorage
   useEffect(() => {
-    const stored = localStorage.getItem('hapticEnabled');
-    if (stored !== null) {
-      setHapticEnabled(stored === 'true');
-    }
+    const hapticStored = localStorage.getItem('hapticEnabled');
+    if (hapticStored !== null) setHapticEnabled(hapticStored === 'true');
+    
+    const soundStored = localStorage.getItem('selectedSound');
+    if (soundStored) setSelectedSound(soundStored as TimerSound);
+    
+    const flashStored = localStorage.getItem('visualFlash');
+    if (flashStored !== null) setVisualFlashEnabled(flashStored === 'true');
+    
+    const wakeLockStored = localStorage.getItem('screenWakeLock');
+    if (wakeLockStored !== null) setScreenWakeLockEnabled(wakeLockStored === 'true');
   }, []);
   useEffect(() => {
     fetchTechniques();
@@ -143,11 +152,13 @@ export function TimerView() {
     // Unlock audio on iOS (must happen on user interaction)
     await unlockAudio();
 
-    // Enable NoSleep to keep screen awake
-    try {
-      await noSleep.enable();
-    } catch (err) {
-      setShowWakeLockWarning(true);
+    // Enable NoSleep to keep screen awake (if enabled in settings)
+    if (screenWakeLockEnabled) {
+      try {
+        await noSleep.enable();
+      } catch (err) {
+        setShowWakeLockWarning(true);
+      }
     }
 
     setInitialDuration(duration);
@@ -164,9 +175,11 @@ export function TimerView() {
     handleReset();
   };
   const handleTimerComplete = async () => {
-    // Visual flash for attention
-    setShowCompletionFlash(true);
-    setTimeout(() => setShowCompletionFlash(false), 500);
+    // Visual flash for attention (if enabled)
+    if (visualFlashEnabled) {
+      setShowCompletionFlash(true);
+      setTimeout(() => setShowCompletionFlash(false), 500);
+    }
     
     // Play sound twice for better alerting (especially on mobile)
     playSound(selectedSound, 2);
@@ -527,7 +540,10 @@ export function TimerView() {
               <div>
                 <h3 className="font-semibold mb-3 text-center text-sm">Completion Sound</h3>
                 <div className="flex gap-2">
-                  <Select value={selectedSound} onValueChange={(value) => setSelectedSound(value as TimerSound)}>
+                  <Select value={selectedSound} onValueChange={(value) => {
+                    setSelectedSound(value as TimerSound);
+                    localStorage.setItem('selectedSound', value);
+                  }}>
                     <SelectTrigger className="min-h-[52px] text-base focus-visible:ring-2 focus-visible:ring-ring flex-1">
                       <div className="flex items-center gap-2">
                         <Volume2 className="w-4 h-4 text-muted-foreground" />
