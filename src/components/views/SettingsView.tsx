@@ -41,7 +41,7 @@ export function SettingsView() {
   const { isSupported: hapticSupported, testVibration } = useHaptic();
   const { playSound, unlockAudio } = useTimerSound();
   const { enabled: spotifyEnabled, playlistUrl, setSpotifyEnabled, setSpotifyPlaylistUrl, isValidPlaylistUrl } = useSpotify();
-  const { isConnected: spotifyConnected, isReady: spotifyReady, error: spotifyError, connect: connectSpotify, disconnect: disconnectSpotify } = useSpotifySDK();
+  const { isConnected: spotifyConnected, isReady: spotifyReady, error: spotifyError, connect: connectSpotify, disconnect: disconnectSpotify, playlists, loadingPlaylists } = useSpotifySDK();
 
   useEffect(() => {
     fetchSettings();
@@ -459,18 +459,59 @@ export function SettingsView() {
               />
             </div>
             
-            {/* Playlist URL - shown if connected OR legacy mode */}
+            {/* Playlist Selection - shown if connected OR legacy mode */}
             {(spotifyConnected || spotifyEnabled) && (
               <div className="space-y-2">
-                <Label htmlFor="playlist-url">Spotify Playlist URL</Label>
-                <Input
-                  id="playlist-url"
-                  placeholder="https://open.spotify.com/playlist/..."
-                  value={playlistUrl}
-                  onChange={(e) => setSpotifyPlaylistUrl(e.target.value)}
-                  className="min-h-[44px]"
-                />
-                {playlistUrl && !isValidPlaylistUrl(playlistUrl) && (
+                <Label htmlFor="playlist-url">
+                  {spotifyConnected ? "Select Playlist" : "Spotify Playlist URL"}
+                </Label>
+                
+                {spotifyConnected && playlists.length > 0 ? (
+                  <Select
+                    value={playlistUrl}
+                    onValueChange={(value) => setSpotifyPlaylistUrl(value)}
+                  >
+                    <SelectTrigger className="min-h-[44px]">
+                      <SelectValue placeholder="Choose a playlist..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {playlists.map((playlist) => (
+                        <SelectItem 
+                          key={playlist.id} 
+                          value={`https://open.spotify.com/playlist/${playlist.id}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {playlist.images?.[0]?.url && (
+                              <img 
+                                src={playlist.images[0].url} 
+                                alt="" 
+                                className="w-6 h-6 rounded"
+                              />
+                            )}
+                            <span>{playlist.name}</span>
+                            <span className="text-muted-foreground text-xs">
+                              ({playlist.tracks.total} tracks)
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : spotifyConnected && loadingPlaylists ? (
+                  <div className="text-sm text-muted-foreground py-2">
+                    Loading playlists...
+                  </div>
+                ) : (
+                  <Input
+                    id="playlist-url"
+                    placeholder="https://open.spotify.com/playlist/..."
+                    value={playlistUrl}
+                    onChange={(e) => setSpotifyPlaylistUrl(e.target.value)}
+                    className="min-h-[44px]"
+                  />
+                )}
+                
+                {!spotifyConnected && playlistUrl && !isValidPlaylistUrl(playlistUrl) && (
                   <p className="text-xs text-destructive">
                     Please enter a valid Spotify playlist URL
                   </p>

@@ -15,6 +15,14 @@ interface SpotifyTokens {
   expires_at: string;
 }
 
+interface SpotifyPlaylist {
+  id: string;
+  name: string;
+  images: { url: string }[];
+  uri: string;
+  tracks: { total: number };
+}
+
 interface SpotifyPlayer {
   connect: () => Promise<boolean>;
   disconnect: () => void;
@@ -46,6 +54,8 @@ export function useSpotifySDK() {
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tokens, setTokens] = useState<SpotifyTokens | null>(null);
+  const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
+  const [loadingPlaylists, setLoadingPlaylists] = useState(false);
   
   const playerRef = useRef<SpotifyPlayer | null>(null);
   const sdkLoadedRef = useRef(false);
@@ -350,6 +360,40 @@ export function useSpotifySDK() {
     return null;
   }, []);
 
+  // Fetch user's playlists
+  const fetchPlaylists = useCallback(async () => {
+    const token = await getValidToken();
+    if (!token) return;
+
+    setLoadingPlaylists(true);
+    try {
+      const response = await fetch('https://api.spotify.com/v1/me/playlists?limit=50', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        console.error('Failed to fetch playlists:', response.status);
+        return;
+      }
+
+      const data = await response.json();
+      setPlaylists(data.items || []);
+    } catch (err) {
+      console.error('Playlist fetch error:', err);
+    } finally {
+      setLoadingPlaylists(false);
+    }
+  }, [getValidToken]);
+
+  // Fetch playlists when connected
+  useEffect(() => {
+    if (isConnected && tokens) {
+      fetchPlaylists();
+    }
+  }, [isConnected, tokens, fetchPlaylists]);
+
   // Handle OAuth callback params
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -416,5 +460,8 @@ export function useSpotifySDK() {
     resume,
     setVolume,
     getPlaylistUri,
+    playlists,
+    loadingPlaylists,
+    fetchPlaylists,
   };
 }
