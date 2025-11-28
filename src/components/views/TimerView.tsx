@@ -7,9 +7,10 @@ import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Play, Pause, Square, Check, X, AlertTriangle } from "lucide-react";
+import { Play, Pause, Square, Check, X, AlertTriangle, Volume2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useWakeLock } from "@/hooks/use-wake-lock";
+import { useTimerSound, TimerSound, SOUND_LABELS } from "@/hooks/use-timer-sound";
 interface Technique {
   id: string;
   name: string;
@@ -23,6 +24,7 @@ export function TimerView() {
     toast
   } = useToast();
   const wakeLock = useWakeLock();
+  const { playSound } = useTimerSound();
   const [techniques, setTechniques] = useState<Technique[]>([]);
   const [selectedTechniqueId, setSelectedTechniqueId] = useState<string>("");
   const [selectedTechnique, setSelectedTechnique] = useState<Technique | null>(null);
@@ -36,6 +38,7 @@ export function TimerView() {
   const [manualMinutes, setManualMinutes] = useState("");
   const [instructionsModalOpen, setInstructionsModalOpen] = useState(false);
   const [showWakeLockWarning, setShowWakeLockWarning] = useState(false);
+  const [selectedSound, setSelectedSound] = useState<TimerSound>('singing-bowl');
   const presetDurations = [5, 15, 30, 60];
   useEffect(() => {
     fetchTechniques();
@@ -141,6 +144,7 @@ export function TimerView() {
     handleReset();
   };
   const handleTimerComplete = async () => {
+    playSound(selectedSound);
     await logSession(initialDuration, false);
   };
   const logSession = async (minutesPracticed: number, stoppedEarly: boolean) => {
@@ -478,6 +482,26 @@ export function TimerView() {
                   </div>
                   <Slider value={[duration]} onValueChange={vals => setDuration(vals[0])} min={1} max={120} step={1} className="py-2" />
                 </div>
+              </div>
+
+              {/* Sound Selection */}
+              <div>
+                <h3 className="font-semibold mb-3 text-center text-sm">Completion Sound</h3>
+                <Select value={selectedSound} onValueChange={(value) => setSelectedSound(value as TimerSound)}>
+                  <SelectTrigger className="min-h-[52px] text-base focus-visible:ring-2 focus-visible:ring-ring">
+                    <div className="flex items-center gap-2">
+                      <Volume2 className="w-4 h-4 text-muted-foreground" />
+                      <SelectValue />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    {(Object.keys(SOUND_LABELS) as TimerSound[]).map((sound) => (
+                      <SelectItem key={sound} value={sound} className="text-base py-3 cursor-pointer">
+                        {SOUND_LABELS[sound]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
