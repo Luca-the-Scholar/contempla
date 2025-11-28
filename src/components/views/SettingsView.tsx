@@ -461,47 +461,66 @@ export function SettingsView() {
             
             {/* Playlist Selection - shown if connected OR legacy mode */}
             {(spotifyConnected || spotifyEnabled) && (
-              <div className="space-y-2">
-                <Label htmlFor="playlist-url">
-                  {spotifyConnected ? "Select Playlist" : "Spotify Playlist URL"}
-                </Label>
-                
-                {spotifyConnected && playlists.length > 0 ? (
-                  <Select
-                    value={playlistUrl}
-                    onValueChange={(value) => setSpotifyPlaylistUrl(value)}
-                  >
-                    <SelectTrigger className="min-h-[44px]">
-                      <SelectValue placeholder="Choose a playlist..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {playlists.map((playlist) => (
-                        <SelectItem 
-                          key={playlist.id} 
-                          value={`https://open.spotify.com/playlist/${playlist.id}`}
+              <div className="space-y-3">
+                {spotifyConnected && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Select from Your Library</Label>
+                      {playlists.length > 0 ? (
+                        <Select
+                          value={playlistUrl}
+                          onValueChange={(value) => setSpotifyPlaylistUrl(value)}
                         >
-                          <div className="flex items-center gap-2">
-                            {playlist.images?.[0]?.url && (
-                              <img 
-                                src={playlist.images[0].url} 
-                                alt="" 
-                                className="w-6 h-6 rounded"
-                              />
-                            )}
-                            <span>{playlist.name}</span>
-                            <span className="text-muted-foreground text-xs">
-                              ({playlist.tracks.total} tracks)
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : spotifyConnected && loadingPlaylists ? (
-                  <div className="text-sm text-muted-foreground py-2">
-                    Loading playlists...
-                  </div>
-                ) : (
+                          <SelectTrigger className="min-h-[44px]">
+                            <SelectValue placeholder="Choose a playlist..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {playlists.map((playlist) => (
+                              <SelectItem 
+                                key={playlist.id} 
+                                value={`https://open.spotify.com/playlist/${playlist.id}`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  {playlist.images?.[0]?.url && (
+                                    <img 
+                                      src={playlist.images[0].url} 
+                                      alt="" 
+                                      className="w-6 h-6 rounded"
+                                    />
+                                  )}
+                                  <span>{playlist.name}</span>
+                                  <span className="text-muted-foreground text-xs">
+                                    ({playlist.tracks.total} tracks)
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : loadingPlaylists ? (
+                        <div className="text-sm text-muted-foreground py-2">
+                          Loading playlists...
+                        </div>
+                      ) : (
+                        <div className="text-sm text-muted-foreground py-2">
+                          No playlists found
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t border-border" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-card px-2 text-muted-foreground">or paste URL</span>
+                      </div>
+                    </div>
+                  </>
+                )}
+                
+                <div className="space-y-2">
+                  {!spotifyConnected && <Label htmlFor="playlist-url">Spotify Playlist URL</Label>}
                   <Input
                     id="playlist-url"
                     placeholder="https://open.spotify.com/playlist/..."
@@ -509,13 +528,13 @@ export function SettingsView() {
                     onChange={(e) => setSpotifyPlaylistUrl(e.target.value)}
                     className="min-h-[44px]"
                   />
-                )}
+                  {playlistUrl && !isValidPlaylistUrl(playlistUrl) && (
+                    <p className="text-xs text-destructive">
+                      Please enter a valid Spotify playlist URL
+                    </p>
+                  )}
+                </div>
                 
-                {!spotifyConnected && playlistUrl && !isValidPlaylistUrl(playlistUrl) && (
-                  <p className="text-xs text-destructive">
-                    Please enter a valid Spotify playlist URL
-                  </p>
-                )}
                 <p className="text-xs text-muted-foreground">
                   {spotifyConnected 
                     ? "Music will autoplay when timer starts (Spotify Premium required)"
