@@ -487,21 +487,34 @@ export function TimerView() {
               {/* Sound Selection */}
               <div>
                 <h3 className="font-semibold mb-3 text-center text-sm">Completion Sound</h3>
-                <Select value={selectedSound} onValueChange={(value) => setSelectedSound(value as TimerSound)}>
-                  <SelectTrigger className="min-h-[52px] text-base focus-visible:ring-2 focus-visible:ring-ring">
-                    <div className="flex items-center gap-2">
-                      <Volume2 className="w-4 h-4 text-muted-foreground" />
-                      <SelectValue />
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover z-50">
-                    {(Object.keys(SOUND_LABELS) as TimerSound[]).map((sound) => (
-                      <SelectItem key={sound} value={sound} className="text-base py-3 cursor-pointer">
-                        {SOUND_LABELS[sound]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <Select value={selectedSound} onValueChange={(value) => setSelectedSound(value as TimerSound)}>
+                    <SelectTrigger className="min-h-[52px] text-base focus-visible:ring-2 focus-visible:ring-ring flex-1">
+                      <div className="flex items-center gap-2">
+                        <Volume2 className="w-4 h-4 text-muted-foreground" />
+                        <SelectValue />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover z-50">
+                      {(Object.keys(SOUND_LABELS) as TimerSound[]).map((sound) => (
+                        <SelectItem key={sound} value={sound} className="text-base py-3 cursor-pointer">
+                          {SOUND_LABELS[sound]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="min-h-[52px] min-w-[52px]"
+                    onClick={() => playSound(selectedSound)}
+                    disabled={selectedSound === 'none'}
+                    aria-label="Preview sound"
+                  >
+                    <Play className="w-5 h-5" />
+                  </Button>
+                </div>
               </div>
             </div>
 
