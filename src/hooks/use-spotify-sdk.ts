@@ -360,26 +360,35 @@ export function useSpotifySDK() {
     return null;
   }, []);
 
-  // Fetch user's playlists
+  // Fetch user's playlists (includes saved/followed playlists from other users)
   const fetchPlaylists = useCallback(async () => {
     const token = await getValidToken();
     if (!token) return;
 
     setLoadingPlaylists(true);
     try {
-      const response = await fetch('https://api.spotify.com/v1/me/playlists?limit=50', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const allPlaylists: SpotifyPlaylist[] = [];
+      let nextUrl: string | null = 'https://api.spotify.com/v1/me/playlists?limit=50';
+      
+      // Paginate through all playlists
+      while (nextUrl) {
+        const response = await fetch(nextUrl, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
 
-      if (!response.ok) {
-        console.error('Failed to fetch playlists:', response.status);
-        return;
+        if (!response.ok) {
+          console.error('Failed to fetch playlists:', response.status);
+          break;
+        }
+
+        const data = await response.json();
+        allPlaylists.push(...(data.items || []));
+        nextUrl = data.next; // Will be null when no more pages
       }
-
-      const data = await response.json();
-      setPlaylists(data.items || []);
+      
+      setPlaylists(allPlaylists);
     } catch (err) {
       console.error('Playlist fetch error:', err);
     } finally {
