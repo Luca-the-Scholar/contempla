@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Bell, LogOut, User, Shield, Database, ShieldCheck, Vibrate, Volume2, Play, Smartphone, Sparkles } from "lucide-react";
+import { Bell, LogOut, User, Shield, Database, ShieldCheck, Vibrate, Volume2, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { AdminApprovalPanel } from "@/components/admin/AdminApprovalPanel";
@@ -30,9 +30,9 @@ export function SettingsView() {
   
   // Timer alert settings
   const [hapticEnabled, setHapticEnabled] = useState(true);
-  const [selectedSound, setSelectedSound] = useState<TimerSound>('singing-bowl');
   const [screenWakeLock, setScreenWakeLock] = useState(true);
   const [visualFlash, setVisualFlash] = useState(true);
+  const [testingFlash, setTestingFlash] = useState(false);
   
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -45,9 +45,6 @@ export function SettingsView() {
     // Load timer alert preferences
     const hapticStored = localStorage.getItem('hapticEnabled');
     if (hapticStored !== null) setHapticEnabled(hapticStored === 'true');
-    
-    const soundStored = localStorage.getItem('selectedSound');
-    if (soundStored) setSelectedSound(soundStored as TimerSound);
     
     const wakeLockStored = localStorage.getItem('screenWakeLock');
     if (wakeLockStored !== null) setScreenWakeLock(wakeLockStored === 'true');
@@ -191,11 +188,17 @@ export function SettingsView() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-32">
-      <header className="sticky top-0 bg-background/95 backdrop-blur-lg border-b border-border z-40 px-4 py-3">
-        <div className="max-w-2xl mx-auto">
-          <h1 className="text-xl font-bold">Settings</h1>
-        </div>
+    <>
+      {/* Flash overlay for testing */}
+      {testingFlash && (
+        <div className="fixed inset-0 bg-primary/30 z-[100] pointer-events-none animate-pulse" />
+      )}
+      
+      <div className="min-h-screen bg-background pb-32">
+        <header className="sticky top-0 bg-background/95 backdrop-blur-lg border-b border-border z-40 px-4 py-3">
+          <div className="max-w-2xl mx-auto">
+            <h1 className="text-xl font-bold">Settings</h1>
+          </div>
       </header>
 
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
@@ -271,48 +274,31 @@ export function SettingsView() {
             <h2 className="text-lg font-semibold">Timer Alerts</h2>
           </div>
           <div className="space-y-5">
-            {/* Completion Sound */}
+            {/* Test Completion Sounds */}
             <div className="space-y-2">
-              <Label>Completion Sound</Label>
-              <div className="flex gap-2">
-                <Select 
-                  value={selectedSound} 
-                  onValueChange={(value) => {
-                    setSelectedSound(value as TimerSound);
-                    localStorage.setItem('selectedSound', value);
-                  }}
-                >
-                  <SelectTrigger className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <Volume2 className="w-4 h-4 text-muted-foreground" />
-                      <SelectValue />
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(SOUND_LABELS) as TimerSound[]).map((sound) => (
-                      <SelectItem key={sound} value={sound}>
-                        {SOUND_LABELS[sound]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={async () => {
-                    await unlockAudio();
-                    playSound(selectedSound);
-                  }}
-                  disabled={selectedSound === 'none'}
-                  aria-label="Preview sound"
-                >
-                  <Play className="w-4 h-4" />
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Sound plays twice when timer completes for better alerting
+              <Label>Test Completion Sounds</Label>
+              <p className="text-sm text-muted-foreground mb-2">
+                Preview the sounds available when timer completes
               </p>
+              <div className="grid grid-cols-3 gap-2">
+                {(Object.keys(SOUND_LABELS) as TimerSound[])
+                  .filter(sound => sound !== 'none')
+                  .map((sound) => (
+                    <Button
+                      key={sound}
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        await unlockAudio();
+                        playSound(sound);
+                      }}
+                      className="flex flex-col gap-1 h-auto py-2"
+                    >
+                      <Volume2 className="w-4 h-4" />
+                      <span className="text-xs">{SOUND_LABELS[sound]}</span>
+                    </Button>
+                  ))}
+              </div>
             </div>
 
             {/* Vibration */}
@@ -350,39 +336,55 @@ export function SettingsView() {
             </div>
 
             {/* Visual Flash */}
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="visual-flash">Visual Flash</Label>
-                <p className="text-sm text-muted-foreground">
-                  Screen flashes when timer completes
-                </p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="visual-flash">Visual Flash</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Screen flashes when timer completes
+                  </p>
+                </div>
+                <Switch
+                  id="visual-flash"
+                  checked={visualFlash}
+                  onCheckedChange={(checked) => {
+                    setVisualFlash(checked);
+                    localStorage.setItem('visualFlash', String(checked));
+                  }}
+                />
               </div>
-              <Switch
-                id="visual-flash"
-                checked={visualFlash}
-                onCheckedChange={(checked) => {
-                  setVisualFlash(checked);
-                  localStorage.setItem('visualFlash', String(checked));
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setTestingFlash(true);
+                  setTimeout(() => setTestingFlash(false), 500);
                 }}
-              />
+                className="w-full"
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Test Visual Flash
+              </Button>
             </div>
 
             {/* Screen Wake Lock */}
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="wake-lock">Keep Screen Awake</Label>
-                <p className="text-sm text-muted-foreground">
-                  Prevents screen from sleeping during meditation
-                </p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="wake-lock">Keep Screen Awake</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Prevents screen from sleeping during meditation
+                  </p>
+                </div>
+                <Switch
+                  id="wake-lock"
+                  checked={screenWakeLock}
+                  onCheckedChange={(checked) => {
+                    setScreenWakeLock(checked);
+                    localStorage.setItem('screenWakeLock', String(checked));
+                  }}
+                />
               </div>
-              <Switch
-                id="wake-lock"
-                checked={screenWakeLock}
-                onCheckedChange={(checked) => {
-                  setScreenWakeLock(checked);
-                  localStorage.setItem('screenWakeLock', String(checked));
-                }}
-              />
             </div>
           </div>
         </Card>
@@ -528,5 +530,6 @@ export function SettingsView() {
         </Button>
       </div>
     </div>
+    </>
   );
 }
