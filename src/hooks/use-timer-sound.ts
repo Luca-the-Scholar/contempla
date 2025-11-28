@@ -146,33 +146,67 @@ function createChimeSound(audioContext: AudioContext) {
 export function useTimerSound() {
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  const playSound = useCallback((sound: TimerSound) => {
-    if (sound === 'none') return;
-
-    // Create or resume audio context
+  // Get or create audio context
+  const getAudioContext = useCallback(() => {
     if (!audioContextRef.current) {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
+    return audioContextRef.current;
+  }, []);
+
+  // Unlock audio on iOS - call this on user interaction before timer starts
+  const unlockAudio = useCallback(async () => {
+    const audioContext = getAudioContext();
     
-    const audioContext = audioContextRef.current;
+    // Resume if suspended
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume();
+    }
+    
+    // Play a silent sound to unlock audio on iOS
+    const buffer = audioContext.createBuffer(1, 1, 22050);
+    const source = audioContext.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioContext.destination);
+    source.start(0);
+    
+    return true;
+  }, [getAudioContext]);
+
+  const playSound = useCallback((sound: TimerSound, repeat: number = 1) => {
+    if (sound === 'none') return;
+
+    const audioContext = getAudioContext();
     
     // Resume if suspended (required for some browsers)
     if (audioContext.state === 'suspended') {
       audioContext.resume();
     }
 
-    switch (sound) {
-      case 'gong':
-        createGongSound(audioContext);
-        break;
-      case 'singing-bowl':
-        createSingingBowlSound(audioContext);
-        break;
-      case 'chime':
-        createChimeSound(audioContext);
-        break;
+    const playSingle = () => {
+      switch (sound) {
+        case 'gong':
+          createGongSound(audioContext);
+          break;
+        case 'singing-bowl':
+          createSingingBowlSound(audioContext);
+          break;
+        case 'chime':
+          createChimeSound(audioContext);
+          break;
+      }
+    };
+
+    // Play sound immediately
+    playSingle();
+    
+    // Repeat if requested (helps ensure user hears it)
+    if (repeat > 1) {
+      for (let i = 1; i < repeat; i++) {
+        setTimeout(playSingle, i * 3000); // Space out repeats
+      }
     }
-  }, []);
+  }, [getAudioContext]);
 
   const stopSound = useCallback(() => {
     if (audioContextRef.current) {
@@ -181,5 +215,5 @@ export function useTimerSound() {
     }
   }, []);
 
-  return { playSound, stopSound };
+  return { playSound, stopSound, unlockAudio };
 }

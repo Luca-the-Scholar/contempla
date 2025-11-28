@@ -26,7 +26,7 @@ type TimerState = 'setup' | 'running' | 'paused' | 'complete';
 export function TimerView() {
   const { toast } = useToast();
   const noSleep = useNoSleep();
-  const { playSound } = useTimerSound();
+  const { playSound, unlockAudio } = useTimerSound();
   const { vibrate } = useHaptic();
   const [techniques, setTechniques] = useState<Technique[]>([]);
   const [selectedTechniqueId, setSelectedTechniqueId] = useState<string>("");
@@ -43,7 +43,11 @@ export function TimerView() {
   const [showWakeLockWarning, setShowWakeLockWarning] = useState(false);
   const [selectedSound, setSelectedSound] = useState<TimerSound>('singing-bowl');
   const [hapticEnabled, setHapticEnabled] = useState(true);
+  const [showCompletionFlash, setShowCompletionFlash] = useState(false);
   const presetDurations = [5, 15, 30, 60];
+  
+  // Detect iOS for specific tips
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
   // Load haptic preference from localStorage
   useEffect(() => {
@@ -136,6 +140,9 @@ export function TimerView() {
       return;
     }
 
+    // Unlock audio on iOS (must happen on user interaction)
+    await unlockAudio();
+
     // Enable NoSleep to keep screen awake
     try {
       await noSleep.enable();
@@ -157,7 +164,13 @@ export function TimerView() {
     handleReset();
   };
   const handleTimerComplete = async () => {
-    playSound(selectedSound);
+    // Visual flash for attention
+    setShowCompletionFlash(true);
+    setTimeout(() => setShowCompletionFlash(false), 500);
+    
+    // Play sound twice for better alerting (especially on mobile)
+    playSound(selectedSound, 2);
+    
     // Vibrate if haptic is enabled
     if (hapticEnabled) {
       vibrate(TIMER_COMPLETE_PATTERN);
@@ -301,7 +314,7 @@ export function TimerView() {
 
   // Full-screen Timer Display
   if (timerState === 'running' || timerState === 'paused') {
-    return <div className="fixed inset-0 bg-background z-50 flex flex-col items-center justify-center px-4">
+    return <div className={`fixed inset-0 bg-background z-50 flex flex-col items-center justify-center px-4 transition-colors duration-300 ${showCompletionFlash ? 'bg-primary/20' : ''}`}>
         <div className="max-w-md w-full space-y-8">
           {/* Wake Lock Warning */}
           {showWakeLockWarning && (
@@ -309,6 +322,15 @@ export function TimerView() {
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription className="text-sm">
                 For best results, please keep your screen awake during your meditation.
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {/* iOS Tip */}
+          {isIOS && timerState === 'running' && (
+            <Alert className="bg-muted/50 border-muted">
+              <AlertDescription className="text-xs text-muted-foreground">
+                Tip: Keep Contempla in the foreground for reliable timer alerts on iOS.
               </AlertDescription>
             </Alert>
           )}
