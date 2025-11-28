@@ -45,6 +45,8 @@ interface Technique {
   is_favorite: boolean;
   mastery?: number;
   lastPracticed?: string;
+  source_global_technique_id?: string | null;
+  original_author_name?: string | null;
 }
 
 const AVAILABLE_TAGS = [
@@ -347,12 +349,15 @@ export function LibraryView() {
                         <div className="space-y-3">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
-                              <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2">
                                 <h3 className="font-semibold">{technique.name}</h3>
                                 {technique.is_favorite && (
                                   <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" />
                                 )}
                               </div>
+                              {technique.original_author_name && (
+                                <p className="text-xs text-primary">by {technique.original_author_name}</p>
+                              )}
                               <p className="text-sm text-muted-foreground mt-1">
                                 {formatLastPracticed(technique.lastPracticed)}
                               </p>
@@ -647,23 +652,35 @@ export function LibraryView() {
               ) : (
                 /* View Mode */
                 <>
+                  {/* Attribution for saved global techniques */}
+                  {detailTechnique.original_author_name && (
+                    <div className="flex items-center gap-2 p-2 bg-primary/10 rounded-md">
+                      <span className="text-sm text-primary">by {detailTechnique.original_author_name}</span>
+                      {detailTechnique.source_global_technique_id && (
+                        <Badge variant="secondary" className="text-xs">Read-only</Badge>
+                      )}
+                    </div>
+                  )}
+
                   {/* Action Buttons */}
                   <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openEditMode(detailTechnique)}
-                    >
-                      <Pencil className="h-4 w-4 mr-1" />
-                      Edit
-                    </Button>
+                    {!detailTechnique.source_global_technique_id && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openEditMode(detailTechnique)}
+                      >
+                        <Pencil className="h-4 w-4 mr-1" />
+                        Edit
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleDuplicateTechnique(detailTechnique)}
                     >
                       <Copy className="h-4 w-4 mr-1" />
-                      Duplicate
+                      {detailTechnique.source_global_technique_id ? 'Duplicate to Edit' : 'Duplicate'}
                     </Button>
                   </div>
 

@@ -7,12 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Bell, LogOut, User, Shield, Database, ShieldCheck, Vibrate, Volume2, Sparkles, Check } from "lucide-react";
+import { Bell, LogOut, User, Shield, Database, ShieldCheck, Vibrate, Volume2, Sparkles, Check, Music } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { AdminApprovalPanel } from "@/components/admin/AdminApprovalPanel";
 import { useHaptic } from "@/hooks/use-haptic";
 import { useTimerSound, TimerSound, SOUND_LABELS } from "@/hooks/use-timer-sound";
+import { useSpotify } from "@/hooks/use-spotify";
 
 export function SettingsView() {
   const [userName, setUserName] = useState("");
@@ -38,6 +39,7 @@ export function SettingsView() {
   const navigate = useNavigate();
   const { isSupported: hapticSupported, testVibration } = useHaptic();
   const { playSound, unlockAudio } = useTimerSound();
+  const { enabled: spotifyEnabled, playlistUrl, setSpotifyEnabled, setSpotifyPlaylistUrl, isValidPlaylistUrl } = useSpotify();
 
   useEffect(() => {
     fetchSettings();
@@ -400,6 +402,50 @@ export function SettingsView() {
                 />
               </div>
             </div>
+          </div>
+        </Card>
+
+        {/* Spotify Integration */}
+        <Card className="p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <Music className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold">Spotify Integration</h2>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="spotify">Enable Spotify</Label>
+                <p className="text-sm text-muted-foreground">
+                  Play music during meditation sessions
+                </p>
+              </div>
+              <Switch
+                id="spotify"
+                checked={spotifyEnabled}
+                onCheckedChange={setSpotifyEnabled}
+              />
+            </div>
+            
+            {spotifyEnabled && (
+              <div className="space-y-2">
+                <Label htmlFor="playlist-url">Spotify Playlist URL</Label>
+                <Input
+                  id="playlist-url"
+                  placeholder="https://open.spotify.com/playlist/..."
+                  value={playlistUrl}
+                  onChange={(e) => setSpotifyPlaylistUrl(e.target.value)}
+                  className="min-h-[44px]"
+                />
+                {playlistUrl && !isValidPlaylistUrl(playlistUrl) && (
+                  <p className="text-xs text-destructive">
+                    Please enter a valid Spotify playlist URL
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  When timer starts, Spotify will open in a new tab. You may need to press play manually.
+                </p>
+              </div>
+            )}
           </div>
         </Card>
 
