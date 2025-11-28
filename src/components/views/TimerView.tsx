@@ -13,6 +13,7 @@ import { useNoSleep } from "@/hooks/use-nosleep";
 import { useHaptic, TIMER_COMPLETE_PATTERN } from "@/hooks/use-haptic";
 import { useTimerSound, TimerSound, SOUND_LABELS } from "@/hooks/use-timer-sound";
 import { useSpotify } from "@/hooks/use-spotify";
+import { useSpotifySDK } from "@/hooks/use-spotify-sdk";
 
 interface Technique {
   id: string;
@@ -30,6 +31,7 @@ export function TimerView() {
   const { playSound, unlockAudio } = useTimerSound();
   const { vibrate } = useHaptic();
   const { enabled: spotifyEnabled, playlistUrl, openPlaylist, isValidPlaylistUrl } = useSpotify();
+  const { isConnected: spotifyConnected, isReady: spotifyReady, playPlaylist, pause: pauseSpotify, getPlaylistUri } = useSpotifySDK();
   const [techniques, setTechniques] = useState<Technique[]>([]);
   const [selectedTechniqueId, setSelectedTechniqueId] = useState<string>("");
   const [selectedTechnique, setSelectedTechnique] = useState<Technique | null>(null);
@@ -204,21 +206,48 @@ export function TimerView() {
     setSecondsLeft(duration * 60);
     setTimerState('running');
     
-    // Open Spotify playlist if enabled
-    if (spotifyEnabled && playlistUrl && isValidPlaylistUrl(playlistUrl)) {
-      openPlaylist();
+    // Play Spotify if configured
+    if (playlistUrl && isValidPlaylistUrl(playlistUrl)) {
+      if (spotifyConnected && spotifyReady) {
+        // Use SDK autoplay
+        const uri = getPlaylistUri(playlistUrl);
+        if (uri) {
+          playPlaylist(uri);
+        }
+      } else if (spotifyEnabled) {
+        // Fallback to external link
+        openPlaylist();
+      }
     }
   };
   const handlePause = () => {
     setTimerState('paused');
+    // Pause Spotify if connected
+    if (spotifyConnected && spotifyReady) {
+      pauseSpotify();
+    }
   };
   const handleResume = () => {
     setTimerState('running');
+    // Resume Spotify if connected
+    if (spotifyConnected && spotifyReady && playlistUrl) {
+      const uri = getPlaylistUri(playlistUrl);
+      if (uri) playPlaylist(uri);
+    }
   };
   const handleStop = () => {
+    // Pause Spotify when stopping
+    if (spotifyConnected && spotifyReady) {
+      pauseSpotify();
+    }
     handleReset();
   };
   const handleTimerComplete = async () => {
+    // Pause Spotify when complete
+    if (spotifyConnected && spotifyReady) {
+      pauseSpotify();
+    }
+    
     // Visual flash for attention (if enabled) - persists until dismissed
     if (visualFlashEnabled) {
       setShowCompletionFlash(true);

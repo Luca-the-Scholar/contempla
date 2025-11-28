@@ -14,6 +14,7 @@ import { AdminApprovalPanel } from "@/components/admin/AdminApprovalPanel";
 import { useHaptic } from "@/hooks/use-haptic";
 import { useTimerSound, TimerSound, SOUND_LABELS } from "@/hooks/use-timer-sound";
 import { useSpotify } from "@/hooks/use-spotify";
+import { useSpotifySDK } from "@/hooks/use-spotify-sdk";
 
 export function SettingsView() {
   const [userName, setUserName] = useState("");
@@ -40,6 +41,7 @@ export function SettingsView() {
   const { isSupported: hapticSupported, testVibration } = useHaptic();
   const { playSound, unlockAudio } = useTimerSound();
   const { enabled: spotifyEnabled, playlistUrl, setSpotifyEnabled, setSpotifyPlaylistUrl, isValidPlaylistUrl } = useSpotify();
+  const { isConnected: spotifyConnected, isReady: spotifyReady, error: spotifyError, connect: connectSpotify, disconnect: disconnectSpotify } = useSpotifySDK();
 
   useEffect(() => {
     fetchSettings();
@@ -412,21 +414,53 @@ export function SettingsView() {
             <h2 className="text-lg font-semibold">Spotify Integration</h2>
           </div>
           <div className="space-y-4">
+            {/* Connection Status */}
             <div className="flex items-center justify-between">
               <div>
-                <Label htmlFor="spotify">Enable Spotify</Label>
+                <Label>Spotify Account</Label>
                 <p className="text-sm text-muted-foreground">
-                  Play music during meditation sessions
+                  {spotifyConnected 
+                    ? spotifyReady 
+                      ? "Connected and ready" 
+                      : "Connected, initializing player..."
+                    : "Connect to enable autoplay"}
+                </p>
+              </div>
+              {spotifyConnected ? (
+                <Button variant="outline" size="sm" onClick={disconnectSpotify}>
+                  Disconnect
+                </Button>
+              ) : (
+                <Button size="sm" onClick={connectSpotify}>
+                  Connect
+                </Button>
+              )}
+            </div>
+
+            {spotifyError && (
+              <p className="text-xs text-destructive">{spotifyError}</p>
+            )}
+
+            <Separator />
+
+            {/* Legacy mode toggle */}
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="spotify">Use External Link (Fallback)</Label>
+                <p className="text-sm text-muted-foreground">
+                  Opens Spotify in new tab instead of autoplay
                 </p>
               </div>
               <Switch
                 id="spotify"
-                checked={spotifyEnabled}
+                checked={spotifyEnabled && !spotifyConnected}
                 onCheckedChange={setSpotifyEnabled}
+                disabled={spotifyConnected}
               />
             </div>
             
-            {spotifyEnabled && (
+            {/* Playlist URL - shown if connected OR legacy mode */}
+            {(spotifyConnected || spotifyEnabled) && (
               <div className="space-y-2">
                 <Label htmlFor="playlist-url">Spotify Playlist URL</Label>
                 <Input
@@ -442,7 +476,9 @@ export function SettingsView() {
                   </p>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  When timer starts, Spotify will open in a new tab. You may need to press play manually.
+                  {spotifyConnected 
+                    ? "Music will autoplay when timer starts (Spotify Premium required)"
+                    : "When timer starts, Spotify will open in a new tab"}
                 </p>
               </div>
             )}
