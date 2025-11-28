@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Globe, Book, MapPin } from "lucide-react";
+import { Copy, Globe, Book, MapPin } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface GlobalTechnique {
@@ -242,13 +242,16 @@ export function GlobalLibraryTab() {
                 disabled={adding}
                 className="flex-1"
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Add to My Library
+                <Copy className="h-4 w-4 mr-2" />
+                Copy to My Library
               </Button>
               <Button variant="outline" onClick={() => setDetailsOpen(false)}>
                 Close
               </Button>
             </div>
+            <p className="text-xs text-muted-foreground text-center">
+              Copying creates an editable version in your personal library
+            </p>
           </DialogContent>
         </Dialog>
       )}

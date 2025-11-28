@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Star, Trash2, Upload, Settings } from "lucide-react";
+import { Plus, Star, Trash2, Upload, Pencil, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { GlobalLibraryTab } from "@/components/library/GlobalLibraryTab";
@@ -67,6 +67,13 @@ export function LibraryView() {
   const [techniqueToDelete, setTechniqueToDelete] = useState<Technique | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [detailTechnique, setDetailTechnique] = useState<Technique | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: "",
+    instructions: "",
+    tradition: "",
+    tags: [] as string[],
+  });
   const [formData, setFormData] = useState({
     name: "",
     instructions: "",
@@ -194,6 +201,78 @@ export function LibraryView() {
   const openDeleteDialog = (technique: Technique) => {
     setTechniqueToDelete(technique);
     setDeleteDialogOpen(true);
+  };
+
+  const openEditMode = (technique: Technique) => {
+    setEditFormData({
+      name: technique.name,
+      instructions: technique.instructions,
+      tradition: technique.tradition,
+      tags: technique.tags || [],
+    });
+    setIsEditing(true);
+  };
+
+  const handleUpdateTechnique = async () => {
+    if (!detailTechnique || !editFormData.name || !editFormData.instructions || !editFormData.tradition) {
+      toast({
+        title: "Missing fields",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("techniques")
+        .update({
+          name: editFormData.name,
+          instructions: editFormData.instructions,
+          tradition: editFormData.tradition,
+          tags: editFormData.tags,
+        })
+        .eq("id", detailTechnique.id);
+
+      if (error) throw error;
+
+      toast({ title: "Technique updated!" });
+      setIsEditing(false);
+      setDetailTechnique(null);
+      fetchTechniques();
+    } catch (error: any) {
+      toast({
+        title: "Error updating technique",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDuplicateTechnique = async (technique: Technique) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { error } = await supabase.from("techniques").insert({
+        user_id: user.id,
+        name: `${technique.name} (Copy)`,
+        instructions: technique.instructions,
+        tradition: technique.tradition,
+        tags: technique.tags,
+      });
+
+      if (error) throw error;
+
+      toast({ title: "Technique duplicated!" });
+      fetchTechniques();
+    } catch (error: any) {
+      toast({
+        title: "Error duplicating technique",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const formatLastPracticed = (dateString?: string) => {
@@ -459,52 +538,169 @@ export function LibraryView() {
       </AlertDialog>
 
       {/* Technique Detail Dialog with Preset Manager */}
-      <Dialog open={!!detailTechnique} onOpenChange={(open) => !open && setDetailTechnique(null)}>
+      <Dialog open={!!detailTechnique} onOpenChange={(open) => {
+        if (!open) {
+          setDetailTechnique(null);
+          setIsEditing(false);
+        }
+      }}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {detailTechnique?.name}
-              {detailTechnique?.is_favorite && (
+              {isEditing ? "Edit Technique" : detailTechnique?.name}
+              {!isEditing && detailTechnique?.is_favorite && (
                 <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" />
               )}
             </DialogTitle>
-            <DialogDescription>{detailTechnique?.tradition}</DialogDescription>
+            <DialogDescription>
+              {isEditing ? "Update your technique details" : detailTechnique?.tradition}
+            </DialogDescription>
           </DialogHeader>
           
           {detailTechnique && (
             <div className="space-y-6 pt-4">
-              {/* Tags */}
-              {detailTechnique.tags && detailTechnique.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {detailTechnique.tags.map((tag, idx) => (
-                    <Badge key={idx} variant="secondary" className="text-xs">
-                      {tag}
-                    </Badge>
-                  ))}
+              {isEditing ? (
+                /* Edit Form */
+                <div className="space-y-4">
+                  <div>
+                    <Input
+                      placeholder="Technique Name"
+                      value={editFormData.name}
+                      onChange={(e) =>
+                        setEditFormData((prev) => ({ ...prev, name: e.target.value }))
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <Input
+                      placeholder="Tradition/Community"
+                      value={editFormData.tradition}
+                      onChange={(e) =>
+                        setEditFormData((prev) => ({ ...prev, tradition: e.target.value }))
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <Textarea
+                      placeholder="Instructions"
+                      value={editFormData.instructions}
+                      onChange={(e) =>
+                        setEditFormData((prev) => ({ ...prev, instructions: e.target.value }))
+                      }
+                      rows={6}
+                    />
+                  </div>
+
+                  <div>
+                    <Select
+                      value=""
+                      onValueChange={(value) => {
+                        if (!editFormData.tags.includes(value)) {
+                          setEditFormData((prev) => ({ ...prev, tags: [...prev.tags, value] }));
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Add tags (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {AVAILABLE_TAGS.map((tag) => (
+                          <SelectItem key={tag} value={tag}>
+                            {tag}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    {editFormData.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {editFormData.tags.map((tag, idx) => (
+                          <Badge
+                            key={idx}
+                            variant="secondary"
+                            className="cursor-pointer"
+                            onClick={() =>
+                              setEditFormData((prev) => ({
+                                ...prev,
+                                tags: prev.tags.filter((t) => t !== tag),
+                              }))
+                            }
+                          >
+                            {tag} ×
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button onClick={handleUpdateTechnique} className="flex-1">
+                      Save Changes
+                    </Button>
+                    <Button variant="outline" onClick={() => setIsEditing(false)}>
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
+              ) : (
+                /* View Mode */
+                <>
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEditMode(detailTechnique)}
+                    >
+                      <Pencil className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDuplicateTechnique(detailTechnique)}
+                    >
+                      <Copy className="h-4 w-4 mr-1" />
+                      Duplicate
+                    </Button>
+                  </div>
+
+                  {/* Tags */}
+                  {detailTechnique.tags && detailTechnique.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {detailTechnique.tags.map((tag, idx) => (
+                        <Badge key={idx} variant="secondary" className="text-xs">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Instructions */}
+                  <div>
+                    <h4 className="font-semibold mb-2">Instructions</h4>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      {detailTechnique.instructions}
+                    </p>
+                  </div>
+
+                  {/* Mastery */}
+                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <span className="text-sm">Mastery Progress</span>
+                    <span className="font-semibold">{detailTechnique.mastery?.toFixed(1) || 0}%</span>
+                  </div>
+
+                  {/* Preset Manager */}
+                  <div className="border-t pt-4">
+                    <PresetManager 
+                      techniqueId={detailTechnique.id} 
+                      techniqueName={detailTechnique.name} 
+                    />
+                  </div>
+                </>
               )}
-
-              {/* Instructions */}
-              <div>
-                <h4 className="font-semibold mb-2">Instructions</h4>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {detailTechnique.instructions}
-                </p>
-              </div>
-
-              {/* Mastery */}
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <span className="text-sm">Mastery Progress</span>
-                <span className="font-semibold">{detailTechnique.mastery?.toFixed(1) || 0}%</span>
-              </div>
-
-              {/* Preset Manager */}
-              <div className="border-t pt-4">
-                <PresetManager 
-                  techniqueId={detailTechnique.id} 
-                  techniqueName={detailTechnique.name} 
-                />
-              </div>
             </div>
           )}
         </DialogContent>
