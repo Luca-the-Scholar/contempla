@@ -74,18 +74,17 @@ export function ManualEntryDialog({ techniques, onEntryAdded }: ManualEntryDialo
     }
   };
 
-  // Calculate multiplier preview
-  const getMultiplierPreview = (mins: number): string => {
-    if (mins <= 30) return '1.0x';
-    if (mins <= 39) return `${(1.0 + (mins - 30) * 0.2 / 9).toFixed(2)}x`;
-    if (mins <= 49) return `${(1.2 + (mins - 39) * 0.2 / 10).toFixed(2)}x`;
-    if (mins <= 59) return `${(1.4 + (mins - 49) * 0.4 / 10).toFixed(2)}x`;
-    return `${(1.8 + (mins - 59) * 0.04).toFixed(2)}x`;
+  // Calculate multiplier preview using new formula
+  // multiplier = 1 + slope × (minutes - 30) where slope = (1.8 - 1.0) / 29
+  const getMultiplierPreview = (mins: number): number => {
+    if (mins <= 30) return 1.0;
+    const slope = (1.8 - 1.0) / 29;
+    return 1.0 + slope * (mins - 30);
   };
 
   const parsedMinutes = parseInt(minutes, 10);
   const multiplier = !isNaN(parsedMinutes) && parsedMinutes > 0 ? getMultiplierPreview(parsedMinutes) : null;
-  const effectiveMinutes = multiplier && parsedMinutes ? (parsedMinutes * parseFloat(multiplier)).toFixed(1) : null;
+  const effectiveMinutes = multiplier && parsedMinutes ? (parsedMinutes * multiplier).toFixed(1) : null;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -162,7 +161,7 @@ export function ManualEntryDialog({ techniques, onEntryAdded }: ManualEntryDialo
             />
             {multiplier && effectiveMinutes && (
               <p className="text-xs text-muted-foreground">
-                Multiplier: {multiplier} → {effectiveMinutes} effective minutes
+                Multiplier: {multiplier.toFixed(2)}x → {effectiveMinutes} effective minutes
               </p>
             )}
           </div>

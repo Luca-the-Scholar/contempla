@@ -125,6 +125,44 @@ export type Database = {
         }
         Relationships: []
       }
+      mastery_history: {
+        Row: {
+          created_at: string
+          cumulative_effective_minutes: number
+          id: string
+          mastery_score: number
+          recorded_at: string
+          technique_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          cumulative_effective_minutes: number
+          id?: string
+          mastery_score: number
+          recorded_at?: string
+          technique_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          cumulative_effective_minutes?: number
+          id?: string
+          mastery_score?: number
+          recorded_at?: string
+          technique_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mastery_history_technique_id_fkey"
+            columns: ["technique_id"]
+            isOneToOne: false
+            referencedRelation: "techniques"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mastery_scores: {
         Row: {
           cumulative_effective_minutes: number | null
@@ -504,6 +542,7 @@ export type Database = {
         Args: { duration_minutes: number }
         Returns: number
       }
+      calculate_streak_bonus: { Args: { streak_days: number }; Returns: number }
       get_or_create_conversation: {
         Args: { other_user_id: string }
         Returns: string

@@ -29,12 +29,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Star, Trash2, Upload, Pencil, Copy } from "lucide-react";
+import { Plus, Star, Trash2, Upload, Pencil, Copy, TrendingUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { GlobalLibraryTab } from "@/components/library/GlobalLibraryTab";
 import { UploadTechniqueDialog } from "@/components/library/UploadTechniqueDialog";
 import { PresetManager } from "@/components/presets/PresetManager";
+import { MasteryHistoryDialog } from "@/components/library/MasteryHistoryDialog";
 
 interface Technique {
   id: string;
@@ -81,6 +82,8 @@ export function LibraryView() {
     instructions: "",
     tradition: "",
   });
+  const [masteryHistoryOpen, setMasteryHistoryOpen] = useState(false);
+  const [masteryHistoryTechnique, setMasteryHistoryTechnique] = useState<Technique | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -385,12 +388,22 @@ export function LibraryView() {
                           )}
 
                           <div className="pt-2 border-t">
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-muted-foreground">Mastery</span>
+                            <button
+                              className="w-full flex items-center justify-between text-sm hover:bg-accent/50 rounded p-1 -m-1 transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMasteryHistoryTechnique(technique);
+                                setMasteryHistoryOpen(true);
+                              }}
+                            >
+                              <span className="text-muted-foreground flex items-center gap-1">
+                                <TrendingUp className="h-3 w-3" />
+                                Mastery
+                              </span>
                               <span className="font-semibold">
                                 {technique.mastery?.toFixed(1) || 0}%
                               </span>
-                            </div>
+                            </button>
                           </div>
                         </div>
                       </Card>
@@ -704,10 +717,19 @@ export function LibraryView() {
                   </div>
 
                   {/* Mastery */}
-                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                    <span className="text-sm">Mastery Progress</span>
+                  <button
+                    className="w-full flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
+                    onClick={() => {
+                      setMasteryHistoryTechnique(detailTechnique);
+                      setMasteryHistoryOpen(true);
+                    }}
+                  >
+                    <span className="text-sm flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4" />
+                      Mastery Progress
+                    </span>
                     <span className="font-semibold">{detailTechnique.mastery?.toFixed(1) || 0}%</span>
-                  </div>
+                  </button>
 
                   {/* Preset Manager */}
                   <div className="border-t pt-4">
@@ -722,6 +744,17 @@ export function LibraryView() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Mastery History Dialog */}
+      {masteryHistoryTechnique && (
+        <MasteryHistoryDialog
+          open={masteryHistoryOpen}
+          onOpenChange={setMasteryHistoryOpen}
+          techniqueId={masteryHistoryTechnique.id}
+          techniqueName={masteryHistoryTechnique.name}
+          currentMastery={masteryHistoryTechnique.mastery || 0}
+        />
+      )}
     </div>
   );
 }

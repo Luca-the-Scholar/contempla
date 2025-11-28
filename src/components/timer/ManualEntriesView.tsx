@@ -153,12 +153,11 @@ export function ManualEntriesView({ onEntriesChanged }: ManualEntriesViewProps) 
     }
   };
 
+  // New formula: multiplier = 1 + slope × (minutes - 30) where slope = (1.8 - 1.0) / 29
   const calculateMultiplier = (mins: number): number => {
     if (mins <= 30) return 1.0;
-    if (mins <= 39) return 1.0 + (mins - 30) * 0.2 / 9;
-    if (mins <= 49) return 1.2 + (mins - 39) * 0.2 / 10;
-    if (mins <= 59) return 1.4 + (mins - 49) * 0.4 / 10;
-    return 1.8 + (mins - 59) * 0.04;
+    const slope = (1.8 - 1.0) / 29;
+    return 1.0 + slope * (mins - 30);
   };
 
   return (
