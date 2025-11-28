@@ -329,12 +329,29 @@ export function useSpotifySDK() {
     }
   }, [getValidToken, deviceId]);
 
-  // Pause playback
+  // Pause playback using Spotify Web API
   const pause = useCallback(async () => {
-    if (playerRef.current) {
-      await playerRef.current.pause();
+    const token = await getValidToken();
+    if (!token) return;
+
+    try {
+      // First try the SDK player
+      if (playerRef.current) {
+        await playerRef.current.pause();
+        return;
+      }
+      
+      // Fallback to Web API
+      await fetch('https://api.spotify.com/v1/me/player/pause', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+    } catch (err) {
+      console.error('Pause error:', err);
     }
-  }, []);
+  }, [getValidToken]);
 
   // Resume playback
   const resume = useCallback(async () => {
