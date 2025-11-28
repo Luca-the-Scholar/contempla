@@ -223,28 +223,28 @@ export function TimerView() {
   const handlePause = () => {
     setTimerState('paused');
     // Pause Spotify if connected
-    if (spotifyConnected && spotifyReady) {
+    if (spotifyConnected) {
       pauseSpotify();
     }
   };
   const handleResume = () => {
     setTimerState('running');
     // Resume Spotify if connected
-    if (spotifyConnected && spotifyReady && playlistUrl) {
+    if (spotifyConnected && playlistUrl) {
       const uri = getPlaylistUri(playlistUrl);
       if (uri) playPlaylist(uri);
     }
   };
   const handleStop = () => {
-    // Pause Spotify when stopping
-    if (spotifyConnected && spotifyReady) {
+    // Stop Spotify when stopping timer
+    if (spotifyConnected) {
       pauseSpotify();
     }
     handleReset();
   };
   const handleTimerComplete = async () => {
-    // Pause Spotify when complete
-    if (spotifyConnected && spotifyReady) {
+    // Stop Spotify when complete
+    if (spotifyConnected) {
       pauseSpotify();
     }
     
