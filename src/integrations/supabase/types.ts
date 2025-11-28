@@ -371,6 +371,8 @@ export type Database = {
           instructions: string
           is_favorite: boolean | null
           name: string
+          original_author_name: string | null
+          source_global_technique_id: string | null
           tags: string[] | null
           tradition: string
           updated_at: string | null
@@ -382,6 +384,8 @@ export type Database = {
           instructions: string
           is_favorite?: boolean | null
           name: string
+          original_author_name?: string | null
+          source_global_technique_id?: string | null
           tags?: string[] | null
           tradition: string
           updated_at?: string | null
@@ -393,12 +397,22 @@ export type Database = {
           instructions?: string
           is_favorite?: boolean | null
           name?: string
+          original_author_name?: string | null
+          source_global_technique_id?: string | null
           tags?: string[] | null
           tradition?: string
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "techniques_source_global_technique_id_fkey"
+            columns: ["source_global_technique_id"]
+            isOneToOne: false
+            referencedRelation: "global_techniques"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

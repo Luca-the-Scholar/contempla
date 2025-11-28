@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Copy, Globe, Book, MapPin } from "lucide-react";
+import { Copy, Globe, Book, MapPin, Bookmark } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface GlobalTechnique {
@@ -20,10 +20,17 @@ interface GlobalTechnique {
   relevant_texts: string[] | null;
   external_links: string[] | null;
   home_region: string | null;
+  submitted_by: string;
+}
+
+interface SubmitterProfile {
+  id: string;
+  name: string | null;
 }
 
 export function GlobalLibraryTab() {
   const [techniques, setTechniques] = useState<GlobalTechnique[]>([]);
+  const [submitterNames, setSubmitterNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [selectedTechnique, setSelectedTechnique] = useState<GlobalTechnique | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -43,6 +50,21 @@ export function GlobalLibraryTab() {
 
       if (error) throw error;
       setTechniques(data || []);
+      
+      // Fetch submitter names
+      const submitterIds = [...new Set((data || []).map(t => t.submitted_by))];
+      if (submitterIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, name')
+          .in('id', submitterIds);
+        
+        const namesMap: Record<string, string> = {};
+        (profiles || []).forEach((p: SubmitterProfile) => {
+          namesMap[p.id] = p.name || 'Anonymous';
+        });
+        setSubmitterNames(namesMap);
+      }
     } catch (error: any) {
       toast({
         title: "Error loading techniques",
@@ -54,7 +76,48 @@ export function GlobalLibraryTab() {
     }
   };
 
-  const addToPersonalLibrary = async (technique: GlobalTechnique) => {
+  // Save to library (read-only, with attribution)
+  const saveToPersonalLibrary = async (technique: GlobalTechnique) => {
+    setAdding(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const authorName = submitterNames[technique.submitted_by] || 'Anonymous';
+
+      const { error } = await supabase
+        .from('techniques')
+        .insert({
+          user_id: user.id,
+          name: technique.name,
+          instructions: technique.instructions,
+          tradition: technique.tradition,
+          tags: technique.tags,
+          source_global_technique_id: technique.id,
+          original_author_name: authorName
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Saved to library",
+        description: `${technique.name} by ${authorName} has been saved to your library.`,
+      });
+      
+      setDetailsOpen(false);
+    } catch (error: any) {
+      toast({
+        title: "Error saving technique",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  // Copy to library (editable duplicate)
+  const copyToPersonalLibrary = async (technique: GlobalTechnique) => {
     setAdding(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -64,7 +127,7 @@ export function GlobalLibraryTab() {
         .from('techniques')
         .insert({
           user_id: user.id,
-          name: technique.name,
+          name: `${technique.name} (Copy)`,
           instructions: technique.instructions,
           tradition: technique.tradition,
           tags: technique.tags
@@ -73,14 +136,14 @@ export function GlobalLibraryTab() {
       if (error) throw error;
 
       toast({
-        title: "Added to library",
-        description: `${technique.name} has been added to your personal library.`,
+        title: "Copied to library",
+        description: `A copy of ${technique.name} has been added to your library. You can now edit it.`,
       });
       
       setDetailsOpen(false);
     } catch (error: any) {
       toast({
-        title: "Error adding technique",
+        title: "Error copying technique",
         description: error.message,
         variant: "destructive",
       });
@@ -92,6 +155,10 @@ export function GlobalLibraryTab() {
   const openDetails = (technique: GlobalTechnique) => {
     setSelectedTechnique(technique);
     setDetailsOpen(true);
+  };
+
+  const getAuthorName = (technique: GlobalTechnique) => {
+    return submitterNames[technique.submitted_by] || 'Anonymous';
   };
 
   if (loading) {
@@ -116,6 +183,7 @@ export function GlobalLibraryTab() {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <h3 className="font-semibold">{technique.name}</h3>
+                  <p className="text-xs text-muted-foreground">by {getAuthorName(technique)}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <Badge variant="secondary">{technique.tradition}</Badge>
                     {technique.home_region && (
@@ -162,12 +230,12 @@ export function GlobalLibraryTab() {
             <DialogHeader>
               <DialogTitle>{selectedTechnique.name}</DialogTitle>
               <DialogDescription>
-                {selectedTechnique.tradition}
+                by {getAuthorName(selectedTechnique)} • {selectedTechnique.tradition}
                 {selectedTechnique.home_region && ` • ${selectedTechnique.home_region}`}
               </DialogDescription>
             </DialogHeader>
 
-            <ScrollArea className="max-h-[60vh]">
+            <ScrollArea className="max-h-[50vh]">
               <div className="space-y-4 pr-4">
                 <div>
                   <h4 className="font-semibold mb-2">Instructions</h4>
@@ -236,22 +304,31 @@ export function GlobalLibraryTab() {
               </div>
             </ScrollArea>
 
-            <div className="flex gap-2 pt-4 border-t">
-              <Button
-                onClick={() => addToPersonalLibrary(selectedTechnique)}
-                disabled={adding}
-                className="flex-1"
-              >
-                <Copy className="h-4 w-4 mr-2" />
-                Copy to My Library
-              </Button>
-              <Button variant="outline" onClick={() => setDetailsOpen(false)}>
-                Close
-              </Button>
+            <div className="space-y-3 pt-4 border-t">
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => saveToPersonalLibrary(selectedTechnique)}
+                  disabled={adding}
+                  className="flex-1"
+                  variant="default"
+                >
+                  <Bookmark className="h-4 w-4 mr-2" />
+                  Save to Library
+                </Button>
+                <Button
+                  onClick={() => copyToPersonalLibrary(selectedTechnique)}
+                  disabled={adding}
+                  className="flex-1"
+                  variant="outline"
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Duplicate
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground text-center">
+                <strong>Save</strong> keeps attribution (read-only) • <strong>Duplicate</strong> creates an editable copy
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground text-center">
-              Copying creates an editable version in your personal library
-            </p>
           </DialogContent>
         </Dialog>
       )}

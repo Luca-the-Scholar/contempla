@@ -7,11 +7,12 @@ import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Play, Pause, Square, Check, X, AlertTriangle, Volume2 } from "lucide-react";
+import { Play, Pause, Square, Check, X, AlertTriangle, Volume2, Music } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNoSleep } from "@/hooks/use-nosleep";
 import { useHaptic, TIMER_COMPLETE_PATTERN } from "@/hooks/use-haptic";
 import { useTimerSound, TimerSound, SOUND_LABELS } from "@/hooks/use-timer-sound";
+import { useSpotify } from "@/hooks/use-spotify";
 
 interface Technique {
   id: string;
@@ -28,6 +29,7 @@ export function TimerView() {
   const noSleep = useNoSleep();
   const { playSound, unlockAudio } = useTimerSound();
   const { vibrate } = useHaptic();
+  const { enabled: spotifyEnabled, playlistUrl, openPlaylist, isValidPlaylistUrl } = useSpotify();
   const [techniques, setTechniques] = useState<Technique[]>([]);
   const [selectedTechniqueId, setSelectedTechniqueId] = useState<string>("");
   const [selectedTechnique, setSelectedTechnique] = useState<Technique | null>(null);
@@ -201,6 +203,11 @@ export function TimerView() {
     setInitialDuration(duration);
     setSecondsLeft(duration * 60);
     setTimerState('running');
+    
+    // Open Spotify playlist if enabled
+    if (spotifyEnabled && playlistUrl && isValidPlaylistUrl(playlistUrl)) {
+      openPlaylist();
+    }
   };
   const handlePause = () => {
     setTimerState('paused');
@@ -658,6 +665,14 @@ export function TimerView() {
                 </div>
               </div>
             </div>
+
+            {/* Spotify indicator */}
+            {spotifyEnabled && playlistUrl && isValidPlaylistUrl(playlistUrl) && (
+              <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg">
+                <Music className="w-4 h-4 text-primary" />
+                <span className="text-sm text-primary">Spotify will open when timer starts</span>
+              </div>
+            )}
 
             {/* Start Button */}
             <Button onClick={handleStart} size="lg" className="w-full min-h-[52px] text-base">
