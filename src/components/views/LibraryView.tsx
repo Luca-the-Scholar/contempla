@@ -29,11 +29,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Star, Trash2, Upload } from "lucide-react";
+import { Plus, Star, Trash2, Upload, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { GlobalLibraryTab } from "@/components/library/GlobalLibraryTab";
 import { UploadTechniqueDialog } from "@/components/library/UploadTechniqueDialog";
+import { PresetManager } from "@/components/presets/PresetManager";
 
 interface Technique {
   id: string;
@@ -65,6 +66,7 @@ export function LibraryView() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [techniqueToDelete, setTechniqueToDelete] = useState<Technique | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [detailTechnique, setDetailTechnique] = useState<Technique | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     instructions: "",
@@ -258,7 +260,11 @@ export function LibraryView() {
                   <div key={tradition} className="space-y-3">
                     <h2 className="text-base font-semibold px-1">{tradition}</h2>
                     {techs.map((technique) => (
-                      <Card key={technique.id} className="p-4">
+                      <Card 
+                        key={technique.id} 
+                        className="p-4 cursor-pointer hover:bg-accent/50 transition-colors"
+                        onClick={() => setDetailTechnique(technique)}
+                      >
                         <div className="space-y-3">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -275,7 +281,10 @@ export function LibraryView() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => openDeleteDialog(technique)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openDeleteDialog(technique);
+                              }}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -448,6 +457,58 @@ export function LibraryView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Technique Detail Dialog with Preset Manager */}
+      <Dialog open={!!detailTechnique} onOpenChange={(open) => !open && setDetailTechnique(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {detailTechnique?.name}
+              {detailTechnique?.is_favorite && (
+                <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" />
+              )}
+            </DialogTitle>
+            <DialogDescription>{detailTechnique?.tradition}</DialogDescription>
+          </DialogHeader>
+          
+          {detailTechnique && (
+            <div className="space-y-6 pt-4">
+              {/* Tags */}
+              {detailTechnique.tags && detailTechnique.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {detailTechnique.tags.map((tag, idx) => (
+                    <Badge key={idx} variant="secondary" className="text-xs">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              {/* Instructions */}
+              <div>
+                <h4 className="font-semibold mb-2">Instructions</h4>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  {detailTechnique.instructions}
+                </p>
+              </div>
+
+              {/* Mastery */}
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <span className="text-sm">Mastery Progress</span>
+                <span className="font-semibold">{detailTechnique.mastery?.toFixed(1) || 0}%</span>
+              </div>
+
+              {/* Preset Manager */}
+              <div className="border-t pt-4">
+                <PresetManager 
+                  techniqueId={detailTechnique.id} 
+                  techniqueName={detailTechnique.name} 
+                />
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
