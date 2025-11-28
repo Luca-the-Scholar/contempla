@@ -49,6 +49,11 @@ declare global {
   }
 }
 
+// Detect mobile device
+const isMobileDevice = () => {
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+};
+
 export function useSpotifySDK() {
   const [isConnected, setIsConnected] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -58,6 +63,7 @@ export function useSpotifySDK() {
   const [tokens, setTokens] = useState<SpotifyTokens | null>(null);
   const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
+  const [isMobile] = useState(() => isMobileDevice());
   
   const playerRef = useRef<SpotifyPlayer | null>(null);
   const sdkLoadedRef = useRef(false);
@@ -296,8 +302,16 @@ export function useSpotifySDK() {
     }
   }, [getValidToken]);
 
-  // Play a playlist
+  // Play a playlist - on mobile, open in Spotify app
   const playPlaylist = useCallback(async (playlistUri: string) => {
+    // On mobile, open the playlist in Spotify app since Web Playback SDK doesn't work
+    if (isMobile) {
+      const playlistId = playlistUri.replace('spotify:playlist:', '');
+      // Try to open in Spotify app, fallback to web
+      window.open(`https://open.spotify.com/playlist/${playlistId}`, '_blank');
+      return true;
+    }
+
     const token = await getValidToken();
     if (!token || !deviceId) {
       console.error('No token or device ID');
@@ -327,7 +341,7 @@ export function useSpotifySDK() {
       console.error('Play error:', err);
       return false;
     }
-  }, [getValidToken, deviceId]);
+  }, [getValidToken, deviceId, isMobile]);
 
   // Pause playback using Spotify Web API
   const pause = useCallback(async () => {
@@ -466,19 +480,19 @@ export function useSpotifySDK() {
     };
   }, [tokens, initializePlayer]);
 
-  // Load SDK and initialize when connected
+  // Load SDK and initialize when connected (skip on mobile - SDK not supported)
   useEffect(() => {
-    if (isConnected && tokens) {
+    if (isConnected && tokens && !isMobile) {
       loadSDK();
       if (window.Spotify) {
         initializePlayer();
       }
     }
-  }, [isConnected, tokens, loadSDK, initializePlayer]);
+  }, [isConnected, tokens, loadSDK, initializePlayer, isMobile]);
 
   return {
     isConnected,
-    isReady,
+    isReady: isMobile ? isConnected : isReady, // On mobile, consider "ready" if connected
     isPlaying,
     error,
     connect,
@@ -491,5 +505,6 @@ export function useSpotifySDK() {
     playlists,
     loadingPlaylists,
     fetchPlaylists,
+    isMobile,
   };
 }
