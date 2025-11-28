@@ -138,9 +138,9 @@ export function MasteryHistoryDialog({
 
           {/* Formula explanation */}
           <div className="bg-muted/30 rounded-lg p-3 text-xs text-muted-foreground space-y-1">
-            <p><strong>Mastery Formula:</strong> 100 / (1 + e^(-(E - 50000) / 9000))</p>
+            <p><strong>Mastery Formula:</strong> 100 / (1 + e^(-(E - 25000) / 6000))</p>
             <p><strong>Duration Multiplier:</strong> 1.0x (≤30min) → grows linearly beyond</p>
-            <p><strong>Streak Bonus:</strong> +5% per consecutive day (1.05x day 1, 1.10x day 2, etc.)</p>
+            <p><strong>Streak Bonus:</strong> 1.05^days (exponential: 1.05x day 1, 1.10x day 2, 1.41x day 7)</p>
           </div>
         </div>
       </DialogContent>
