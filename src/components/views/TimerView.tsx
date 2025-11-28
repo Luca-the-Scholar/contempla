@@ -9,8 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Play, Pause, Square, Check, X, AlertTriangle, Volume2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useWakeLock } from "@/hooks/use-wake-lock";
+import { useNoSleep } from "@/hooks/use-nosleep";
+import { useHaptic, TIMER_COMPLETE_PATTERN } from "@/hooks/use-haptic";
 import { useTimerSound, TimerSound, SOUND_LABELS } from "@/hooks/use-timer-sound";
+
 interface Technique {
   id: string;
   name: string;
@@ -18,13 +20,14 @@ interface Technique {
   tradition: string;
   lastPracticed?: string;
 }
+
 type TimerState = 'setup' | 'running' | 'paused' | 'complete';
+
 export function TimerView() {
-  const {
-    toast
-  } = useToast();
-  const wakeLock = useWakeLock();
+  const { toast } = useToast();
+  const noSleep = useNoSleep();
   const { playSound } = useTimerSound();
+  const { vibrate } = useHaptic();
   const [techniques, setTechniques] = useState<Technique[]>([]);
   const [selectedTechniqueId, setSelectedTechniqueId] = useState<string>("");
   const [selectedTechnique, setSelectedTechnique] = useState<Technique | null>(null);
@@ -39,7 +42,16 @@ export function TimerView() {
   const [instructionsModalOpen, setInstructionsModalOpen] = useState(false);
   const [showWakeLockWarning, setShowWakeLockWarning] = useState(false);
   const [selectedSound, setSelectedSound] = useState<TimerSound>('singing-bowl');
+  const [hapticEnabled, setHapticEnabled] = useState(true);
   const presetDurations = [5, 15, 30, 60];
+
+  // Load haptic preference from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('hapticEnabled');
+    if (stored !== null) {
+      setHapticEnabled(stored === 'true');
+    }
+  }, []);
   useEffect(() => {
     fetchTechniques();
   }, []);
@@ -124,9 +136,10 @@ export function TimerView() {
       return;
     }
 
-    // Request wake lock to keep screen awake
-    const wakeLockAcquired = await wakeLock.request();
-    if (!wakeLockAcquired && !wakeLock.isSupported) {
+    // Enable NoSleep to keep screen awake
+    try {
+      await noSleep.enable();
+    } catch (err) {
       setShowWakeLockWarning(true);
     }
 
@@ -145,6 +158,10 @@ export function TimerView() {
   };
   const handleTimerComplete = async () => {
     playSound(selectedSound);
+    // Vibrate if haptic is enabled
+    if (hapticEnabled) {
+      vibrate(TIMER_COMPLETE_PATTERN);
+    }
     await logSession(initialDuration, false);
   };
   const logSession = async (minutesPracticed: number, stoppedEarly: boolean) => {
@@ -187,9 +204,9 @@ export function TimerView() {
       });
     }
   };
-  const handleReset = async () => {
-    // Release wake lock when timer stops
-    await wakeLock.release();
+  const handleReset = () => {
+    // Disable NoSleep when timer stops
+    noSleep.disable();
     setShowWakeLockWarning(false);
     setTimerState('setup');
     setSecondsLeft(0);

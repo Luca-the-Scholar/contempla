@@ -7,10 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Bell, LogOut, User, Shield, Database, ShieldCheck } from "lucide-react";
+import { Bell, LogOut, User, Shield, Database, ShieldCheck, Vibrate } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { AdminApprovalPanel } from "@/components/admin/AdminApprovalPanel";
+import { useHaptic } from "@/hooks/use-haptic";
 
 export function SettingsView() {
   const [userName, setUserName] = useState("");
@@ -25,13 +26,20 @@ export function SettingsView() {
   const [showTechniquesToFriends, setShowTechniquesToFriends] = useState(true);
   const [shareHealthData, setShareHealthData] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [hapticEnabled, setHapticEnabled] = useState(true);
   
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { isSupported: hapticSupported, testVibration } = useHaptic();
 
   useEffect(() => {
     fetchSettings();
     checkAdminStatus();
+    // Load haptic preference
+    const stored = localStorage.getItem('hapticEnabled');
+    if (stored !== null) {
+      setHapticEnabled(stored === 'true');
+    }
   }, []);
 
   const fetchSettings = async () => {
@@ -241,6 +249,48 @@ export function SettingsView() {
             </div>
           </div>
         </Card>
+
+        {/* Haptic Feedback */}
+        {hapticSupported && (
+          <Card className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Vibrate className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold">Haptic Feedback</h2>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="haptic">Vibration on Timer Complete</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Phone vibrates when meditation timer ends
+                  </p>
+                </div>
+                <Switch
+                  id="haptic"
+                  checked={hapticEnabled}
+                  onCheckedChange={(checked) => {
+                    setHapticEnabled(checked);
+                    localStorage.setItem('hapticEnabled', String(checked));
+                    toast({ title: checked ? "Haptic feedback enabled" : "Haptic feedback disabled" });
+                  }}
+                />
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const success = testVibration();
+                  if (!success) {
+                    toast({ title: "Vibration not available", description: "Your device may not support haptic feedback", variant: "destructive" });
+                  }
+                }}
+                className="w-full"
+              >
+                <Vibrate className="w-4 h-4 mr-2" />
+                Test Vibration
+              </Button>
+            </div>
+          </Card>
+        )}
 
         <Separator className="my-6" />
 
