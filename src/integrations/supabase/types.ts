@@ -323,6 +323,47 @@ export type Database = {
           },
         ]
       }
+      technique_presets: {
+        Row: {
+          created_at: string
+          duration_minutes: number
+          id: string
+          name: string
+          sound: string
+          technique_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          name: string
+          sound?: string
+          technique_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          name?: string
+          sound?: string
+          technique_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "technique_presets_technique_id_fkey"
+            columns: ["technique_id"]
+            isOneToOne: false
+            referencedRelation: "techniques"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       techniques: {
         Row: {
           created_at: string | null

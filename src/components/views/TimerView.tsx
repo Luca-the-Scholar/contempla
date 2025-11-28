@@ -46,6 +46,11 @@ export function TimerView() {
   const [visualFlashEnabled, setVisualFlashEnabled] = useState(true);
   const [screenWakeLockEnabled, setScreenWakeLockEnabled] = useState(true);
   const [showCompletionFlash, setShowCompletionFlash] = useState(false);
+  
+  // Presets
+  const [presets, setPresets] = useState<Array<{id: string; name: string; duration_minutes: number; sound: string}>>([]);
+  const [selectedPresetId, setSelectedPresetId] = useState<string>("");
+  
   const presetDurations = [5, 15, 30, 60];
   
   // Detect iOS for specific tips
@@ -73,8 +78,40 @@ export function TimerView() {
       const technique = techniques.find(t => t.id === selectedTechniqueId);
       setSelectedTechnique(technique || null);
       fetchCurrentMastery();
+      fetchPresets(selectedTechniqueId);
+      setSelectedPresetId(""); // Reset preset when technique changes
+    } else {
+      setPresets([]);
+      setSelectedPresetId("");
     }
   }, [selectedTechniqueId, techniques]);
+
+  // Apply preset settings when selected
+  useEffect(() => {
+    if (selectedPresetId) {
+      const preset = presets.find(p => p.id === selectedPresetId);
+      if (preset) {
+        setDuration(preset.duration_minutes);
+        setSelectedSound(preset.sound as TimerSound);
+      }
+    }
+  }, [selectedPresetId, presets]);
+
+  const fetchPresets = async (techniqueId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("technique_presets")
+        .select("id, name, duration_minutes, sound")
+        .eq("technique_id", techniqueId)
+        .order("created_at", { ascending: true });
+      
+      if (error) throw error;
+      setPresets(data || []);
+    } catch (error) {
+      console.error("Error fetching presets:", error);
+    }
+  };
+
   useEffect(() => {
     if (timerState !== 'running') return;
     const interval = setInterval(() => {
@@ -472,6 +509,28 @@ export function TimerView() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Preset Selector - only show when technique is selected and not in manual entry */}
+            {selectedTechnique && !manualEntry && presets.length > 0 && (
+              <div>
+                <label className="text-sm font-medium mb-2 block">Quick Preset</label>
+                <Select value={selectedPresetId} onValueChange={setSelectedPresetId}>
+                  <SelectTrigger className="min-h-[52px] text-base focus-visible:ring-2 focus-visible:ring-ring">
+                    <SelectValue placeholder="Use custom settings" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    <SelectItem value="" className="text-base py-3 cursor-pointer">
+                      Custom settings
+                    </SelectItem>
+                    {presets.map(preset => (
+                      <SelectItem key={preset.id} value={preset.id} className="text-base py-3 cursor-pointer">
+                        {preset.name} ({preset.duration_minutes} min)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {selectedTechnique && (
               <>
