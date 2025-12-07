@@ -1,10 +1,1 @@
 project_id = "zlrgwfvqhxpfnuvxpyce"
-
-[functions.spotify-callback]
-verify_jwt = false
-
-[functions.spotify-refresh]
-verify_jwt = false
-
-[functions.spotify-auth-url]
-verify_jwt = false

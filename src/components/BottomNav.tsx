@@ -1,8 +1,8 @@
-import { Users, Library, BarChart3, Timer, Settings } from "lucide-react";
+import { Users, Library, Calendar, Timer, Settings } from "lucide-react";
 
 interface BottomNavProps {
-  activeView: 'community' | 'library' | 'stats' | 'settings' | 'timer';
-  onViewChange: (view: 'community' | 'library' | 'stats' | 'settings' | 'timer') => void;
+  activeView: 'community' | 'library' | 'history' | 'settings' | 'timer';
+  onViewChange: (view: 'community' | 'library' | 'history' | 'settings' | 'timer') => void;
 }
 
 export function BottomNav({ activeView, onViewChange }: BottomNavProps) {
@@ -19,7 +19,7 @@ export function BottomNav({ activeView, onViewChange }: BottomNavProps) {
             }`}
           >
             <Users className="w-5 h-5" />
-            <span className="text-[10px] font-medium leading-tight">Community</span>
+            <span className="text-[10px] font-medium leading-tight">Friends</span>
           </button>
 
           <button
@@ -48,15 +48,15 @@ export function BottomNav({ activeView, onViewChange }: BottomNavProps) {
           </button>
 
           <button
-            onClick={() => onViewChange('stats')}
+            onClick={() => onViewChange('history')}
             className={`flex flex-col items-center gap-0.5 px-2 py-2 rounded-lg transition-all min-w-[60px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-              activeView === 'stats'
+              activeView === 'history'
                 ? 'text-primary'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            <BarChart3 className="w-5 h-5" />
-            <span className="text-[10px] font-medium leading-tight">Stats</span>
+            <Calendar className="w-5 h-5" />
+            <span className="text-[10px] font-medium leading-tight">History</span>
           </button>
 
           <button

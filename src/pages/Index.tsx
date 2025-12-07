@@ -4,11 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { BottomNav } from "@/components/BottomNav";
 import { CommunityView } from "@/components/views/CommunityView";
 import { LibraryView } from "@/components/views/LibraryView";
-import { StatsView } from "@/components/views/StatsView";
+import { HistoryView } from "@/components/views/HistoryView";
 import { SettingsView } from "@/components/views/SettingsView";
 import { TimerView } from "@/components/views/TimerView";
 
-type ViewType = 'community' | 'library' | 'stats' | 'settings' | 'timer';
+type ViewType = 'community' | 'library' | 'history' | 'settings' | 'timer';
 
 const Index = () => {
   const [activeView, setActiveView] = useState<ViewType>('timer');
@@ -25,12 +25,16 @@ const Index = () => {
     }
   };
 
-  // Force LibraryView to remount when switching to it by using the timestamp as key
+  // Force views to remount when switching by using timestamp as key
   const [libraryKey, setLibraryKey] = useState(0);
+  const [historyKey, setHistoryKey] = useState(0);
   
   const handleViewChange = (view: ViewType) => {
     if (view === 'library') {
       setLibraryKey(prev => prev + 1);
+    }
+    if (view === 'history') {
+      setHistoryKey(prev => prev + 1);
     }
     setActiveView(view);
   };
@@ -39,7 +43,7 @@ const Index = () => {
     <>
       {activeView === 'community' && <CommunityView />}
       {activeView === 'library' && <LibraryView key={libraryKey} />}
-      {activeView === 'stats' && <StatsView />}
+      {activeView === 'history' && <HistoryView key={historyKey} />}
       {activeView === 'settings' && <SettingsView />}
       {activeView === 'timer' && <TimerView />}
       

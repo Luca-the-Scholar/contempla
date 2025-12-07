@@ -63,11 +63,13 @@ export function ManualEntryDialog({ techniques, onEntryAdded }: ManualEntryDialo
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const { error } = await supabase.rpc('add_manual_session', {
-        p_user_id: user.id,
-        p_technique_id: techniqueId,
-        p_duration_minutes: durationMinutes,
-        p_session_date: format(date, 'yyyy-MM-dd'),
+      // Simple insert without RPC (no mastery calculation)
+      const { error } = await supabase.from('sessions').insert({
+        user_id: user.id,
+        technique_id: techniqueId,
+        duration_minutes: durationMinutes,
+        session_date: format(date, 'yyyy-MM-dd'),
+        manual_entry: true,
       });
 
       if (error) throw error;
@@ -78,7 +80,6 @@ export function ManualEntryDialog({ techniques, onEntryAdded }: ManualEntryDialo
       toast.success('Session logged successfully');
       setOpen(false);
       setDate(undefined);
-      // Keep techniqueId for next entry
       setMinutes('');
       onEntryAdded();
     } catch (error) {
@@ -88,18 +89,6 @@ export function ManualEntryDialog({ techniques, onEntryAdded }: ManualEntryDialo
       setLoading(false);
     }
   };
-
-  // Calculate multiplier preview using new formula
-  // multiplier = 1 + slope × (minutes - 30) where slope = (1.8 - 1.0) / 29
-  const getMultiplierPreview = (mins: number): number => {
-    if (mins <= 30) return 1.0;
-    const slope = (1.8 - 1.0) / 29;
-    return 1.0 + slope * (mins - 30);
-  };
-
-  const parsedMinutes = parseInt(minutes, 10);
-  const multiplier = !isNaN(parsedMinutes) && parsedMinutes > 0 ? getMultiplierPreview(parsedMinutes) : null;
-  const effectiveMinutes = multiplier && parsedMinutes ? (parsedMinutes * multiplier).toFixed(1) : null;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -174,11 +163,6 @@ export function ManualEntryDialog({ techniques, onEntryAdded }: ManualEntryDialo
               value={minutes}
               onChange={(e) => setMinutes(e.target.value)}
             />
-            {multiplier && effectiveMinutes && (
-              <p className="text-xs text-muted-foreground">
-                Multiplier: {multiplier.toFixed(2)}x → {effectiveMinutes} effective minutes
-              </p>
-            )}
           </div>
 
           {/* Submit Button */}
