@@ -25,7 +25,7 @@ import {
 } from "date-fns";
 
 // Mock friend data for testing
-const MOCK_FRIENDS = [
+const MOCK_FRIENDS: MockFriend[] = [
   {
     id: "mock-friend-1",
     name: "Sarah Chen",
@@ -36,15 +36,18 @@ const MOCK_FRIENDS = [
     showStreak: true,
     showTechniques: true,
     showHistory: true,
-    // Mock practice data for calendar
+    // Mock practice data for calendar and list
     practiceDays: [
-      { date: "2025-12-01", minutes: 20 },
-      { date: "2025-12-02", minutes: 15 },
-      { date: "2025-12-03", minutes: 30 },
-      { date: "2025-12-04", minutes: 20 },
-      { date: "2025-12-05", minutes: 25 },
-      { date: "2025-12-06", minutes: 20 },
-      { date: "2025-12-07", minutes: 15 },
+      { date: "2025-12-01", minutes: 20, technique: "Loving-Kindness" },
+      { date: "2025-12-02", minutes: 15, technique: "Breath Awareness" },
+      { date: "2025-12-03", minutes: 30, technique: "Loving-Kindness" },
+      { date: "2025-12-04", minutes: 20, technique: "Body Scan" },
+      { date: "2025-12-05", minutes: 25, technique: "Loving-Kindness" },
+      { date: "2025-12-06", minutes: 20, technique: "Breath Awareness" },
+      { date: "2025-12-07", minutes: 15, technique: "Loving-Kindness" },
+      { date: "2025-11-28", minutes: 20, technique: "Loving-Kindness" },
+      { date: "2025-11-29", minutes: 25, technique: "Body Scan" },
+      { date: "2025-11-30", minutes: 30, technique: "Breath Awareness" },
     ],
   },
 ];
@@ -67,7 +70,7 @@ interface MockFriend {
   showStreak: boolean;
   showTechniques: boolean;
   showHistory: boolean;
-  practiceDays: { date: string; minutes: number }[];
+  practiceDays: { date: string; minutes: number; technique: string }[];
 }
 
 export function CommunityView() {
@@ -331,6 +334,51 @@ export function CommunityView() {
                 </div>
                 <span>More</span>
               </div>
+            </Card>
+          )}
+
+          {/* Recent Sessions List (if history is shared) */}
+          {selectedFriend.showHistory && (
+            <Card className="p-4">
+              <h3 className="font-semibold mb-3">Recent Sessions</h3>
+              {selectedFriend.practiceDays.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No sessions recorded yet
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {[...selectedFriend.practiceDays]
+                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                    .filter(session => {
+                      const sessionDate = new Date(session.date);
+                      const today = startOfDay(new Date());
+                      const thirtyDaysAgo = subDays(today, 30);
+                      return !isAfter(sessionDate, today) && !isBefore(sessionDate, thirtyDaysAgo);
+                    })
+                    .map((session, idx) => {
+                      const [year, month, day] = session.date.split('-').map(Number);
+                      const sessionDate = new Date(year, month - 1, day);
+                      return (
+                        <div
+                          key={`${session.date}-${idx}`}
+                          className="flex items-center justify-between p-2 bg-accent/30 rounded"
+                        >
+                          <div>
+                            <div className="text-sm font-medium">
+                              {session.technique}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {format(sessionDate, "MMM d, yyyy")}
+                            </div>
+                          </div>
+                          <div className="text-sm font-semibold">
+                            {session.minutes}m
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
             </Card>
           )}
 
