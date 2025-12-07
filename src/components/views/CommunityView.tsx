@@ -18,6 +18,10 @@ import {
   addMonths,
   subMonths,
   getDay,
+  isAfter,
+  isBefore,
+  subDays,
+  startOfDay,
 } from "date-fns";
 
 // Mock friend data for testing
@@ -293,16 +297,21 @@ export function CommunityView() {
                   const dateKey = format(day, "yyyy-MM-dd");
                   const minutes = friendPracticeDayMap.get(dateKey) || 0;
                   const isToday = isSameDay(day, new Date());
+                  const today = startOfDay(new Date());
+                  const thirtyDaysAgo = subDays(today, 30);
+                  const isFuture = isAfter(day, today);
+                  const isTooOld = isBefore(day, thirtyDaysAgo);
+                  const isOutOfRange = isFuture || isTooOld;
 
                   return (
                     <div
                       key={dateKey}
                       className={`
                         aspect-square rounded-md flex items-center justify-center
-                        ${getHeatmapColor(minutes)}
+                        ${isOutOfRange ? "bg-muted/20 text-muted-foreground/40" : getHeatmapColor(minutes)}
                         ${isToday ? "ring-2 ring-primary ring-offset-1 ring-offset-background" : ""}
                       `}
-                      title={`${format(day, "MMM d")}: ${minutes}m`}
+                      title={isOutOfRange ? format(day, "MMM d") : `${format(day, "MMM d")}: ${minutes}m`}
                     >
                       <span className="text-xs">{format(day, "d")}</span>
                     </div>
