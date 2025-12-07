@@ -297,9 +297,9 @@ export type Database = {
           profile_preferences: Json | null
           profile_visibility: string | null
           share_health_data_for_research: boolean | null
-          show_practice_history: boolean | null
-          show_streak_to_friends: boolean | null
-          show_techniques_to_friends: boolean | null
+          show_practice_history: string | null
+          show_streak_to_friends: string | null
+          show_techniques_to_friends: string | null
           updated_at: string | null
         }
         Insert: {
@@ -311,9 +311,9 @@ export type Database = {
           profile_preferences?: Json | null
           profile_visibility?: string | null
           share_health_data_for_research?: boolean | null
-          show_practice_history?: boolean | null
-          show_streak_to_friends?: boolean | null
-          show_techniques_to_friends?: boolean | null
+          show_practice_history?: string | null
+          show_streak_to_friends?: string | null
+          show_techniques_to_friends?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -325,9 +325,9 @@ export type Database = {
           profile_preferences?: Json | null
           profile_visibility?: string | null
           share_health_data_for_research?: boolean | null
-          show_practice_history?: boolean | null
-          show_streak_to_friends?: boolean | null
-          show_techniques_to_friends?: boolean | null
+          show_practice_history?: string | null
+          show_streak_to_friends?: string | null
+          show_techniques_to_friends?: string | null
           updated_at?: string | null
         }
         Relationships: []

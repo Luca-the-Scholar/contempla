@@ -21,7 +21,9 @@ export function SettingsView() {
   
   // Privacy settings
   const [profileVisibility, setProfileVisibility] = useState<'public' | 'friends_only' | 'private'>('public');
-  const [showStreakToFriends, setShowStreakToFriends] = useState(true);
+  const [streakVisibility, setStreakVisibility] = useState<'all' | 'friends' | 'private'>('friends');
+  const [techniqueVisibility, setTechniqueVisibility] = useState<'all' | 'friends' | 'private'>('friends');
+  const [historyVisibility, setHistoryVisibility] = useState<'all' | 'friends' | 'private'>('friends');
   
   // Timer alert settings
   const [hapticEnabled, setHapticEnabled] = useState(true);
@@ -54,7 +56,7 @@ export function SettingsView() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("name, profile_preferences, profile_visibility, show_streak_to_friends")
+        .select("name, profile_preferences, profile_visibility, show_streak_to_friends, show_techniques_to_friends, show_practice_history")
         .eq("id", user.id)
         .single();
 
@@ -64,7 +66,9 @@ export function SettingsView() {
         setNotifications(prefs?.notifications || false);
         setDailyReminder(prefs?.dailyReminder || false);
         setProfileVisibility((profile.profile_visibility as any) || 'public');
-        setShowStreakToFriends(profile.show_streak_to_friends !== false);
+        setStreakVisibility((profile.show_streak_to_friends as any) || 'friends');
+        setTechniqueVisibility((profile.show_techniques_to_friends as any) || 'friends');
+        setHistoryVisibility((profile.show_practice_history as any) || 'friends');
       }
     } catch (error: any) {
       console.error("Error loading settings:", error);
@@ -393,19 +397,77 @@ export function SettingsView() {
               
               <div className="flex items-center justify-between">
                 <div>
-                  <Label htmlFor="show-streak">Show Streak to Friends</Label>
+                  <Label>Streak Visibility</Label>
                   <p className="text-sm text-muted-foreground">
-                    Let friends see your meditation streak
+                    Who can see your meditation streak
                   </p>
                 </div>
-                <Switch
-                  id="show-streak"
-                  checked={showStreakToFriends}
-                  onCheckedChange={(checked) => {
-                    setShowStreakToFriends(checked);
-                    handlePrivacyUpdate('show_streak_to_friends', checked);
+                <Select 
+                  value={streakVisibility} 
+                  onValueChange={(value: 'all' | 'friends' | 'private') => {
+                    setStreakVisibility(value);
+                    handlePrivacyUpdate('show_streak_to_friends', value);
                   }}
-                />
+                >
+                  <SelectTrigger className="w-[120px] min-h-[44px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="friends">Friends</SelectItem>
+                    <SelectItem value="private">Private</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Most Practiced Technique</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Who can see your favorite technique
+                  </p>
+                </div>
+                <Select 
+                  value={techniqueVisibility} 
+                  onValueChange={(value: 'all' | 'friends' | 'private') => {
+                    setTechniqueVisibility(value);
+                    handlePrivacyUpdate('show_techniques_to_friends', value);
+                  }}
+                >
+                  <SelectTrigger className="w-[120px] min-h-[44px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="friends">Friends</SelectItem>
+                    <SelectItem value="private">Private</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Practice History</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Who can see your practice calendar
+                  </p>
+                </div>
+                <Select 
+                  value={historyVisibility} 
+                  onValueChange={(value: 'all' | 'friends' | 'private') => {
+                    setHistoryVisibility(value);
+                    handlePrivacyUpdate('show_practice_history', value);
+                  }}
+                >
+                  <SelectTrigger className="w-[120px] min-h-[44px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="friends">Friends</SelectItem>
+                    <SelectItem value="private">Private</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </Card>
