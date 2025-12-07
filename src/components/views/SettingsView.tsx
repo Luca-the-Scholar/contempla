@@ -7,14 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Bell, LogOut, User, Shield, Database, ShieldCheck, Vibrate, Volume2, Sparkles, Check, Music } from "lucide-react";
+import { Bell, LogOut, User, Shield, Vibrate, Volume2, Sparkles, Check, Heart, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { AdminApprovalPanel } from "@/components/admin/AdminApprovalPanel";
 import { useHaptic } from "@/hooks/use-haptic";
 import { useTimerSound, TimerSound, SOUND_LABELS } from "@/hooks/use-timer-sound";
-import { useSpotify } from "@/hooks/use-spotify";
-import { useSpotifySDK } from "@/hooks/use-spotify-sdk";
 
 export function SettingsView() {
   const [userName, setUserName] = useState("");
@@ -24,11 +21,7 @@ export function SettingsView() {
   
   // Privacy settings
   const [profileVisibility, setProfileVisibility] = useState<'public' | 'friends_only' | 'private'>('public');
-  const [showPracticeHistory, setShowPracticeHistory] = useState(true);
   const [showStreakToFriends, setShowStreakToFriends] = useState(true);
-  const [showTechniquesToFriends, setShowTechniquesToFriends] = useState(true);
-  const [shareHealthData, setShareHealthData] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
   
   // Timer alert settings
   const [hapticEnabled, setHapticEnabled] = useState(true);
@@ -38,14 +31,11 @@ export function SettingsView() {
   
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { isSupported: hapticSupported, testVibration } = useHaptic();
+  const { testVibration } = useHaptic();
   const { playSound, unlockAudio } = useTimerSound();
-  const { enabled: spotifyEnabled, playlistUrl, recentPlaylists, setSpotifyEnabled, setSpotifyPlaylistUrl, isValidPlaylistUrl } = useSpotify();
-  const { isConnected: spotifyConnected, isReady: spotifyReady, error: spotifyError, connect: connectSpotify, disconnect: disconnectSpotify, playlists, loadingPlaylists } = useSpotifySDK();
 
   useEffect(() => {
     fetchSettings();
-    checkAdminStatus();
     // Load timer alert preferences
     const hapticStored = localStorage.getItem('hapticEnabled');
     if (hapticStored !== null) setHapticEnabled(hapticStored === 'true');
@@ -64,7 +54,7 @@ export function SettingsView() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("name, profile_preferences, profile_visibility, show_practice_history, show_streak_to_friends, show_techniques_to_friends, share_health_data_for_research")
+        .select("name, profile_preferences, profile_visibility, show_streak_to_friends")
         .eq("id", user.id)
         .single();
 
@@ -73,34 +63,11 @@ export function SettingsView() {
         const prefs = profile.profile_preferences as any;
         setNotifications(prefs?.notifications || false);
         setDailyReminder(prefs?.dailyReminder || false);
-        
         setProfileVisibility((profile.profile_visibility as any) || 'public');
-        setShowPracticeHistory(profile.show_practice_history !== false);
         setShowStreakToFriends(profile.show_streak_to_friends !== false);
-        setShowTechniquesToFriends(profile.show_techniques_to_friends !== false);
-        setShareHealthData(profile.share_health_data_for_research === true);
       }
     } catch (error: any) {
       console.error("Error loading settings:", error);
-    }
-  };
-
-  const checkAdminStatus = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('role', 'admin')
-        .single();
-
-      setIsAdmin(!!data);
-    } catch (error) {
-      // User is not admin, that's fine
-      setIsAdmin(false);
     }
   };
 
@@ -218,175 +185,172 @@ export function SettingsView() {
           <div className="max-w-2xl mx-auto">
             <h1 className="text-xl font-bold">Settings</h1>
           </div>
-      </header>
+        </header>
 
-      <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
-        {/* Profile Settings */}
-        <Card className="p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <User className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold">Profile</h2>
-          </div>
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="name">Display Name</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="name"
-                  value={userName}
-                  onChange={(e) => setUserName(e.target.value)}
-                  placeholder="Enter your name"
-                  className="min-h-[44px]"
+        <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
+          {/* Profile Settings */}
+          <Card className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <User className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold">Profile</h2>
+            </div>
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="name">Display Name</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="name"
+                    value={userName}
+                    onChange={(e) => setUserName(e.target.value)}
+                    placeholder="Enter your name"
+                    className="min-h-[44px]"
+                  />
+                  <Button onClick={handleSaveName} disabled={saving} className="min-h-[44px] px-6">
+                    Save
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Notifications */}
+          <Card className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Bell className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold">Notifications</h2>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="notifications">Push Notifications</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Receive notifications about your practice
+                  </p>
+                </div>
+                <Switch
+                  id="notifications"
+                  checked={notifications}
+                  onCheckedChange={(checked) =>
+                    handleToggleSetting("notifications", checked)
+                  }
                 />
-                <Button onClick={handleSaveName} disabled={saving} className="min-h-[44px] px-6">
-                  Save
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="daily-reminder">Daily Reminder</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Remind me to practice each day
+                  </p>
+                </div>
+                <Switch
+                  id="daily-reminder"
+                  checked={dailyReminder}
+                  onCheckedChange={(checked) =>
+                    handleToggleSetting("dailyReminder", checked)
+                  }
+                />
+              </div>
+            </div>
+          </Card>
+
+          {/* Timer Alerts */}
+          <Card className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Bell className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold">Timer Alerts</h2>
+            </div>
+            <div className="space-y-5">
+              {/* Test Completion Sounds */}
+              <div className="space-y-2">
+                <Label>Test Completion Sounds</Label>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Preview the sounds available when timer completes
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {(Object.keys(SOUND_LABELS) as TimerSound[])
+                    .filter(sound => sound !== 'none')
+                    .map((sound) => (
+                      <Button
+                        key={sound}
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          await unlockAudio();
+                          playSound(sound);
+                        }}
+                        className="flex flex-col gap-1 h-auto py-2"
+                      >
+                        <Volume2 className="w-4 h-4" />
+                        <span className="text-xs">{SOUND_LABELS[sound]}</span>
+                      </Button>
+                    ))}
+                </div>
+              </div>
+
+              {/* Vibration */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="haptic">Vibration</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Phone vibrates when timer ends
+                    </p>
+                  </div>
+                  <Switch
+                    id="haptic"
+                    checked={hapticEnabled}
+                    onCheckedChange={(checked) => {
+                      setHapticEnabled(checked);
+                      localStorage.setItem('hapticEnabled', String(checked));
+                    }}
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const success = testVibration();
+                    if (!success) {
+                      toast({ title: "Vibration not available", description: "Your device may not support haptic feedback", variant: "destructive" });
+                    }
+                  }}
+                  className="w-full"
+                >
+                  <Vibrate className="w-4 h-4 mr-2" />
+                  Test Vibration
                 </Button>
               </div>
-            </div>
-          </div>
-        </Card>
 
-        {/* Notifications */}
-        <Card className="p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <Bell className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold">Notifications</h2>
-          </div>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="notifications">Push Notifications</Label>
-                <p className="text-sm text-muted-foreground">
-                  Receive notifications about your practice
-                </p>
-              </div>
-              <Switch
-                id="notifications"
-                checked={notifications}
-                onCheckedChange={(checked) =>
-                  handleToggleSetting("notifications", checked)
-                }
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="daily-reminder">Daily Reminder</Label>
-                <p className="text-sm text-muted-foreground">
-                  Remind me to practice each day
-                </p>
-              </div>
-              <Switch
-                id="daily-reminder"
-                checked={dailyReminder}
-                onCheckedChange={(checked) =>
-                  handleToggleSetting("dailyReminder", checked)
-                }
-              />
-            </div>
-          </div>
-        </Card>
-
-        {/* Timer Alerts */}
-        <Card className="p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <Bell className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold">Timer Alerts</h2>
-          </div>
-          <div className="space-y-5">
-            {/* Test Completion Sounds */}
-            <div className="space-y-2">
-              <Label>Test Completion Sounds</Label>
-              <p className="text-sm text-muted-foreground mb-2">
-                Preview the sounds available when timer completes
-              </p>
-              <div className="grid grid-cols-3 gap-2">
-                {(Object.keys(SOUND_LABELS) as TimerSound[])
-                  .filter(sound => sound !== 'none')
-                  .map((sound) => (
-                    <Button
-                      key={sound}
-                      variant="outline"
-                      size="sm"
-                      onClick={async () => {
-                        await unlockAudio();
-                        playSound(sound);
-                      }}
-                      className="flex flex-col gap-1 h-auto py-2"
-                    >
-                      <Volume2 className="w-4 h-4" />
-                      <span className="text-xs">{SOUND_LABELS[sound]}</span>
-                    </Button>
-                  ))}
-              </div>
-            </div>
-
-            {/* Vibration */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="haptic">Vibration</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Phone vibrates when timer ends
-                  </p>
+              {/* Visual Flash */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="visual-flash">Visual Flash</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Screen flashes when timer completes
+                    </p>
+                  </div>
+                  <Switch
+                    id="visual-flash"
+                    checked={visualFlash}
+                    onCheckedChange={(checked) => {
+                      setVisualFlash(checked);
+                      localStorage.setItem('visualFlash', String(checked));
+                    }}
+                  />
                 </div>
-                <Switch
-                  id="haptic"
-                  checked={hapticEnabled}
-                  onCheckedChange={(checked) => {
-                    setHapticEnabled(checked);
-                    localStorage.setItem('hapticEnabled', String(checked));
-                  }}
-                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTestingFlash(true)}
+                  className="w-full"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Test Visual Flash
+                </Button>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const success = testVibration();
-                  if (!success) {
-                    toast({ title: "Vibration not available", description: "Your device may not support haptic feedback", variant: "destructive" });
-                  }
-                }}
-                className="w-full"
-              >
-                <Vibrate className="w-4 h-4 mr-2" />
-                Test Vibration
-              </Button>
-            </div>
 
-            {/* Visual Flash */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="visual-flash">Visual Flash</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Screen flashes when timer completes
-                  </p>
-                </div>
-                <Switch
-                  id="visual-flash"
-                  checked={visualFlash}
-                  onCheckedChange={(checked) => {
-                    setVisualFlash(checked);
-                    localStorage.setItem('visualFlash', String(checked));
-                  }}
-                />
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setTestingFlash(true);
-                }}
-                className="w-full"
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                Test Visual Flash
-              </Button>
-            </div>
-
-            {/* Screen Wake Lock */}
-            <div className="space-y-2">
+              {/* Screen Wake Lock */}
               <div className="flex items-center justify-between">
                 <div>
                   <Label htmlFor="wake-lock">Keep Screen Awake</Label>
@@ -404,319 +368,97 @@ export function SettingsView() {
                 />
               </div>
             </div>
-          </div>
-        </Card>
+          </Card>
 
-        {/* Spotify Integration */}
-        <Card className="p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <Music className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold">Spotify Integration</h2>
-          </div>
-          <div className="space-y-4">
-            {/* Connection Status */}
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Spotify Account</Label>
-                <p className="text-sm text-muted-foreground">
-                  {spotifyConnected 
-                    ? spotifyReady 
-                      ? "Connected and ready" 
-                      : "Connected, initializing player..."
-                    : "Connect to enable autoplay"}
-                </p>
-              </div>
-              {spotifyConnected ? (
-                <Button variant="outline" size="sm" onClick={disconnectSpotify}>
-                  Disconnect
-                </Button>
-              ) : (
-                <Button size="sm" onClick={connectSpotify}>
-                  Connect
-                </Button>
-              )}
+          {/* Privacy */}
+          <Card className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Shield className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold">Privacy</h2>
             </div>
-
-            {spotifyError && (
-              <p className="text-xs text-destructive">{spotifyError}</p>
-            )}
-
-            <Separator />
-
-            {/* Legacy mode toggle */}
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="spotify">Use External Link (Fallback)</Label>
-                <p className="text-sm text-muted-foreground">
-                  Opens Spotify in new tab instead of autoplay
-                </p>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Profile Visibility</Label>
+                <Select 
+                  value={profileVisibility} 
+                  onValueChange={(value: 'public' | 'friends_only' | 'private') => {
+                    setProfileVisibility(value);
+                    handlePrivacyUpdate('profile_visibility', value);
+                  }}
+                >
+                  <SelectTrigger className="min-h-[44px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="public">Public</SelectItem>
+                    <SelectItem value="friends_only">Friends Only</SelectItem>
+                    <SelectItem value="private">Private</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <Switch
-                id="spotify"
-                checked={spotifyEnabled && !spotifyConnected}
-                onCheckedChange={setSpotifyEnabled}
-                disabled={spotifyConnected}
-              />
-            </div>
-            
-            {/* Playlist Selection - shown if connected OR legacy mode */}
-            {(spotifyConnected || spotifyEnabled) && (
-              <div className="space-y-3">
-                {spotifyConnected && (
-                  <>
-                    <div className="space-y-2">
-                      <Label>Select from Your Library</Label>
-                      {playlists.length > 0 ? (
-                        <Select
-                          value={playlistUrl}
-                          onValueChange={(value) => setSpotifyPlaylistUrl(value)}
-                        >
-                          <SelectTrigger className="min-h-[44px]">
-                            <SelectValue placeholder="Choose a playlist..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {playlists.map((playlist) => (
-                              <SelectItem 
-                                key={playlist.id} 
-                                value={`https://open.spotify.com/playlist/${playlist.id}`}
-                              >
-                                <div className="flex items-center gap-2">
-                                  {playlist.images?.[0]?.url && (
-                                    <img 
-                                      src={playlist.images[0].url} 
-                                      alt="" 
-                                      className="w-6 h-6 rounded"
-                                    />
-                                  )}
-                                  <span>{playlist.name}</span>
-                                  <span className="text-muted-foreground text-xs">
-                                    ({playlist.tracks.total} tracks)
-                                  </span>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : loadingPlaylists ? (
-                        <div className="text-sm text-muted-foreground py-2">
-                          Loading playlists...
-                        </div>
-                      ) : (
-                        <div className="text-sm text-muted-foreground py-2">
-                          No playlists found
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="relative">
-                      <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t border-border" />
-                      </div>
-                      <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-card px-2 text-muted-foreground">or paste URL</span>
-                      </div>
-                    </div>
-                  </>
-                )}
-                
-                <div className="space-y-2">
-                  {!spotifyConnected && <Label htmlFor="playlist-url">Spotify Playlist URL</Label>}
-                  
-                  {/* Recent playlists dropdown */}
-                  {recentPlaylists.length > 0 && (
-                    <Select
-                      value={playlistUrl}
-                      onValueChange={(value) => setSpotifyPlaylistUrl(value)}
-                    >
-                      <SelectTrigger className="min-h-[44px]">
-                        <SelectValue placeholder="Select from recent..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {recentPlaylists.map((url, index) => (
-                          <SelectItem key={index} value={url}>
-                            <span className="truncate max-w-[250px] block">
-                              {url.replace('https://open.spotify.com/playlist/', '').slice(0, 30)}...
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  
-                  <div className="flex gap-2">
-                    <Input
-                      id="playlist-url"
-                      placeholder="https://open.spotify.com/playlist/..."
-                      value={playlistUrl}
-                      onChange={(e) => setSpotifyPlaylistUrl(e.target.value, false)}
-                      className="min-h-[44px]"
-                    />
-                    <Button 
-                      onClick={() => setSpotifyPlaylistUrl(playlistUrl, true)}
-                      disabled={!playlistUrl || !isValidPlaylistUrl(playlistUrl)}
-                      className="min-h-[44px] px-4"
-                    >
-                      Save
-                    </Button>
-                  </div>
-                  {playlistUrl && !isValidPlaylistUrl(playlistUrl) && (
-                    <p className="text-xs text-destructive">
-                      Please enter a valid Spotify playlist URL
-                    </p>
-                  )}
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="show-streak">Show Streak to Friends</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Let friends see your meditation streak
+                  </p>
                 </div>
-                
-                <p className="text-xs text-muted-foreground">
-                  {spotifyConnected 
-                    ? "Music will autoplay when timer starts (Spotify Premium required)"
-                    : "When timer starts, Spotify will open in a new tab"}
-                </p>
+                <Switch
+                  id="show-streak"
+                  checked={showStreakToFriends}
+                  onCheckedChange={(checked) => {
+                    setShowStreakToFriends(checked);
+                    handlePrivacyUpdate('show_streak_to_friends', checked);
+                  }}
+                />
               </div>
-            )}
-          </div>
-        </Card>
+            </div>
+          </Card>
 
-        <Separator className="my-6" />
-
-        {/* Privacy Settings */}
-        <Card className="p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <Shield className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold">Privacy</h2>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <Label className="mb-2 block">Profile Visibility</Label>
-              <Select
-                value={profileVisibility}
-                onValueChange={(value: 'public' | 'friends_only' | 'private') => {
-                  setProfileVisibility(value);
-                  handlePrivacyUpdate('profile_visibility', value);
-                }}
+          {/* Support */}
+          <Card className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Heart className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold">Support the App</h2>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Help us continue developing and improving the meditation experience.
+            </p>
+            <div className="space-y-2">
+              <Button 
+                variant="outline" 
+                className="w-full min-h-[44px]"
+                onClick={() => window.open('https://ko-fi.com/', '_blank')}
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="public">Public - Anyone can view</SelectItem>
-                  <SelectItem value="friends_only">Friends Only</SelectItem>
-                  <SelectItem value="private">Private - Only you</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-sm text-muted-foreground mt-1">
-                Control who can see your meditation profile and stats
-              </p>
+                <Heart className="w-4 h-4 mr-2" />
+                Support on Ko-fi
+                <ExternalLink className="w-4 h-4 ml-2" />
+              </Button>
+              <Button 
+                variant="secondary" 
+                className="w-full min-h-[44px]"
+                onClick={() => toast({ title: "Coming Soon!", description: "Premium features are in development." })}
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Join Premium Waitlist
+              </Button>
             </div>
+          </Card>
 
-            <div className="flex items-center justify-between">
-              <div className="flex-1 pr-4">
-                <Label>Show Practice History</Label>
-                <p className="text-sm text-muted-foreground">Allow others to see your detailed practice history</p>
-              </div>
-              <Switch
-                checked={showPracticeHistory}
-                onCheckedChange={(checked) => {
-                  setShowPracticeHistory(checked);
-                  handlePrivacyUpdate('show_practice_history', checked);
-                }}
-                disabled={saving}
-              />
-            </div>
+          <Separator />
 
-            <div className="flex items-center justify-between">
-              <div className="flex-1 pr-4">
-                <Label>Show Streak to Friends</Label>
-                <p className="text-sm text-muted-foreground">Let friends see your current meditation streak</p>
-              </div>
-              <Switch
-                checked={showStreakToFriends}
-                onCheckedChange={(checked) => {
-                  setShowStreakToFriends(checked);
-                  handlePrivacyUpdate('show_streak_to_friends', checked);
-                }}
-                disabled={saving}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex-1 pr-4">
-                <Label>Show Techniques to Friends</Label>
-                <p className="text-sm text-muted-foreground">Allow friends to see which techniques you practice</p>
-              </div>
-              <Switch
-                checked={showTechniquesToFriends}
-                onCheckedChange={(checked) => {
-                  setShowTechniquesToFriends(checked);
-                  handlePrivacyUpdate('show_techniques_to_friends', checked);
-                }}
-                disabled={saving}
-              />
-            </div>
-          </div>
-        </Card>
-
-        {/* Health Data Research */}
-        <Card className="p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <Database className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold">Data & Research</h2>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex-1 pr-4">
-              <Label>Share Health Data for Research</Label>
-              <p className="text-sm text-muted-foreground mt-1">
-                Contribute anonymized health and meditation data to help research on meditation benefits. 
-                Opting out means your data stays private and won't be used for analytics or research purposes.
-              </p>
-            </div>
-            <Switch
-              checked={shareHealthData}
-              onCheckedChange={(checked) => {
-                setShareHealthData(checked);
-                handlePrivacyUpdate('share_health_data_for_research', checked);
-              }}
-              disabled={saving}
-            />
-          </div>
-        </Card>
-
-        <Separator className="my-6" />
-
-        {/* Admin Section */}
-        {isAdmin && (
-          <>
-            <Card className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <ShieldCheck className="w-5 h-5 text-primary" />
-                <h2 className="text-lg font-semibold">Admin Panel</h2>
-              </div>
-
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Review and approve technique submissions for the global library.
-                </p>
-                <AdminApprovalPanel />
-              </div>
-            </Card>
-
-            <Separator className="my-6" />
-          </>
-        )}
-
-        {/* Sign Out */}
-        <Button
-          onClick={handleSignOut}
-          variant="destructive"
-          className="w-full min-h-[48px]"
-          size="lg"
-        >
-          <LogOut className="w-5 h-5 mr-2" />
-          Sign Out
-        </Button>
+          {/* Sign Out */}
+          <Button
+            variant="outline"
+            className="w-full min-h-[44px]"
+            onClick={handleSignOut}
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Sign Out
+          </Button>
+        </div>
       </div>
-    </div>
     </>
   );
 }

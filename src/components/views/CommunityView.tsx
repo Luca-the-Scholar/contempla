@@ -4,15 +4,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Users, UserPlus, Check, X, Search, Flame, User, Trash2, MessageCircle } from "lucide-react";
+import { Users, UserPlus, Check, X, Search, Flame, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { MessageThread } from "@/components/messaging/MessageThread";
 
 interface FriendProfile {
   id: string;
   name: string | null;
-  email: string;
 }
 
 interface Friendship {
@@ -20,25 +17,12 @@ interface Friendship {
   user_id: string;
   friend_id: string;
   status: string;
-  created_at: string;
   friend_profile?: FriendProfile;
 }
 
 interface FriendStats {
   totalMinutes: number;
   currentStreak: number;
-  totalSessions: number;
-  recentTechniques?: Array<{
-    technique_name: string;
-    total_minutes: number;
-    session_count: number;
-  }>;
-}
-
-interface UserProfile {
-  id: string;
-  name: string;
-  profile_visibility: string;
 }
 
 export function CommunityView() {
@@ -47,10 +31,6 @@ export function CommunityView() {
   const [searchEmail, setSearchEmail] = useState("");
   const [loading, setLoading] = useState(true);
   const [friendStats, setFriendStats] = useState<Record<string, FriendStats>>({});
-  const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
-  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
-  const [messagingFriend, setMessagingFriend] = useState<{ id: string; name: string } | null>(null);
-  const [conversationId, setConversationId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -62,7 +42,6 @@ export function CommunityView() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch all friendships where user is involved
       const { data: friendshipsData, error } = await supabase
         .from("friendships")
         .select("*")
@@ -73,7 +52,6 @@ export function CommunityView() {
       const accepted: Friendship[] = [];
       const pending: Friendship[] = [];
 
-      // Fetch friend profiles and categorize friendships
       for (const friendship of friendshipsData || []) {
         const friendId = friendship.user_id === user.id ? friendship.friend_id : friendship.user_id;
         
@@ -83,13 +61,11 @@ export function CommunityView() {
           .eq("id", friendId)
           .single();
 
-        // Get email from auth users (need to fetch user info)
         const friendData = {
           ...friendship,
           friend_profile: {
             id: friendId,
             name: profileData?.name || "Unknown",
-            email: ""
           }
         };
 
@@ -123,17 +99,11 @@ export function CommunityView() {
       
       if (data && data.length > 0) {
         const stats = data[0];
-        const recentTechniques = Array.isArray(stats.recent_techniques) 
-          ? stats.recent_techniques as Array<{ technique_name: string; total_minutes: number; session_count: number; }>
-          : [];
-          
         setFriendStats(prev => ({
           ...prev,
           [friendId]: {
             totalMinutes: stats.total_minutes || 0,
             currentStreak: stats.current_streak || 0,
-            totalSessions: stats.total_sessions || 0,
-            recentTechniques
           }
         }));
       }
@@ -142,35 +112,20 @@ export function CommunityView() {
     }
   };
 
-  const openProfileDialog = (friendId: string) => {
-    setSelectedProfile(friendId);
-    setProfileDialogOpen(true);
-  };
-
   const sendFriendRequest = async () => {
+    if (!searchEmail.trim()) {
+      toast({
+        title: "Enter an email",
+        description: "Please enter your friend's email address",
+        variant: "destructive",
+      });
+      return;
+    }
+
     toast({
       title: "Coming soon!",
       description: "Friend requests will be available in a future update.",
     });
-  };
-
-  const startConversation = async (friendId: string, friendName: string) => {
-    try {
-      const { data, error } = await supabase.rpc('get_or_create_conversation', {
-        other_user_id: friendId
-      });
-
-      if (error) throw error;
-
-      setConversationId(data);
-      setMessagingFriend({ id: friendId, name: friendName });
-    } catch (error: any) {
-      toast({
-        title: "Error starting conversation",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
   };
 
   const respondToRequest = async (friendshipId: string, accept: boolean) => {
@@ -227,22 +182,6 @@ export function CommunityView() {
     return (
       <div className="min-h-screen flex items-center justify-center pb-32">
         <p className="text-muted-foreground">Loading community...</p>
-      </div>
-    );
-  }
-
-  if (messagingFriend && conversationId) {
-    return (
-      <div className="h-screen pb-24">
-        <MessageThread
-          conversationId={conversationId}
-          friendName={messagingFriend.name}
-          friendId={messagingFriend.id}
-          onBack={() => {
-            setMessagingFriend(null);
-            setConversationId(null);
-          }}
-        />
       </div>
     );
   }
@@ -332,10 +271,8 @@ export function CommunityView() {
           ) : (
             <div className="space-y-3">
               {friends.map((friendship) => {
-                const friendId = friendship.user_id === friendship.friend_id 
-                  ? friendship.user_id 
-                  : (friendship.friend_profile?.id || "");
-                const stats = friendStats[friendId] || { totalMinutes: 0, currentStreak: 0, totalSessions: 0 };
+                const friendId = friendship.friend_profile?.id || "";
+                const stats = friendStats[friendId] || { totalMinutes: 0, currentStreak: 0 };
 
                 return (
                   <Card key={friendship.id} className="p-4">
@@ -355,17 +292,11 @@ export function CommunityView() {
                           onClick={() => removeFriend(friendship.id)}
                           className="text-muted-foreground hover:text-destructive"
                         >
-                          Remove
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
 
-                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 border-t border-border">
-                        <div className="text-center">
-                          <div className="text-xl font-bold text-primary">
-                            {formatTime(stats.totalMinutes)}
-                          </div>
-                          <div className="text-sm text-muted-foreground">Total Time</div>
-                        </div>
+                      <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
                         <div className="text-center">
                           <div className="flex items-center justify-center gap-1">
                             <Flame className="w-4 h-4 text-orange-500" />
@@ -375,31 +306,12 @@ export function CommunityView() {
                           </div>
                           <div className="text-sm text-muted-foreground">Day Streak</div>
                         </div>
-                        <div className="text-center col-span-2 sm:col-span-1">
+                        <div className="text-center">
                           <div className="text-xl font-bold text-primary">
-                            {stats.totalSessions}
+                            {formatTime(stats.totalMinutes)}
                           </div>
-                          <div className="text-sm text-muted-foreground">Sessions</div>
+                          <div className="text-sm text-muted-foreground">Total Time</div>
                         </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 mt-3">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openProfileDialog(friendId)}
-                        >
-                          <User className="h-3 w-3 mr-1" />
-                          Profile
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => startConversation(friendId, friendship.friend_profile?.name || 'Friend')}
-                        >
-                          <MessageCircle className="h-3 w-3 mr-1" />
-                          Message
-                        </Button>
                       </div>
                     </div>
                   </Card>
@@ -409,53 +321,6 @@ export function CommunityView() {
           )}
         </div>
       </div>
-
-      <Dialog open={profileDialogOpen} onOpenChange={setProfileDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Profile Details</DialogTitle>
-          </DialogHeader>
-          {selectedProfile && friendStats[selectedProfile] && (
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-semibold mb-2">Recent Techniques</h4>
-                {friendStats[selectedProfile].recentTechniques && friendStats[selectedProfile].recentTechniques!.length > 0 ? (
-                  <div className="space-y-2">
-                    {friendStats[selectedProfile].recentTechniques!.map((tech, idx) => (
-                      <Card key={idx} className="p-3">
-                        <div className="font-medium">{tech.technique_name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {Math.floor(tech.total_minutes / 60)}h {tech.total_minutes % 60}m · {tech.session_count} sessions
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No recent practice data</p>
-                )}
-              </div>
-              
-              <div className="pt-4 border-t">
-                <h4 className="font-semibold mb-2">Overall Stats</h4>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <div className="text-muted-foreground">Total Time</div>
-                    <div className="font-medium">{formatTime(friendStats[selectedProfile].totalMinutes)}</div>
-                  </div>
-                  <div>
-                    <div className="text-muted-foreground">Current Streak</div>
-                    <div className="font-medium">{friendStats[selectedProfile].currentStreak} days</div>
-                  </div>
-                  <div>
-                    <div className="text-muted-foreground">Total Sessions</div>
-                    <div className="font-medium">{friendStats[selectedProfile].totalSessions}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
