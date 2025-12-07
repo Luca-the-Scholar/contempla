@@ -395,13 +395,11 @@ export function SettingsView() {
                 </Select>
               </div>
               
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Streak Visibility</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Who can see your meditation streak
-                  </p>
-                </div>
+              <div className="space-y-2">
+                <Label>Streak Visibility</Label>
+                <p className="text-sm text-muted-foreground">
+                  Who can see your meditation streak
+                </p>
                 <Select 
                   value={streakVisibility} 
                   onValueChange={(value: 'all' | 'friends' | 'private') => {
@@ -409,7 +407,7 @@ export function SettingsView() {
                     handlePrivacyUpdate('show_streak_to_friends', value);
                   }}
                 >
-                  <SelectTrigger className="w-[120px] min-h-[44px]">
+                  <SelectTrigger className="min-h-[44px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -420,13 +418,11 @@ export function SettingsView() {
                 </Select>
               </div>
               
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Most Practiced Technique</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Who can see your favorite technique
-                  </p>
-                </div>
+              <div className="space-y-2">
+                <Label>Most Practiced Technique</Label>
+                <p className="text-sm text-muted-foreground">
+                  Who can see your favorite technique
+                </p>
                 <Select 
                   value={techniqueVisibility} 
                   onValueChange={(value: 'all' | 'friends' | 'private') => {
@@ -434,7 +430,7 @@ export function SettingsView() {
                     handlePrivacyUpdate('show_techniques_to_friends', value);
                   }}
                 >
-                  <SelectTrigger className="w-[120px] min-h-[44px]">
+                  <SelectTrigger className="min-h-[44px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -445,13 +441,11 @@ export function SettingsView() {
                 </Select>
               </div>
               
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Practice History</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Who can see your practice calendar
-                  </p>
-                </div>
+              <div className="space-y-2">
+                <Label>Practice History</Label>
+                <p className="text-sm text-muted-foreground">
+                  Who can see your practice calendar
+                </p>
                 <Select 
                   value={historyVisibility} 
                   onValueChange={(value: 'all' | 'friends' | 'private') => {
@@ -459,7 +453,7 @@ export function SettingsView() {
                     handlePrivacyUpdate('show_practice_history', value);
                   }}
                 >
-                  <SelectTrigger className="w-[120px] min-h-[44px]">
+                  <SelectTrigger className="min-h-[44px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
