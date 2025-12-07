@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, X, GripVertical } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface UploadTechniqueDialogProps {
@@ -17,31 +18,50 @@ interface UploadTechniqueDialogProps {
 export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDialogProps) {
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    name: "",
-    tradition: "",
-    instructions: "",
-    origin_story: "",
-    worldview_context: "",
-    lineage_info: "",
-    home_region: "",
-    relevant_texts: [""],
-    external_links: [""],
-    tags: [""]
+    title: "",
+    source: "",
+    description: "",
+    instructionSteps: [""],
+    suggestedDuration: "",
+    legalConfirmation: false
   });
 
   const handleSubmit = async () => {
-    // Validate all required fields
-    const filledTexts = formData.relevant_texts.filter(t => t.trim());
-    const filledLinks = formData.external_links.filter(l => l.trim());
-    const filledTags = formData.tags.filter(t => t.trim());
+    // Filter out empty instruction steps
+    const filledSteps = formData.instructionSteps.filter(s => s.trim());
 
-    if (!formData.name || !formData.tradition || !formData.instructions ||
-        !formData.origin_story || !formData.worldview_context ||
-        !formData.lineage_info || !formData.home_region ||
-        filledTexts.length === 0 || filledLinks.length === 0 || filledTags.length === 0) {
+    // Validate required fields
+    if (!formData.title.trim()) {
       toast({
-        title: "Missing required fields",
-        description: "Please fill in all required fields including at least one text, link, and tag.",
+        title: "Title required",
+        description: "Please enter a technique title.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.description.trim()) {
+      toast({
+        title: "Description required",
+        description: "Please provide a description of the technique.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (filledSteps.length === 0) {
+      toast({
+        title: "Instructions required",
+        description: "Please add at least one instruction step.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.legalConfirmation) {
+      toast({
+        title: "Legal confirmation required",
+        description: "Please confirm you have the legal right to share this technique.",
         variant: "destructive",
       });
       return;
@@ -52,19 +72,20 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Format instructions as numbered list for storage
+      const formattedInstructions = filledSteps
+        .map((step, idx) => `${idx + 1}. ${step}`)
+        .join("\n");
+
       const { error } = await supabase
         .from('global_techniques')
         .insert({
-          name: formData.name,
-          tradition: formData.tradition,
-          instructions: formData.instructions,
-          origin_story: formData.origin_story,
-          worldview_context: formData.worldview_context,
-          lineage_info: formData.lineage_info,
-          home_region: formData.home_region,
-          relevant_texts: filledTexts,
-          external_links: filledLinks,
-          tags: filledTags,
+          name: formData.title.trim(),
+          tradition: formData.source.trim() || "Personal Practice",
+          instructions: formattedInstructions,
+          origin_story: formData.description.trim(),
+          lineage_info: formData.source.trim() || null,
+          tags: formData.suggestedDuration ? [`${formData.suggestedDuration} min`] : [],
           submitted_by: user.id,
           approval_status: 'pending'
         });
@@ -73,21 +94,17 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
 
       toast({
         title: "Technique submitted!",
-        description: "Your technique will be reviewed by admins before appearing in the global library.",
+        description: "Your technique will be reviewed before appearing in the global library.",
       });
 
       // Reset form
       setFormData({
-        name: "",
-        tradition: "",
-        instructions: "",
-        origin_story: "",
-        worldview_context: "",
-        lineage_info: "",
-        home_region: "",
-        relevant_texts: [""],
-        external_links: [""],
-        tags: [""]
+        title: "",
+        source: "",
+        description: "",
+        instructionSteps: [""],
+        suggestedDuration: "",
+        legalConfirmation: false
       });
 
       onOpenChange(false);
@@ -102,24 +119,24 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
     }
   };
 
-  const addArrayField = (field: 'relevant_texts' | 'external_links' | 'tags') => {
+  const addStep = () => {
     setFormData(prev => ({
       ...prev,
-      [field]: [...prev[field], ""]
+      instructionSteps: [...prev.instructionSteps, ""]
     }));
   };
 
-  const removeArrayField = (field: 'relevant_texts' | 'external_links' | 'tags', index: number) => {
+  const removeStep = (index: number) => {
     setFormData(prev => ({
       ...prev,
-      [field]: prev[field].filter((_, i) => i !== index)
+      instructionSteps: prev.instructionSteps.filter((_, i) => i !== index)
     }));
   };
 
-  const updateArrayField = (field: 'relevant_texts' | 'external_links' | 'tags', index: number, value: string) => {
+  const updateStep = (index: number, value: string) => {
     setFormData(prev => ({
       ...prev,
-      [field]: prev[field].map((item, i) => i === index ? value : item)
+      instructionSteps: prev.instructionSteps.map((step, i) => i === index ? value : step)
     }));
   };
 
@@ -129,199 +146,145 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
         <DialogHeader>
           <DialogTitle>Contribute a Technique</DialogTitle>
           <DialogDescription>
-            Share a meditation technique with the global community. Your submission will be reviewed before publication.
+            Share a meditation technique with the community. Your submission will be reviewed before publication.
           </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[60vh]">
-          <div className="space-y-4 pr-4">
-            <div>
-              <Label htmlFor="name">Technique Name *</Label>
+          <div className="space-y-6 pr-4">
+            {/* Technique Title */}
+            <div className="space-y-2">
+              <Label htmlFor="title">Technique Title *</Label>
               <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="e.g., Loving-Kindness Meditation"
-                required
+                id="title"
+                value={formData.title}
+                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                placeholder='e.g., "Four-Part Breath" or "Mantra Anchoring"'
               />
+              <p className="text-xs text-muted-foreground">
+                A short, recognizable title for the practice.
+              </p>
             </div>
 
-            <div>
-              <Label htmlFor="tradition">Tradition / Community *</Label>
+            {/* Source / Lineage */}
+            <div className="space-y-2">
+              <Label htmlFor="source">Influence / Lineage / Source</Label>
               <Input
-                id="tradition"
-                value={formData.tradition}
-                onChange={(e) => setFormData(prev => ({ ...prev, tradition: e.target.value }))}
-                placeholder="e.g., Theravada Buddhism, Secular Mindfulness"
-                required
+                id="source"
+                value={formData.source}
+                onChange={(e) => setFormData(prev => ({ ...prev, source: e.target.value }))}
+                placeholder="e.g., Thich Nhat Hanh, Zen Buddhism, The Relaxation Response"
               />
+              <p className="text-xs text-muted-foreground">
+                Name a teacher, tradition, or text this technique draws from, if applicable.
+              </p>
             </div>
 
-            <div>
-              <Label htmlFor="instructions">Step-by-Step Instructions *</Label>
+            {/* Description */}
+            <div className="space-y-2">
+              <Label htmlFor="description">Description *</Label>
               <Textarea
-                id="instructions"
-                value={formData.instructions}
-                onChange={(e) => setFormData(prev => ({ ...prev, instructions: e.target.value }))}
-                placeholder="Provide detailed, step-by-step instructions..."
-                rows={6}
-                required
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Describe when this practice is useful, what it feels like, or how it has helped you..."
+                rows={4}
               />
+              <p className="text-xs text-muted-foreground">
+                A paragraph contextualizing the technique.
+              </p>
             </div>
 
-            <div>
-              <Label htmlFor="origin">Origin Story *</Label>
-              <Textarea
-                id="origin"
-                value={formData.origin_story}
-                onChange={(e) => setFormData(prev => ({ ...prev, origin_story: e.target.value }))}
-                placeholder="How did you learn this technique? What inspired you?"
-                rows={3}
-                required
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="worldview">Cultural / Religious Context *</Label>
-              <Textarea
-                id="worldview"
-                value={formData.worldview_context}
-                onChange={(e) => setFormData(prev => ({ ...prev, worldview_context: e.target.value }))}
-                placeholder="Describe the worldview or influences behind this technique..."
-                rows={3}
-                required
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="lineage">Lineage Information *</Label>
-              <Textarea
-                id="lineage"
-                value={formData.lineage_info}
-                onChange={(e) => setFormData(prev => ({ ...prev, lineage_info: e.target.value }))}
-                placeholder="Any relevant teachers or lineage information..."
-                rows={2}
-                required
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="region">Home Region *</Label>
-              <Input
-                id="region"
-                value={formData.home_region}
-                onChange={(e) => setFormData(prev => ({ ...prev, home_region: e.target.value }))}
-                placeholder="e.g., Southeast Asia, California"
-                required
-              />
-            </div>
-
-            <div>
-              <Label>Relevant Texts (at least 1, up to 3) *</Label>
-              {formData.relevant_texts.map((text, idx) => (
-                <div key={idx} className="flex gap-2 mt-2">
-                <Input
-                  value={text}
-                  onChange={(e) => updateArrayField('relevant_texts', idx, e.target.value)}
-                  placeholder="e.g., The Heart of Buddhist Meditation"
-                  required
-                />
-                  {formData.relevant_texts.length > 1 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeArrayField('relevant_texts', idx)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-              {formData.relevant_texts.length < 3 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => addArrayField('relevant_texts')}
-                  className="mt-2"
-                >
-                  <Plus className="h-3 w-3 mr-1" />
-                  Add Text
-                </Button>
-              )}
-            </div>
-
-            <div>
-              <Label>External Links (at least 1, up to 3) *</Label>
-              {formData.external_links.map((link, idx) => (
-                <div key={idx} className="flex gap-2 mt-2">
-                <Input
-                  value={link}
-                  onChange={(e) => updateArrayField('external_links', idx, e.target.value)}
-                  placeholder="https://..."
-                  type="url"
-                  required
-                />
-                  {formData.external_links.length > 1 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeArrayField('external_links', idx)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-              {formData.external_links.length < 3 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => addArrayField('external_links')}
-                  className="mt-2"
-                >
-                  <Plus className="h-3 w-3 mr-1" />
-                  Add Link
-                </Button>
-              )}
-            </div>
-
-            <div>
-              <Label>Tags (at least 1) *</Label>
-              {formData.tags.map((tag, idx) => (
-                <div key={idx} className="flex gap-2 mt-2">
-                <Input
-                  value={tag}
-                  onChange={(e) => updateArrayField('tags', idx, e.target.value)}
-                  placeholder="e.g., compassion, breath"
-                  required
-                />
-                  {formData.tags.length > 1 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeArrayField('tags', idx)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
+            {/* Instructions (List Format) */}
+            <div className="space-y-2">
+              <Label>Instructions (Step by Step) *</Label>
+              <p className="text-xs text-muted-foreground mb-3">
+                Add each step separately. They will be displayed as a numbered list.
+              </p>
+              
+              <div className="space-y-2">
+                {formData.instructionSteps.map((step, idx) => (
+                  <div key={idx} className="flex gap-2 items-start">
+                    <div className="flex items-center gap-1 pt-2.5 text-muted-foreground">
+                      <GripVertical className="h-4 w-4 opacity-50" />
+                      <span className="text-sm font-medium w-5">{idx + 1}.</span>
+                    </div>
+                    <Textarea
+                      value={step}
+                      onChange={(e) => updateStep(idx, e.target.value)}
+                      placeholder={idx === 0 ? "e.g., Sit in a quiet place with eyes open or closed." : "Next step..."}
+                      rows={2}
+                      className="flex-1"
+                    />
+                    {formData.instructionSteps.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeStep(idx)}
+                        className="mt-1"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => addArrayField('tags')}
+                onClick={addStep}
                 className="mt-2"
               >
                 <Plus className="h-3 w-3 mr-1" />
-                Add Tag
+                Add Step
               </Button>
+            </div>
+
+            {/* Suggested Duration */}
+            <div className="space-y-2">
+              <Label htmlFor="duration">Suggested Duration (minutes)</Label>
+              <Input
+                id="duration"
+                type="number"
+                min="1"
+                max="180"
+                value={formData.suggestedDuration}
+                onChange={(e) => setFormData(prev => ({ ...prev, suggestedDuration: e.target.value }))}
+                placeholder="e.g., 10, 20, or 45"
+                className="w-32"
+              />
+              <p className="text-xs text-muted-foreground">
+                Typical recommended length for this practice session.
+              </p>
+            </div>
+
+            {/* Legal Confirmation */}
+            <div className="space-y-3 pt-4 border-t border-border">
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="legal"
+                  checked={formData.legalConfirmation}
+                  onCheckedChange={(checked) => 
+                    setFormData(prev => ({ ...prev, legalConfirmation: checked === true }))
+                  }
+                  className="mt-1"
+                />
+                <Label htmlFor="legal" className="text-sm font-normal leading-relaxed cursor-pointer">
+                  I confirm that I have the legal right to share and publish these materials as instructions in this app. *
+                </Label>
+              </div>
             </div>
           </div>
         </ScrollArea>
 
         <div className="flex gap-2 pt-4 border-t">
-          <Button onClick={handleSubmit} disabled={submitting} className="flex-1">
-            Submit for Review
+          <Button 
+            onClick={handleSubmit} 
+            disabled={submitting || !formData.legalConfirmation} 
+            className="flex-1"
+          >
+            {submitting ? "Submitting..." : "Submit for Review"}
           </Button>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
