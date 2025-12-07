@@ -24,13 +24,62 @@ import {
   startOfDay,
 } from "date-fns";
 
+// Helper to calculate streak from practice days
+const calculateStreakFromDates = (dates: string[]): number => {
+  if (dates.length === 0) return 0;
+
+  const uniqueDates = new Set(dates);
+  const today = format(new Date(), "yyyy-MM-dd");
+  const yesterday = format(new Date(Date.now() - 24 * 60 * 60 * 1000), "yyyy-MM-dd");
+
+  // Check if practiced today or yesterday
+  if (!uniqueDates.has(today) && !uniqueDates.has(yesterday)) {
+    return 0;
+  }
+
+  let streak = 0;
+  let checkDate = uniqueDates.has(today) ? new Date() : new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  while (uniqueDates.has(format(checkDate, "yyyy-MM-dd"))) {
+    streak++;
+    checkDate = new Date(checkDate.getTime() - 24 * 60 * 60 * 1000);
+  }
+
+  return streak;
+};
+
+interface UserProfile {
+  id: string;
+  name: string | null;
+  streak: number;
+  favoriteTechnique: string | null;
+  totalMinutes: number;
+}
+
+interface MockFriend {
+  id: string;
+  name: string;
+  avatarUrl: string;
+  totalMinutes: number;
+  favoriteTechnique: string;
+  showStreak: boolean;
+  showTechniques: boolean;
+  showHistory: boolean;
+  practiceDays: { date: string; minutes: number; technique: string }[];
+}
+
+// Helper to get streak from friend's practice days
+const getFriendStreak = (friend: MockFriend): number => {
+  const dates = friend.practiceDays.map(p => p.date);
+  return calculateStreakFromDates(dates);
+};
+
 // Mock friend data for testing
 const MOCK_FRIENDS: MockFriend[] = [
   {
     id: "mock-friend-1",
     name: "Sarah Chen",
     avatarUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=face",
-    streak: 42,
     totalMinutes: 2340,
     favoriteTechnique: "Loving-Kindness",
     showStreak: true,
@@ -51,27 +100,6 @@ const MOCK_FRIENDS: MockFriend[] = [
     ],
   },
 ];
-
-interface UserProfile {
-  id: string;
-  name: string | null;
-  streak: number;
-  favoriteTechnique: string | null;
-  totalMinutes: number;
-}
-
-interface MockFriend {
-  id: string;
-  name: string;
-  avatarUrl: string;
-  streak: number;
-  totalMinutes: number;
-  favoriteTechnique: string;
-  showStreak: boolean;
-  showTechniques: boolean;
-  showHistory: boolean;
-  practiceDays: { date: string; minutes: number; technique: string }[];
-}
 
 export function CommunityView() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -99,15 +127,21 @@ export function CommunityView() {
         .eq("id", user.id)
         .maybeSingle();
 
-      // Fetch user's stats
-      const { data: stats } = await supabase
-        .rpc('get_user_profile_stats', { profile_user_id: user.id });
-
-      // Fetch user's most practiced technique
+      // Fetch user's sessions for streak calculation and stats
       const { data: sessions } = await supabase
         .from("sessions")
-        .select("technique_id, duration_minutes, techniques(name)")
-        .order("duration_minutes", { ascending: false });
+        .select("technique_id, duration_minutes, session_date, techniques(name)")
+        .order("session_date", { ascending: false });
+
+      // Calculate streak from session dates (same logic as HistoryView)
+      const sessionDates = (sessions || []).map((s: any) => {
+        const datePart = s.session_date.split('T')[0];
+        return datePart;
+      });
+      const calculatedStreak = calculateStreakFromDates(sessionDates);
+
+      // Calculate total minutes
+      const totalMinutes = (sessions || []).reduce((sum: number, s: any) => sum + s.duration_minutes, 0);
 
       // Calculate favorite technique
       const techniqueMinutes: Record<string, { name: string; minutes: number }> = {};
@@ -125,9 +159,9 @@ export function CommunityView() {
       setUserProfile({
         id: user.id,
         name: profile?.name || "Meditator",
-        streak: stats?.[0]?.current_streak || 0,
+        streak: calculatedStreak,
         favoriteTechnique: favoriteTech?.name || null,
-        totalMinutes: stats?.[0]?.total_minutes || 0,
+        totalMinutes: totalMinutes,
       });
     } catch (error: any) {
       console.error("Error loading profile:", error);
@@ -235,11 +269,11 @@ export function CommunityView() {
               <div className="flex-1">
                 <h1 className="text-2xl font-bold">{selectedFriend.name}</h1>
                 
-                {selectedFriend.showStreak && (
+{selectedFriend.showStreak && (
                   <div className="flex items-center gap-2 mt-2">
                     <Flame className="w-5 h-5 text-orange-500" />
                     <span className="text-lg font-semibold text-primary">
-                      {selectedFriend.streak} day streak
+                      {getFriendStreak(selectedFriend)} day streak
                     </span>
                   </div>
                 )}
@@ -540,7 +574,7 @@ export function CommunityView() {
                         <div className="flex items-center gap-1">
                           <Flame className="w-3 h-3 text-orange-500" />
                           <span className="text-sm text-muted-foreground">
-                            {friend.streak} days
+                            {getFriendStreak(friend)} days
                           </span>
                         </div>
                         <span className="text-xs text-muted-foreground">•</span>
