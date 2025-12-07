@@ -11,6 +11,7 @@ export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -29,11 +30,17 @@ export default function Auth() {
         toast({ title: "Welcome back!" });
         navigate("/");
       } else {
+        if (!displayName.trim()) {
+          throw new Error("Display name is required");
+        }
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/`,
+            data: {
+              name: displayName.trim(),
+            },
           },
         });
         if (error) throw error;
@@ -83,6 +90,18 @@ export default function Auth() {
         </div>
 
         <form onSubmit={handleAuth} className="space-y-4">
+          {!isLogin && (
+            <div className="space-y-2">
+              <Input
+                type="text"
+                placeholder="Display Name"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                required
+                className="bg-background/50"
+              />
+            </div>
+          )}
           <div className="space-y-2">
             <Input
               type="email"

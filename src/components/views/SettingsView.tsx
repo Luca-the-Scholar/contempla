@@ -4,20 +4,25 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Bell, LogOut, User, Shield, Vibrate, Volume2, Sparkles, Check, Heart, ExternalLink } from "lucide-react";
+import { Bell, LogOut, User, Shield, Vibrate, Volume2, Sparkles, Check, Heart, ExternalLink, Pencil, Mail, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useHaptic } from "@/hooks/use-haptic";
 import { useTimerSound, TimerSound, SOUND_LABELS } from "@/hooks/use-timer-sound";
+import { ProfileEditDialog } from "@/components/settings/ProfileEditDialog";
 
 export function SettingsView() {
   const [userName, setUserName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
   const [notifications, setNotifications] = useState(false);
   const [dailyReminder, setDailyReminder] = useState(false);
   const [saving, setSaving] = useState(false);
+  
+  // Edit dialog states
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editType, setEditType] = useState<"name" | "email" | "password">("name");
   
   // Privacy settings
   const [profileVisibility, setProfileVisibility] = useState<'public' | 'friends_only' | 'private'>('public');
@@ -54,6 +59,8 @@ export function SettingsView() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      setUserEmail(user.email || "");
+
       const { data: profile } = await supabase
         .from("profiles")
         .select("name, profile_preferences, profile_visibility, show_streak_to_friends, show_techniques_to_friends, show_practice_history")
@@ -75,28 +82,9 @@ export function SettingsView() {
     }
   };
 
-  const handleSaveName = async () => {
-    setSaving(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { error } = await supabase
-        .from("profiles")
-        .upsert({ id: user.id, name: userName });
-
-      if (error) throw error;
-
-      toast({ title: "Name updated!" });
-    } catch (error: any) {
-      toast({
-        title: "Error updating name",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
+  const openEditDialog = (type: "name" | "email" | "password") => {
+    setEditType(type);
+    setEditDialogOpen(true);
   };
 
   const handleToggleSetting = async (key: string, value: boolean) => {
@@ -190,26 +178,71 @@ export function SettingsView() {
           <Card className="p-6">
             <div className="flex items-center gap-3 mb-4">
               <User className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-semibold">Profile</h2>
+              <h2 className="text-lg font-semibold">Account</h2>
             </div>
-            <div className="space-y-3">
-              <div className="space-y-2">
-                <Label htmlFor="name">Display Name</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="name"
-                    value={userName}
-                    onChange={(e) => setUserName(e.target.value)}
-                    placeholder="Enter your name"
-                    className="min-h-[44px]"
-                  />
-                  <Button onClick={handleSaveName} disabled={saving} className="min-h-[44px] px-6">
-                    Save
-                  </Button>
+            <div className="space-y-4">
+              {/* Display Name */}
+              <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <Label className="text-muted-foreground text-sm">Display Name</Label>
+                  <p className="text-foreground font-medium truncate">{userName || "Not set"}</p>
                 </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => openEditDialog("name")}
+                  className="shrink-0"
+                >
+                  <Pencil className="w-4 h-4" />
+                </Button>
+              </div>
+
+              {/* Email */}
+              <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <Label className="text-muted-foreground text-sm flex items-center gap-1">
+                    <Mail className="w-3 h-3" /> Email
+                  </Label>
+                  <p className="text-foreground font-medium truncate">{userEmail}</p>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => openEditDialog("email")}
+                  className="shrink-0"
+                >
+                  <Pencil className="w-4 h-4" />
+                </Button>
+              </div>
+
+              {/* Password */}
+              <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <Label className="text-muted-foreground text-sm flex items-center gap-1">
+                    <Lock className="w-3 h-3" /> Password
+                  </Label>
+                  <p className="text-foreground font-medium">••••••••</p>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => openEditDialog("password")}
+                  className="shrink-0"
+                >
+                  <Pencil className="w-4 h-4" />
+                </Button>
               </div>
             </div>
           </Card>
+
+          {/* Edit Profile Dialog */}
+          <ProfileEditDialog
+            open={editDialogOpen}
+            onOpenChange={setEditDialogOpen}
+            editType={editType}
+            currentValue={editType === "name" ? userName : editType === "email" ? userEmail : ""}
+            onSuccess={fetchSettings}
+          />
 
           {/* Notifications */}
           <Card className="p-6">
