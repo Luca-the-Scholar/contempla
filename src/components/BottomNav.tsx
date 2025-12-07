@@ -19,7 +19,7 @@ export function BottomNav({ activeView, onViewChange }: BottomNavProps) {
             }`}
           >
             <Users className="w-5 h-5" />
-            <span className="text-[10px] font-medium leading-tight">Friends</span>
+            <span className="text-[10px] font-medium leading-tight">Community</span>
           </button>
 
           <button
