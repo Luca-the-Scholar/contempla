@@ -1,29 +1,17 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Flame, Calendar, ChevronLeft, ChevronRight, Edit2, Trash2, Check, X } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { Flame, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { ManualEntryDialog } from "@/components/timer/ManualEntryDialog";
 import { ManualEntriesView } from "@/components/timer/ManualEntriesView";
+import { SessionFeed, FeedSession } from "@/components/shared/SessionFeed";
 import {
   format,
   startOfMonth,
   endOfMonth,
   eachDayOfInterval,
-  isSameMonth,
   isSameDay,
   addMonths,
   subMonths,
@@ -52,8 +40,7 @@ export function HistoryView() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [currentStreak, setCurrentStreak] = useState(0);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editMinutes, setEditMinutes] = useState<string>('');
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchData();
@@ -137,54 +124,26 @@ export function HistoryView() {
       setCurrentStreak(streak);
   };
 
-  const startEdit = (session: Session) => {
-    setEditingId(session.id);
-    setEditMinutes(session.duration_minutes.toString());
+  const handleEditSession = async (sessionId: string, newMinutes: number) => {
+    const { error } = await supabase
+      .from('sessions')
+      .update({ duration_minutes: newMinutes })
+      .eq('id', sessionId);
+
+    if (error) throw error;
+    toast.success('Session updated');
+    fetchData();
   };
 
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditMinutes('');
-  };
+  const handleDeleteSession = async (sessionId: string) => {
+    const { error } = await supabase
+      .from('sessions')
+      .delete()
+      .eq('id', sessionId);
 
-  const saveEdit = async (sessionId: string) => {
-    const newMinutes = parseInt(editMinutes, 10);
-    if (isNaN(newMinutes) || newMinutes <= 0) {
-      toast.error('Please enter a valid duration');
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('sessions')
-        .update({ duration_minutes: newMinutes })
-        .eq('id', sessionId);
-
-      if (error) throw error;
-
-      toast.success('Session updated');
-      setEditingId(null);
-      setEditMinutes('');
-      fetchData();
-    } catch (error: any) {
-      toast.error('Failed to update session');
-    }
-  };
-
-  const handleDelete = async (sessionId: string) => {
-    try {
-      const { error } = await supabase
-        .from('sessions')
-        .delete()
-        .eq('id', sessionId);
-
-      if (error) throw error;
-
-      toast.success('Session deleted');
-      fetchData();
-    } catch (error: any) {
-      toast.error('Failed to delete session');
-    }
+    if (error) throw error;
+    toast.success('Session deleted');
+    fetchData();
   };
 
   // Aggregate sessions by date for heatmap
@@ -218,12 +177,14 @@ export function HistoryView() {
   const totalHours = Math.floor(totalMinutes / 60);
   const remainingMinutes = totalMinutes % 60;
 
-  // Get sessions for selected date
-  const selectedDateSessions = selectedDate
-    ? sessions.filter((s) =>
-        isSameDay(parseSessionDate(s.session_date), selectedDate)
-      )
-    : [];
+  // Convert sessions to FeedSession format
+  const feedSessions: FeedSession[] = sessions.map(s => ({
+    id: s.id,
+    technique_name: s.technique_name || "Unknown",
+    duration_minutes: s.duration_minutes,
+    session_date: s.session_date,
+    manual_entry: s.manual_entry,
+  }));
 
   if (loading) {
     return (
@@ -356,139 +317,19 @@ export function HistoryView() {
           </div>
         </Card>
 
-        {/* Selected Date Sessions */}
-        {selectedDate && (
-          <Card className="p-5 animate-fade-in">
-            <h3 className="font-semibold text-lg mb-4">
-              {format(selectedDate, "MMMM d, yyyy")}
-            </h3>
-            {selectedDateSessions.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">
-                No sessions on this day
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {selectedDateSessions.map((session) => (
-                  <div
-                    key={session.id}
-                    className="flex items-center justify-between p-4 bg-primary/10 rounded-xl border border-primary/20"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-foreground">{session.technique_name}</div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        {editingId === session.id ? (
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="number"
-                              value={editMinutes}
-                              onChange={(e) => setEditMinutes(e.target.value)}
-                              className="w-20 h-7 text-sm"
-                              min="1"
-                            />
-                            <span>minutes</span>
-                          </div>
-                        ) : (
-                          <span>
-                            {session.duration_minutes} minutes
-                            {session.manual_entry && " • Manual entry"}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {editingId === session.id ? (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => saveEdit(session.id)}
-                          >
-                            <Check className="h-4 w-4 text-green-500" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={cancelEdit}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => startEdit(session)}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Session?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This will permanently remove this session from your history.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDelete(session.id)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-        )}
-
-        {/* Recent Sessions List */}
-        <Card className="p-4">
-          <h3 className="font-semibold mb-3">Recent Sessions</h3>
-          {sessions.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              No sessions recorded yet
-            </p>
-          ) : (
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {sessions.slice(0, 20).map((session) => (
-                <div
-                  key={session.id}
-                  className="flex items-center justify-between p-2 bg-accent/30 rounded"
-                >
-                  <div>
-                    <div className="text-sm font-medium">
-                      {session.technique_name}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {format(parseSessionDate(session.session_date), "MMM d, yyyy")}
-                    </div>
-                  </div>
-                  <div className="text-sm font-semibold">
-                    {session.duration_minutes}m
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
+        {/* Session Feed - Infinite Scroll */}
+        <div className="space-y-3">
+          <h3 className="text-lg font-semibold text-foreground sticky top-0 bg-background py-2 z-10">
+            Practice History
+          </h3>
+          <SessionFeed
+            sessions={feedSessions}
+            editable={true}
+            onEdit={handleEditSession}
+            onDelete={handleDeleteSession}
+            emptyMessage="No sessions recorded yet. Start your practice!"
+          />
+        </div>
       </div>
     </div>
   );

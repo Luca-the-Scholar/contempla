@@ -1,28 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
-  Flame, ArrowLeft, ChevronLeft, ChevronRight, Heart
-} from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Flame, ArrowLeft, Heart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import {
-  format,
-  startOfMonth,
-  endOfMonth,
-  eachDayOfInterval,
-  isSameDay,
-  addMonths,
-  subMonths,
-  getDay,
-  isAfter,
-  isBefore,
-  subDays,
-  startOfDay,
-} from "date-fns";
+import { format } from "date-fns";
 import { FriendsListDialog } from "@/components/community/FriendsListDialog";
 import { ActivityFeed } from "@/components/community/ActivityFeed";
+import { SessionFeed, FeedSession } from "@/components/shared/SessionFeed";
 import { trackEvent } from "@/hooks/use-analytics";
 
 // Helper to calculate streak from practice days
@@ -66,15 +51,13 @@ interface FriendProfile {
   showStreak: boolean;
   showTechniques: boolean;
   showHistory: boolean;
-  practiceDays: { date: string; minutes: number; technique: string }[];
+  sessions: FeedSession[];
 }
 
 export function CommunityView() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedFriend, setSelectedFriend] = useState<FriendProfile | null>(null);
-  const [friendCalendarMonth, setFriendCalendarMonth] = useState(new Date());
-  const [selectedFriendDate, setSelectedFriendDate] = useState<Date | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -154,29 +137,33 @@ export function CommunityView() {
       }
 
       // Fetch friend's sessions
-      const { data: sessions } = await supabase
+      const { data: sessionsData } = await supabase
         .from("sessions")
-        .select("technique_id, duration_minutes, session_date, techniques(name)")
+        .select("id, technique_id, duration_minutes, session_date, manual_entry, techniques(name)")
         .eq("user_id", friendId)
         .order("session_date", { ascending: false });
 
-      const practiceDays = (sessions || []).map((s: any) => ({
-        date: s.session_date.split('T')[0],
-        minutes: s.duration_minutes,
-        technique: s.techniques?.name || "Meditation",
+      const sessions: FeedSession[] = (sessionsData || []).map((s: any) => ({
+        id: s.id,
+        user_id: friendId,
+        user_name: profile.name || "Friend",
+        technique_name: s.techniques?.name || "Meditation",
+        duration_minutes: s.duration_minutes,
+        session_date: s.session_date,
+        manual_entry: s.manual_entry,
       }));
 
-      const sessionDates = practiceDays.map(p => p.date);
+      const sessionDates = sessions.map(s => s.session_date.split('T')[0]);
       const streak = calculateStreakFromDates(sessionDates);
-      const totalMinutes = practiceDays.reduce((sum, p) => sum + p.minutes, 0);
+      const totalMinutes = sessions.reduce((sum, s) => sum + s.duration_minutes, 0);
 
       // Calculate favorite technique
       const techniqueMinutes: Record<string, { name: string; minutes: number }> = {};
-      practiceDays.forEach(p => {
-        if (!techniqueMinutes[p.technique]) {
-          techniqueMinutes[p.technique] = { name: p.technique, minutes: 0 };
+      sessions.forEach(s => {
+        if (!techniqueMinutes[s.technique_name]) {
+          techniqueMinutes[s.technique_name] = { name: s.technique_name, minutes: 0 };
         }
-        techniqueMinutes[p.technique].minutes += p.minutes;
+        techniqueMinutes[s.technique_name].minutes += s.duration_minutes;
       });
       const favoriteTech = Object.values(techniqueMinutes).sort((a, b) => b.minutes - a.minutes)[0];
 
@@ -189,7 +176,7 @@ export function CommunityView() {
         showStreak: profile.show_streak_to_friends !== 'private',
         showTechniques: profile.show_techniques_to_friends !== 'private',
         showHistory: profile.show_practice_history !== 'private',
-        practiceDays,
+        sessions,
       });
     } catch (error: any) {
       console.error("Error loading friend profile:", error);
@@ -209,32 +196,6 @@ export function CommunityView() {
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
   };
 
-  // Friend calendar helpers
-  const friendCalendarDays = useMemo(() => {
-    const start = startOfMonth(friendCalendarMonth);
-    const end = endOfMonth(friendCalendarMonth);
-    return eachDayOfInterval({ start, end });
-  }, [friendCalendarMonth]);
-
-  const friendPracticeDayMap = useMemo(() => {
-    if (!selectedFriend) return new Map();
-    const map = new Map<string, number>();
-    selectedFriend.practiceDays.forEach(day => {
-      map.set(day.date, (map.get(day.date) || 0) + day.minutes);
-    });
-    return map;
-  }, [selectedFriend]);
-
-  const getHeatmapColor = (minutes: number) => {
-    if (minutes === 0) return "bg-muted/30";
-    // Fixed scale: 60 min = max, 45 min = near max
-    if (minutes >= 60) return "bg-gradient-to-br from-primary to-accent";
-    if (minutes >= 45) return "bg-gradient-to-br from-primary/90 to-accent/90";
-    if (minutes >= 30) return "bg-gradient-to-br from-primary/60 to-accent/40";
-    if (minutes >= 15) return "bg-gradient-to-br from-primary/40 to-primary/50";
-    return "bg-gradient-to-br from-primary/20 to-primary/30";
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center pb-32">
@@ -251,10 +212,7 @@ export function CommunityView() {
           {/* Back Button */}
           <Button 
             variant="ghost" 
-            onClick={() => {
-              setSelectedFriend(null);
-              setSelectedFriendDate(null);
-            }}
+            onClick={() => setSelectedFriend(null)}
             className="gap-2 -ml-2"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -270,14 +228,20 @@ export function CommunityView() {
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-foreground">{selectedFriend.name}</h1>
                 
-                {selectedFriend.showStreak && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <Flame className="w-6 h-6 streak-flame animate-pulse-soft" />
-                    <span className="text-lg font-bold text-gradient">
-                      {selectedFriend.streak} day streak
-                    </span>
-                  </div>
-                )}
+                <div className="flex items-center gap-4 mt-2 flex-wrap">
+                  {selectedFriend.showStreak && (
+                    <div className="flex items-center gap-1.5">
+                      <Flame className="w-5 h-5 streak-flame animate-pulse-soft" />
+                      <span className="font-bold text-gradient">
+                        {selectedFriend.streak} day streak
+                      </span>
+                    </div>
+                  )}
+                  
+                  <span className="text-sm text-muted-foreground">
+                    {formatTime(selectedFriend.totalMinutes)} total
+                  </span>
+                </div>
 
                 {selectedFriend.showTechniques && selectedFriend.favoriteTechnique && (
                   <div className="flex items-center gap-2 mt-1.5">
@@ -291,181 +255,22 @@ export function CommunityView() {
             </div>
           </div>
 
-          {/* Friend's Practice Calendar (if shared) */}
-          {selectedFriend.showHistory && (
-            <Card className="p-5">
-              <div className="flex items-center justify-between mb-5">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setFriendCalendarMonth(subMonths(friendCalendarMonth, 1))}
-                  className="h-9 w-9"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </Button>
-                <h3 className="font-semibold text-lg">
-                  {format(friendCalendarMonth, "MMMM yyyy")}
-                </h3>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setFriendCalendarMonth(addMonths(friendCalendarMonth, 1))}
-                  className="h-9 w-9"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </Button>
-              </div>
-
-              {/* Day headers */}
-              <div className="grid grid-cols-7 gap-1.5 mb-2">
-                {["S", "M", "T", "W", "T", "F", "S"].map((day, i) => (
-                  <div
-                    key={i}
-                    className="text-center text-xs text-muted-foreground font-semibold py-1"
-                  >
-                    {day}
-                  </div>
-                ))}
-              </div>
-
-              {/* Calendar grid */}
-              <div className="grid grid-cols-7 gap-1.5">
-                {/* Empty cells for days before month starts */}
-                {Array.from({ length: getDay(startOfMonth(friendCalendarMonth)) }).map(
-                  (_, i) => (
-                    <div key={`empty-${i}`} className="aspect-square" />
-                  )
-                )}
-
-                {friendCalendarDays.map((day) => {
-                  const dateKey = format(day, "yyyy-MM-dd");
-                  const minutes = friendPracticeDayMap.get(dateKey) || 0;
-                  const isToday = isSameDay(day, new Date());
-                  const today = startOfDay(new Date());
-                  const thirtyDaysAgo = subDays(today, 30);
-                  const isFuture = isAfter(day, today);
-                  const isTooOld = isBefore(day, thirtyDaysAgo);
-                  const isOutOfRange = isFuture || isTooOld;
-                  const isSelected = selectedFriendDate && isSameDay(day, selectedFriendDate);
-
-                  return (
-                    <button
-                      key={dateKey}
-                      onClick={() => !isOutOfRange && setSelectedFriendDate(day)}
-                      disabled={isOutOfRange}
-                      className={`
-                        aspect-square rounded-lg transition-all duration-200 flex items-center justify-center
-                        ${isOutOfRange ? "bg-muted/20 text-muted-foreground/40 cursor-not-allowed" : getHeatmapColor(minutes)}
-                        ${isToday ? "ring-2 ring-accent ring-offset-2 ring-offset-background" : ""}
-                        ${isSelected ? "ring-2 ring-foreground scale-110" : ""}
-                        ${!isOutOfRange ? "hover:scale-105 active:scale-95" : ""}
-                      `}
-                      title={isOutOfRange ? format(day, "MMM d") : `${format(day, "MMM d")}: ${minutes}m`}
-                    >
-                      <span className={`text-xs font-medium ${!isOutOfRange && minutes > 0 ? 'text-white' : 'text-muted-foreground'}`}>
-                        {format(day, "d")}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Legend */}
-              <div className="flex items-center justify-center gap-3 mt-5 text-xs text-muted-foreground">
-                <span>Less</span>
-                <div className="flex gap-1.5">
-                  <div className="w-4 h-4 rounded-md bg-muted/30" />
-                  <div className="w-4 h-4 rounded-md bg-gradient-to-br from-primary/20 to-primary/30" />
-                  <div className="w-4 h-4 rounded-md bg-gradient-to-br from-primary/40 to-primary/50" />
-                  <div className="w-4 h-4 rounded-md bg-gradient-to-br from-primary/60 to-accent/40" />
-                  <div className="w-4 h-4 rounded-md bg-gradient-to-br from-primary to-accent" />
-                </div>
-                <span>More</span>
-              </div>
-            </Card>
-          )}
-
-          {/* Selected Date Sessions */}
-          {selectedFriend.showHistory && selectedFriendDate && (
-            <Card className="p-5 animate-fade-in">
-              <h3 className="font-semibold text-lg mb-4">
-                {format(selectedFriendDate, "MMMM d, yyyy")}
+          {/* Friend's Practice Feed */}
+          {selectedFriend.showHistory ? (
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold text-foreground sticky top-0 bg-background py-2 z-10">
+                Practice History
               </h3>
-              {(() => {
-                const dateKey = format(selectedFriendDate, "yyyy-MM-dd");
-                const sessionsForDate = selectedFriend.practiceDays.filter(s => s.date === dateKey);
-                
-                if (sessionsForDate.length === 0) {
-                  return (
-                    <p className="text-sm text-muted-foreground text-center py-6">
-                      No sessions on this day
-                    </p>
-                  );
-                }
-                
-                return (
-                  <div className="space-y-3">
-                    {sessionsForDate.map((session, idx) => (
-                      <div
-                        key={`${session.date}-${idx}`}
-                        className="flex items-center justify-between p-4 bg-primary/10 rounded-xl border border-primary/20"
-                      >
-                        <div>
-                          <div className="font-semibold text-foreground">{session.technique}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {session.minutes} minutes
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-            </Card>
-          )}
-
-          {/* Recent Sessions List (if history is shared) */}
-          {selectedFriend.showHistory && (
-            <Card className="p-4">
-              <h3 className="font-semibold mb-3">Recent Sessions</h3>
-              {selectedFriend.practiceDays.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  No sessions recorded yet
-                </p>
-              ) : (
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {[...selectedFriend.practiceDays]
-                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                    .filter(session => {
-                      const sessionDate = new Date(session.date);
-                      const today = startOfDay(new Date());
-                      const thirtyDaysAgo = subDays(today, 30);
-                      return !isAfter(sessionDate, today) && !isBefore(sessionDate, thirtyDaysAgo);
-                    })
-                    .slice(0, 20)
-                    .map((session, idx) => {
-                      const [year, month, day] = session.date.split('-').map(Number);
-                      const sessionDate = new Date(year, month - 1, day);
-                      return (
-                        <div
-                          key={`${session.date}-${idx}`}
-                          className="flex items-center justify-between p-2 bg-accent/30 rounded"
-                        >
-                          <div>
-                            <div className="text-sm font-medium">
-                              {session.technique}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {format(sessionDate, "MMM d, yyyy")}
-                            </div>
-                          </div>
-                          <div className="text-sm font-semibold">{session.minutes}m</div>
-                        </div>
-                      );
-                    })}
-                </div>
-              )}
-            </Card>
+              <SessionFeed
+                sessions={selectedFriend.sessions}
+                showUserInfo={false}
+                emptyMessage="No practice sessions yet"
+              />
+            </div>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              <p className="text-sm">Practice history is private</p>
+            </div>
           )}
         </div>
       </div>
