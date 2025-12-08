@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      analytics_backups: {
+        Row: {
+          analytics_events_data: Json
+          backup_date: string
+          created_at: string
+          id: string
+          kudos_data: Json
+          record_counts: Json
+          sessions_data: Json
+          subscription_interest_data: Json
+          technique_submissions_data: Json
+        }
+        Insert: {
+          analytics_events_data?: Json
+          backup_date: string
+          created_at?: string
+          id?: string
+          kudos_data?: Json
+          record_counts?: Json
+          sessions_data?: Json
+          subscription_interest_data?: Json
+          technique_submissions_data?: Json
+        }
+        Update: {
+          analytics_events_data?: Json
+          backup_date?: string
+          created_at?: string
+          id?: string
+          kudos_data?: Json
+          record_counts?: Json
+          sessions_data?: Json
+          subscription_interest_data?: Json
+          technique_submissions_data?: Json
+        }
+        Relationships: []
+      }
       analytics_events: {
         Row: {
           created_at: string
@@ -618,6 +654,7 @@ export type Database = {
         Args: { p_technique_id: string; p_user_id: string }
         Returns: undefined
       }
+      run_daily_analytics_backup: { Args: never; Returns: undefined }
       update_mastery_after_session: {
         Args: {
           p_duration_minutes: number
