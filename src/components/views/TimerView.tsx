@@ -36,7 +36,7 @@ export function TimerView() {
   const [initialDuration, setInitialDuration] = useState(0);
   const [instructionsModalOpen, setInstructionsModalOpen] = useState(false);
   const [showWakeLockWarning, setShowWakeLockWarning] = useState(false);
-  const [selectedSound, setSelectedSound] = useState<TimerSound>('bowl-singing');
+  const [selectedSound, setSelectedSound] = useState<TimerSound>('bowl-struck-1');
   const [hapticEnabled, setHapticEnabled] = useState(true);
   const [visualFlashEnabled, setVisualFlashEnabled] = useState(true);
   const [screenWakeLockEnabled, setScreenWakeLockEnabled] = useState(true);
@@ -436,27 +436,43 @@ export function TimerView() {
           <h2 className="text-sm font-medium text-muted-foreground mb-3">
             Completion Sound
           </h2>
-          <Select 
-            value={selectedSound} 
-            onValueChange={(val) => {
-              setSelectedSound(val as TimerSound);
-              localStorage.setItem('selectedSound', val);
-            }}
-          >
-            <SelectTrigger className="min-h-[48px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.keys(SOUND_LABELS) as TimerSound[]).map(sound => (
-                <SelectItem key={sound} value={sound}>
-                  <div className="flex items-center gap-2">
-                    <Volume2 className="w-4 h-4" />
-                    {SOUND_LABELS[sound]}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex gap-2">
+            <Select 
+              value={selectedSound} 
+              onValueChange={(val) => {
+                setSelectedSound(val as TimerSound);
+                localStorage.setItem('selectedSound', val);
+              }}
+            >
+              <SelectTrigger className="min-h-[48px] flex-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(SOUND_LABELS) as TimerSound[]).map(sound => (
+                  <SelectItem key={sound} value={sound}>
+                    <div className="flex items-center gap-2">
+                      <Volume2 className="w-4 h-4" />
+                      {SOUND_LABELS[sound]}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="icon"
+              className="min-h-[48px] min-w-[48px]"
+              onClick={async () => {
+                if (selectedSound !== 'none') {
+                  await unlockAudio();
+                  playSound(selectedSound);
+                }
+              }}
+              disabled={selectedSound === 'none'}
+            >
+              <Volume2 className="w-5 h-5" />
+            </Button>
+          </div>
         </Card>
 
         {/* Start Button */}

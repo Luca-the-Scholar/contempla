@@ -1,10 +1,9 @@
 import { useCallback, useRef } from 'react';
 
-export type TimerSound = 'none' | 'bowl-singing' | 'bowl-struck-1' | 'bowl-struck-2' | 'bowl-struck-3' | 'bowl-struck-4' | 'gong' | 'bell-1' | 'bell-2';
+export type TimerSound = 'none' | 'bowl-struck-1' | 'bowl-struck-2' | 'bowl-struck-3' | 'bowl-struck-4' | 'gong' | 'bell-1' | 'bell-2';
 
 export const SOUND_LABELS: Record<TimerSound, string> = {
   'none': 'None',
-  'bowl-singing': 'Singing Bowl',
   'bowl-struck-1': 'Bowl Strike 1',
   'bowl-struck-2': 'Bowl Strike 2',
   'bowl-struck-3': 'Bowl Strike 3',
@@ -15,7 +14,6 @@ export const SOUND_LABELS: Record<TimerSound, string> = {
 };
 
 const SOUND_FILES: Record<Exclude<TimerSound, 'none'>, string> = {
-  'bowl-singing': '/sounds/tibetan-bowl-singing.wav',
   'bowl-struck-1': '/sounds/tibetan-bowl-struck-1.wav',
   'bowl-struck-2': '/sounds/tibetan-bowl-struck-2.wav',
   'bowl-struck-3': '/sounds/tibetan-bowl-struck-3.wav',

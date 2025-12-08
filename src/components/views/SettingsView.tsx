@@ -303,32 +303,6 @@ export function SettingsView() {
               <h2 className="text-lg font-semibold">Timer Alerts</h2>
             </div>
             <div className="space-y-5">
-              {/* Test Completion Sounds */}
-              <div className="space-y-2">
-                <Label>Test Completion Sounds</Label>
-                <p className="text-sm text-muted-foreground mb-2">
-                  Preview the sounds available when timer completes
-                </p>
-                <div className="grid grid-cols-3 gap-2">
-                  {(Object.keys(SOUND_LABELS) as TimerSound[])
-                    .filter(sound => sound !== 'none')
-                    .map((sound) => (
-                      <Button
-                        key={sound}
-                        variant="outline"
-                        size="sm"
-                        onClick={async () => {
-                          await unlockAudio();
-                          playSound(sound);
-                        }}
-                        className="flex flex-col gap-1 h-auto py-2"
-                      >
-                        <Volume2 className="w-4 h-4" />
-                        <span className="text-xs">{SOUND_LABELS[sound]}</span>
-                      </Button>
-                    ))}
-                </div>
-              </div>
 
               {/* Vibration */}
               <div className="space-y-2">
