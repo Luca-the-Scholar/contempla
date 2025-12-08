@@ -26,7 +26,7 @@ type TimerState = 'setup' | 'running' | 'paused' | 'complete';
 export function TimerView() {
   const { toast } = useToast();
   const noSleep = useNoSleep();
-  const { playSound, unlockAudio } = useTimerSound();
+  const { playSound, stopSound, unlockAudio } = useTimerSound();
   const { vibrate } = useHaptic();
   const [techniques, setTechniques] = useState<Technique[]>([]);
   const [selectedTechniqueId, setSelectedTechniqueId] = useState<string>("");
@@ -453,6 +453,7 @@ export function TimerView() {
             <Select 
               value={selectedSound} 
               onValueChange={(val) => {
+                stopSound();
                 setSelectedSound(val as TimerSound);
                 localStorage.setItem('selectedSound', val);
               }}
