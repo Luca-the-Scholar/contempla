@@ -144,12 +144,12 @@ export function HistoryView() {
 
   const getHeatmapColor = (minutes: number) => {
     if (minutes === 0) return "bg-muted/30";
-    // Solid colors progressing from primary (blue) to accent (orange)
-    if (minutes >= 60) return "bg-accent"; // Full orange
-    if (minutes >= 45) return "bg-[hsl(30,70%,55%)]"; // Orange-leaning
-    if (minutes >= 30) return "bg-[hsl(200,50%,50%)]"; // Blue-orange mix
-    if (minutes >= 15) return "bg-primary/70"; // Medium blue
-    return "bg-primary/40"; // Light blue
+    // Distinct solid colors: cool blue → warm orange progression
+    if (minutes >= 60) return "bg-[hsl(25,85%,55%)]"; // Bright orange
+    if (minutes >= 45) return "bg-[hsl(35,75%,50%)]"; // Warm amber
+    if (minutes >= 30) return "bg-[hsl(50,65%,45%)]"; // Golden yellow
+    if (minutes >= 15) return "bg-[hsl(180,50%,40%)]"; // Teal
+    return "bg-[hsl(210,60%,45%)]"; // Cool blue
   };
 
   const totalMinutes = sessions.reduce((sum, s) => sum + s.duration_minutes, 0);
@@ -281,10 +281,11 @@ export function HistoryView() {
             <span>Less</span>
             <div className="flex gap-1.5">
               <div className="w-4 h-4 rounded-md bg-muted/30" />
-              <div className="w-4 h-4 rounded-md bg-primary/40" />
-              <div className="w-4 h-4 rounded-md bg-primary/70" />
-              <div className="w-4 h-4 rounded-md bg-[hsl(200,50%,50%)]" />
-              <div className="w-4 h-4 rounded-md bg-accent" />
+              <div className="w-4 h-4 rounded-md bg-[hsl(210,60%,45%)]" />
+              <div className="w-4 h-4 rounded-md bg-[hsl(180,50%,40%)]" />
+              <div className="w-4 h-4 rounded-md bg-[hsl(50,65%,45%)]" />
+              <div className="w-4 h-4 rounded-md bg-[hsl(35,75%,50%)]" />
+              <div className="w-4 h-4 rounded-md bg-[hsl(25,85%,55%)]" />
             </div>
             <span>More</span>
           </div>
