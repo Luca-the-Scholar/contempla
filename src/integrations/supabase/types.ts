@@ -563,6 +563,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      promote_user_to_admin: { Args: { user_email: string }; Returns: boolean }
       recalculate_technique_mastery: {
         Args: { p_technique_id: string; p_user_id: string }
         Returns: undefined
