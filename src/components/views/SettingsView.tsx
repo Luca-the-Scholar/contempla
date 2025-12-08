@@ -6,7 +6,18 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Bell, LogOut, User, Shield, Vibrate, Sparkles, Check, Heart, Pencil, Mail, Lock, Crown } from "lucide-react";
+import { Bell, LogOut, User, Shield, Vibrate, Sparkles, Check, Heart, Pencil, Mail, Lock, Crown, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useHaptic } from "@/hooks/use-haptic";
@@ -163,6 +174,31 @@ export function SettingsView() {
       setSaving(false);
     }
   };
+  const handleClearHistory = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from("sessions")
+        .delete()
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "History cleared",
+        description: "All your meditation sessions have been deleted.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error clearing history",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     navigate("/auth");
@@ -474,6 +510,42 @@ export function SettingsView() {
             </Card>}
 
           <AdminPanel open={adminPanelOpen} onOpenChange={setAdminPanelOpen} />
+
+          {/* Data Management */}
+          <Card className="p-6 border-destructive/20">
+            <div className="flex items-center gap-3 mb-4">
+              <Trash2 className="w-5 h-5 text-destructive" />
+              <h2 className="text-lg font-semibold">Data Management</h2>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Clear all your meditation session history. This cannot be undone.
+            </p>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="w-full min-h-[44px] border-destructive/50 text-destructive hover:bg-destructive/10">
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Clear Entire Meditation History
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Clear All History?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete all your meditation sessions, including your streak data. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={handleClearHistory}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Clear History
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </Card>
 
           <Separator />
 
