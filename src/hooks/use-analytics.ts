@@ -16,10 +16,11 @@ export type AnalyticsEventType =
   | 'technique_submitted'
   | 'technique_approved'
   | 'teacher_profile_completed'
-  | 'activity_feed_viewed'
+  | 'feed_opened'
   | 'kudos_given'
   | 'kudos_removed'
-  | 'feed_profile_clicked';
+  | 'feed_profile_clicked'
+  | 'practice_posted_to_feed';
 
 export interface AnalyticsMetadata {
   technique_id?: string;
@@ -40,7 +41,7 @@ export interface AnalyticsMetadata {
   continent?: string;
   tradition_tags?: string[];
   session_id?: string;
-  session_owner_id?: string;
+  recipient_user_id?: string;
   [key: string]: unknown;
 }
 

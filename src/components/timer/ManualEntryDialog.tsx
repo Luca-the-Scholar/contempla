@@ -82,6 +82,20 @@ export function ManualEntryDialog({ techniques, onEntryAdded }: ManualEntryDialo
         method: 'manual'
       });
 
+      // Check if user shares sessions to feed and track accordingly
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('share_sessions_in_feed')
+        .eq('id', user.id)
+        .single();
+      
+      if (profile?.share_sessions_in_feed && profile.share_sessions_in_feed !== 'none') {
+        trackEvent('practice_posted_to_feed', {
+          technique_id: techniqueId,
+          duration_minutes: duration
+        });
+      }
+
       // Save last used technique for convenience
       localStorage.setItem(LAST_TECHNIQUE_KEY, techniqueId);
       

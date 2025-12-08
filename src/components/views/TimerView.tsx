@@ -201,6 +201,20 @@ export function TimerView() {
         method: 'timer' 
       });
 
+      // Check if user shares sessions to feed and track accordingly
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('share_sessions_in_feed')
+        .eq('id', user.id)
+        .single();
+      
+      if (profile?.share_sessions_in_feed && profile.share_sessions_in_feed !== 'none') {
+        trackEvent('practice_posted_to_feed', {
+          technique_id: selectedTechniqueId,
+          duration_minutes: minutesPracticed
+        });
+      }
+
       setTimerState('complete');
     } catch (error: any) {
       toast({
