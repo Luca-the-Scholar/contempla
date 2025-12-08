@@ -40,6 +40,10 @@ export function PremiumModal({ open, onOpenChange }: PremiumModalProps) {
     onOpenChange(false);
   };
 
+  const handleConfirmationDismiss = () => {
+    setShowConfirmation(false);
+  };
+
   const features = [
     { icon: Music, text: "Spotify integration" },
     { icon: BookOpen, text: "10+ techniques in your personal library" },
@@ -48,31 +52,8 @@ export function PremiumModal({ open, onOpenChange }: PremiumModalProps) {
     { icon: Download, text: "Data exporting" },
   ];
 
-  if (showConfirmation) {
-    return (
-      <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-md">
-          <div className="flex flex-col items-center text-center py-6 space-y-6">
-            <div className="w-16 h-16 rounded-full bg-accent/20 flex items-center justify-center">
-              <Check className="w-8 h-8 text-accent" />
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-xl font-semibold text-foreground">You're on the list!</h2>
-              <p className="text-muted-foreground">
-                Contempla+ is still in development. We'll notify you as soon as it's released!
-              </p>
-            </div>
-            <Button onClick={handleClose} className="w-full min-h-[44px]">
-              Got it
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
@@ -82,6 +63,23 @@ export function PremiumModal({ open, onOpenChange }: PremiumModalProps) {
         </DialogHeader>
         
         <div className="py-4 space-y-6">
+          {showConfirmation && (
+            <div className="flex flex-col items-center text-center p-4 rounded-xl bg-accent/10 border border-accent/30 space-y-3 animate-fade-in">
+              <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center">
+                <Check className="w-6 h-6 text-accent" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-semibold text-foreground">You're on the list!</h3>
+                <p className="text-sm text-muted-foreground">
+                  Contempla+ is still in development. We'll notify you as soon as it's released!
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={handleConfirmationDismiss}>
+                Dismiss
+              </Button>
+            </div>
+          )}
+
           <p className="text-foreground font-medium">Contempla+ unlocks:</p>
           
           <ul className="space-y-4">
@@ -96,13 +94,15 @@ export function PremiumModal({ open, onOpenChange }: PremiumModalProps) {
           </ul>
         </div>
 
-        <Button 
-          onClick={handleSubscribeClick}
-          disabled={loading}
-          className="w-full min-h-[52px] text-lg font-semibold bg-gradient-to-r from-accent to-accent/80 hover:from-accent/90 hover:to-accent/70"
-        >
-          {loading ? "..." : "Subscribe for $5.99/month"}
-        </Button>
+        {!showConfirmation && (
+          <Button 
+            onClick={handleSubscribeClick}
+            disabled={loading}
+            className="w-full min-h-[52px] text-lg font-semibold bg-gradient-to-r from-accent to-accent/80 hover:from-accent/90 hover:to-accent/70"
+          >
+            {loading ? "..." : "Subscribe for $5.99/month"}
+          </Button>
+        )}
       </DialogContent>
     </Dialog>
   );
