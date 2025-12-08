@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { format } from 'date-fns';
+import { format, setHours, setMinutes } from 'date-fns';
 import { CalendarIcon, Clock, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -28,11 +28,16 @@ const LAST_TECHNIQUE_KEY = 'inroads-last-logged-technique';
 export function ManualEntryDialog({ techniques, onEntryAdded }: ManualEntryDialogProps) {
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<Date>();
+  const [timeHour, setTimeHour] = useState<string>('');
+  const [timeMinute, setTimeMinute] = useState<string>('00');
+  const [timePeriod, setTimePeriod] = useState<'AM' | 'PM'>('AM');
   const [techniqueId, setTechniqueId] = useState<string>('');
   const [duration, setDuration] = useState(20);
   const [loading, setLoading] = useState(false);
   
   const presetDurations = [10, 30, 45, 60];
+  const hours = ['', '12', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'];
+  const minutes = ['00', '15', '30', '45'];
 
   // Load last used technique when dialog opens
   useEffect(() => {
@@ -55,7 +60,16 @@ export function ManualEntryDialog({ techniques, onEntryAdded }: ManualEntryDialo
       return;
     }
 
-    if (date > new Date()) {
+    // Build the session date with optional time
+    let sessionDate = date;
+    if (timeHour) {
+      let hour24 = parseInt(timeHour, 10);
+      if (timePeriod === 'PM' && hour24 !== 12) hour24 += 12;
+      if (timePeriod === 'AM' && hour24 === 12) hour24 = 0;
+      sessionDate = setHours(setMinutes(date, parseInt(timeMinute, 10)), hour24);
+    }
+
+    if (sessionDate > new Date()) {
       toast.error('Cannot log sessions in the future');
       return;
     }
@@ -65,11 +79,16 @@ export function ManualEntryDialog({ techniques, onEntryAdded }: ManualEntryDialo
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      // Format with time if provided, otherwise just the date
+      const sessionDateStr = timeHour 
+        ? sessionDate.toISOString()
+        : format(date, 'yyyy-MM-dd');
+
       const { error } = await supabase.from('sessions').insert({
         user_id: user.id,
         technique_id: techniqueId,
         duration_minutes: duration,
-        session_date: format(date, 'yyyy-MM-dd'),
+        session_date: sessionDateStr,
         manual_entry: true,
       });
 
@@ -102,6 +121,9 @@ export function ManualEntryDialog({ techniques, onEntryAdded }: ManualEntryDialo
       toast.success('Session logged successfully');
       setOpen(false);
       setDate(undefined);
+      setTimeHour('');
+      setTimeMinute('00');
+      setTimePeriod('AM');
       setDuration(20);
       onEntryAdded();
     } catch (error) {
@@ -156,6 +178,67 @@ export function ManualEntryDialog({ techniques, onEntryAdded }: ManualEntryDialo
                 />
               </PopoverContent>
             </Popover>
+          </div>
+
+          {/* Time Picker (Optional) */}
+          <div className="space-y-2">
+            <Label>Time (optional)</Label>
+            <div className="flex items-center gap-2">
+              <Select value={timeHour} onValueChange={setTimeHour}>
+                <SelectTrigger className="w-20">
+                  <SelectValue placeholder="--" />
+                </SelectTrigger>
+                <SelectContent>
+                  {hours.map((h) => (
+                    <SelectItem key={h || 'empty'} value={h || ' '}>
+                      {h || '--'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="text-muted-foreground">:</span>
+              <Select value={timeMinute} onValueChange={setTimeMinute}>
+                <SelectTrigger className="w-20">
+                  <SelectValue placeholder="00" />
+                </SelectTrigger>
+                <SelectContent>
+                  {minutes.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {m}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex rounded-md border border-input overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setTimePeriod('AM')}
+                  className={cn(
+                    "px-3 py-2 text-sm transition-colors",
+                    timePeriod === 'AM' 
+                      ? "bg-primary text-primary-foreground" 
+                      : "bg-background hover:bg-muted"
+                  )}
+                >
+                  AM
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTimePeriod('PM')}
+                  className={cn(
+                    "px-3 py-2 text-sm transition-colors border-l border-input",
+                    timePeriod === 'PM' 
+                      ? "bg-primary text-primary-foreground" 
+                      : "bg-background hover:bg-muted"
+                  )}
+                >
+                  PM
+                </button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Leave blank if you don't remember the exact time
+            </p>
           </div>
 
           {/* Technique Selector */}

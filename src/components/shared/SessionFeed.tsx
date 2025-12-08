@@ -15,7 +15,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { formatDistanceToNow, format } from "date-fns";
+import { format } from "date-fns";
 
 export interface FeedSession {
   id: string;
@@ -118,7 +118,16 @@ export function SessionFeed({
   const formatSessionDate = (dateStr: string) => {
     try {
       const date = new Date(dateStr);
-      return formatDistanceToNow(date, { addSuffix: true });
+      // Check if the date has a time component (not midnight)
+      const hasTime = dateStr.includes('T') && !dateStr.endsWith('T00:00:00.000Z');
+      
+      if (hasTime) {
+        // Show date and time
+        return format(date, "MMM d, yyyy 'at' h:mm a");
+      } else {
+        // Show just date
+        return format(date, "MMM d, yyyy");
+      }
     } catch {
       return dateStr;
     }
