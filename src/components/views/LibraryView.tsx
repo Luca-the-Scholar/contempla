@@ -22,7 +22,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Star, Trash2, Upload, Pencil, Copy } from "lucide-react";
+import { Plus, Star, Trash2, Upload, Pencil, Copy, X, GripVertical } from "lucide-react";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { GlobalLibraryTab } from "@/components/library/GlobalLibraryTab";
 import { UploadTechniqueDialog } from "@/components/library/UploadTechniqueDialog";
@@ -53,7 +54,7 @@ export function LibraryView() {
   });
   const [formData, setFormData] = useState({
     name: "",
-    instructions: "",
+    instructionSteps: [""],
     tradition: "",
   });
   const { toast } = useToast();
@@ -83,10 +84,12 @@ export function LibraryView() {
   };
 
   const handleAddTechnique = async () => {
-    if (!formData.name || !formData.instructions || !formData.tradition) {
+    const filledSteps = formData.instructionSteps.filter(s => s.trim());
+    
+    if (!formData.name || filledSteps.length === 0 || !formData.tradition) {
       toast({
         title: "Missing fields",
-        description: "Please fill in all required fields.",
+        description: "Please fill in technique name, tradition, and at least one instruction step.",
         variant: "destructive",
       });
       return;
@@ -96,10 +99,15 @@ export function LibraryView() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Format instructions as numbered list
+      const formattedInstructions = filledSteps
+        .map((step, idx) => `${idx + 1}. ${step}`)
+        .join("\n");
+
       const { error } = await supabase.from("techniques").insert({
         user_id: user.id,
         name: formData.name,
-        instructions: formData.instructions,
+        instructions: formattedInstructions,
         tradition: formData.tradition,
       });
 
@@ -107,7 +115,7 @@ export function LibraryView() {
 
       toast({ title: "Technique added!" });
       setAddModalOpen(false);
-      setFormData({ name: "", instructions: "", tradition: "" });
+      setFormData({ name: "", instructionSteps: [""], tradition: "" });
       fetchTechniques();
     } catch (error: any) {
       toast({
@@ -116,6 +124,27 @@ export function LibraryView() {
         variant: "destructive",
       });
     }
+  };
+
+  const addInstructionStep = () => {
+    setFormData(prev => ({
+      ...prev,
+      instructionSteps: [...prev.instructionSteps, ""]
+    }));
+  };
+
+  const removeInstructionStep = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      instructionSteps: prev.instructionSteps.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateInstructionStep = (index: number, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      instructionSteps: prev.instructionSteps.map((step, i) => i === index ? value : step)
+    }));
   };
 
   const handleDeleteTechnique = async () => {
@@ -336,10 +365,12 @@ export function LibraryView() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div>
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="add-name">Technique Name *</Label>
               <Input
-                placeholder="Technique Name"
+                id="add-name"
+                placeholder='e.g., "Four-Part Breath" or "Body Scan"'
                 value={formData.name}
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, name: e.target.value }))
@@ -347,25 +378,64 @@ export function LibraryView() {
               />
             </div>
 
-            <div>
+            <div className="space-y-2">
+              <Label htmlFor="add-tradition">Tradition Name *</Label>
               <Input
-                placeholder="Teacher or Source"
+                id="add-tradition"
+                placeholder="e.g., Zen Buddhism, Vipassana, Secular Mindfulness"
                 value={formData.tradition}
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, tradition: e.target.value }))
                 }
               />
+              <p className="text-xs text-muted-foreground">
+                Please use a name for the community, tradition, lineage, or religion that you see this practice fitting within.
+              </p>
             </div>
 
-            <div>
-              <Textarea
-                placeholder="Instructions"
-                value={formData.instructions}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, instructions: e.target.value }))
-                }
-                rows={4}
-              />
+            <div className="space-y-2">
+              <Label>Instructions (Step by Step) *</Label>
+              <p className="text-xs text-muted-foreground mb-3">
+                Add each step separately. They will be displayed as a numbered list.
+              </p>
+              
+              <div className="space-y-2">
+                {formData.instructionSteps.map((step, idx) => (
+                  <div key={idx} className="flex gap-2 items-start">
+                    <div className="flex items-center gap-1 pt-2.5 text-muted-foreground">
+                      <GripVertical className="h-4 w-4 opacity-50" />
+                      <span className="text-sm font-medium w-5">{idx + 1}.</span>
+                    </div>
+                    <Textarea
+                      value={step}
+                      onChange={(e) => updateInstructionStep(idx, e.target.value)}
+                      placeholder={idx === 0 ? "e.g., Sit comfortably with eyes closed." : "Next step..."}
+                      rows={2}
+                      className="flex-1"
+                    />
+                    {formData.instructionSteps.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeInstructionStep(idx)}
+                        className="mt-1"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={addInstructionStep}
+                className="mt-2"
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Add Step
+              </Button>
             </div>
 
             <Button onClick={handleAddTechnique} className="w-full">

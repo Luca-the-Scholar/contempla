@@ -19,6 +19,7 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
+    tradition: "",
     source: "",
     description: "",
     instructionSteps: [""],
@@ -81,7 +82,7 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
         .from('global_techniques')
         .insert({
           name: formData.title.trim(),
-          tradition: formData.source.trim() || "Personal Practice",
+          tradition: formData.tradition.trim() || "Personal Practice",
           instructions: formattedInstructions,
           origin_story: formData.description.trim(),
           lineage_info: formData.source.trim() || null,
@@ -100,6 +101,7 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
       // Reset form
       setFormData({
         title: "",
+        tradition: "",
         source: "",
         description: "",
         instructionSteps: [""],
@@ -166,17 +168,31 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
               </p>
             </div>
 
-            {/* Source / Lineage */}
+            {/* Tradition */}
             <div className="space-y-2">
-              <Label htmlFor="source">Influence / Lineage / Source</Label>
+              <Label htmlFor="tradition">Tradition Name</Label>
+              <Input
+                id="tradition"
+                value={formData.tradition}
+                onChange={(e) => setFormData(prev => ({ ...prev, tradition: e.target.value }))}
+                placeholder="e.g., Zen Buddhism, Vipassana, Christian Contemplative, Secular Mindfulness"
+              />
+              <p className="text-xs text-muted-foreground">
+                Please use a name for the community, tradition, lineage, or religion that you see this practice fitting within.
+              </p>
+            </div>
+
+            {/* Relevant Text */}
+            <div className="space-y-2">
+              <Label htmlFor="source">Relevant Text</Label>
               <Input
                 id="source"
                 value={formData.source}
                 onChange={(e) => setFormData(prev => ({ ...prev, source: e.target.value }))}
-                placeholder="e.g., Thich Nhat Hanh, Zen Buddhism, The Relaxation Response"
+                placeholder='e.g., "The Miracle of Mindfulness" by Thich Nhat Hanh'
               />
               <p className="text-xs text-muted-foreground">
-                Name a teacher, tradition, or text this technique draws from, if applicable.
+                Name and author of a book or text relevant for understanding this technique or its broader approach.
               </p>
             </div>
 
