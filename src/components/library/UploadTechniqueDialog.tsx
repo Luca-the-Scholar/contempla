@@ -146,7 +146,7 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
         <DialogHeader>
           <DialogTitle>Contribute a Technique</DialogTitle>
           <DialogDescription>
-            Share a meditation technique with the community. Your submission will be reviewed before publication.
+            Share a meditation technique with the community. Your display name will be associated with your submission, which will be reviewed before publication.
           </DialogDescription>
         </DialogHeader>
 
