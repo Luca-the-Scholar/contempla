@@ -56,6 +56,7 @@ export function LibraryView() {
     name: "",
     instructionSteps: [""],
     tradition: "",
+    relevantText: "",
   });
   const { toast } = useToast();
 
@@ -109,13 +110,14 @@ export function LibraryView() {
         name: formData.name,
         instructions: formattedInstructions,
         tradition: formData.tradition,
+        original_author_name: formData.relevantText.trim() || null,
       });
 
       if (error) throw error;
 
       toast({ title: "Technique added!" });
       setAddModalOpen(false);
-      setFormData({ name: "", instructionSteps: [""], tradition: "" });
+      setFormData({ name: "", instructionSteps: [""], tradition: "", relevantText: "" });
       fetchTechniques();
     } catch (error: any) {
       toast({
@@ -390,6 +392,21 @@ export function LibraryView() {
               />
               <p className="text-xs text-muted-foreground">
                 Please use a name for the community, tradition, lineage, or religion that you see this practice fitting within.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="add-text">Relevant Text</Label>
+              <Input
+                id="add-text"
+                placeholder='"The Miracle of Mindfulness" by Thich Nhat Hanh'
+                value={formData.relevantText}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, relevantText: e.target.value }))
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Name and author of a book or text relevant for understanding this technique or its broader approach.
               </p>
             </div>
 
