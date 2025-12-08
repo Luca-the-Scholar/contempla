@@ -297,6 +297,7 @@ export type Database = {
           profile_preferences: Json | null
           profile_visibility: string | null
           share_health_data_for_research: boolean | null
+          share_sessions_in_feed: string
           show_practice_history: string | null
           show_streak_to_friends: string | null
           show_techniques_to_friends: string | null
@@ -311,6 +312,7 @@ export type Database = {
           profile_preferences?: Json | null
           profile_visibility?: string | null
           share_health_data_for_research?: boolean | null
+          share_sessions_in_feed?: string
           show_practice_history?: string | null
           show_streak_to_friends?: string | null
           show_techniques_to_friends?: string | null
@@ -325,12 +327,42 @@ export type Database = {
           profile_preferences?: Json | null
           profile_visibility?: string | null
           share_health_data_for_research?: boolean | null
+          share_sessions_in_feed?: string
           show_practice_history?: string | null
           show_streak_to_friends?: string | null
           show_techniques_to_friends?: string | null
           updated_at?: string | null
         }
         Relationships: []
+      }
+      session_kudos: {
+        Row: {
+          created_at: string | null
+          id: string
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_kudos_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sessions: {
         Row: {

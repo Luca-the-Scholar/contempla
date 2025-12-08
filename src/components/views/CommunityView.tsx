@@ -2,23 +2,11 @@ import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
-  Users, UserPlus, Check, X, Search, Flame, ArrowLeft, 
-  ChevronLeft, ChevronRight, Heart, Eye, UserMinus
+  Flame, ArrowLeft, ChevronLeft, ChevronRight, Heart
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import {
   format,
   startOfMonth,
@@ -33,6 +21,8 @@ import {
   subDays,
   startOfDay,
 } from "date-fns";
+import { FriendsListDialog } from "@/components/community/FriendsListDialog";
+import { ActivityFeed } from "@/components/community/ActivityFeed";
 
 // Helper to calculate streak from practice days
 const calculateStreakFromDates = (dates: string[]): number => {
@@ -66,60 +56,24 @@ interface UserProfile {
   totalMinutes: number;
 }
 
-interface MockFriend {
+interface FriendProfile {
   id: string;
-  name: string;
-  avatarUrl: string;
+  name: string | null;
+  streak: number;
+  favoriteTechnique: string | null;
   totalMinutes: number;
-  favoriteTechnique: string;
   showStreak: boolean;
   showTechniques: boolean;
   showHistory: boolean;
   practiceDays: { date: string; minutes: number; technique: string }[];
 }
 
-// Helper to get streak from friend's practice days
-const getFriendStreak = (friend: MockFriend): number => {
-  const dates = friend.practiceDays.map(p => p.date);
-  return calculateStreakFromDates(dates);
-};
-
-// Mock friend data for testing
-const MOCK_FRIENDS: MockFriend[] = [
-  {
-    id: "mock-friend-1",
-    name: "Sarah Chen",
-    avatarUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=face",
-    totalMinutes: 2340,
-    favoriteTechnique: "Loving-Kindness",
-    showStreak: true,
-    showTechniques: true,
-    showHistory: true,
-    // Mock practice data for calendar and list
-    practiceDays: [
-      { date: "2025-12-01", minutes: 20, technique: "Loving-Kindness" },
-      { date: "2025-12-02", minutes: 15, technique: "Breath Awareness" },
-      { date: "2025-12-03", minutes: 30, technique: "Loving-Kindness" },
-      { date: "2025-12-04", minutes: 20, technique: "Body Scan" },
-      { date: "2025-12-05", minutes: 25, technique: "Loving-Kindness" },
-      { date: "2025-12-06", minutes: 20, technique: "Breath Awareness" },
-      { date: "2025-12-07", minutes: 15, technique: "Loving-Kindness" },
-      { date: "2025-11-28", minutes: 20, technique: "Loving-Kindness" },
-      { date: "2025-11-29", minutes: 25, technique: "Body Scan" },
-      { date: "2025-11-30", minutes: 30, technique: "Breath Awareness" },
-    ],
-  },
-];
-
 export function CommunityView() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [friends, setFriends] = useState<MockFriend[]>(MOCK_FRIENDS);
-  const [searchEmail, setSearchEmail] = useState("");
   const [loading, setLoading] = useState(true);
-  const [selectedFriend, setSelectedFriend] = useState<MockFriend | null>(null);
+  const [selectedFriend, setSelectedFriend] = useState<FriendProfile | null>(null);
   const [friendCalendarMonth, setFriendCalendarMonth] = useState(new Date());
   const [selectedFriendDate, setSelectedFriendDate] = useState<Date | null>(null);
-  const [removeFriendDialogOpen, setRemoveFriendDialogOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -181,26 +135,62 @@ export function CommunityView() {
     }
   };
 
-  const sendFriendRequest = async () => {
-    if (!searchEmail.trim()) {
-      toast({
-        title: "Enter an email",
-        description: "Please enter your friend's email address",
-        variant: "destructive",
+  const viewFriendProfile = async (friendId: string) => {
+    try {
+      // Fetch friend's profile
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, name, show_streak_to_friends, show_techniques_to_friends, show_practice_history")
+        .eq("id", friendId)
+        .maybeSingle();
+
+      if (!profile) {
+        toast({ title: "Profile not found", variant: "destructive" });
+        return;
+      }
+
+      // Fetch friend's sessions
+      const { data: sessions } = await supabase
+        .from("sessions")
+        .select("technique_id, duration_minutes, session_date, techniques(name)")
+        .eq("user_id", friendId)
+        .order("session_date", { ascending: false });
+
+      const practiceDays = (sessions || []).map((s: any) => ({
+        date: s.session_date.split('T')[0],
+        minutes: s.duration_minutes,
+        technique: s.techniques?.name || "Meditation",
+      }));
+
+      const sessionDates = practiceDays.map(p => p.date);
+      const streak = calculateStreakFromDates(sessionDates);
+      const totalMinutes = practiceDays.reduce((sum, p) => sum + p.minutes, 0);
+
+      // Calculate favorite technique
+      const techniqueMinutes: Record<string, { name: string; minutes: number }> = {};
+      practiceDays.forEach(p => {
+        if (!techniqueMinutes[p.technique]) {
+          techniqueMinutes[p.technique] = { name: p.technique, minutes: 0 };
+        }
+        techniqueMinutes[p.technique].minutes += p.minutes;
       });
-      return;
+      const favoriteTech = Object.values(techniqueMinutes).sort((a, b) => b.minutes - a.minutes)[0];
+
+      setSelectedFriend({
+        id: profile.id,
+        name: profile.name,
+        streak,
+        favoriteTechnique: favoriteTech?.name || null,
+        totalMinutes,
+        showStreak: profile.show_streak_to_friends !== 'private',
+        showTechniques: profile.show_techniques_to_friends !== 'private',
+        showHistory: profile.show_practice_history !== 'private',
+        practiceDays,
+      });
+    } catch (error: any) {
+      console.error("Error loading friend profile:", error);
+      toast({ title: "Error loading profile", description: error.message, variant: "destructive" });
     }
-
-    toast({
-      title: "Friend request sent!",
-      description: `A request has been sent to ${searchEmail}`,
-    });
-    setSearchEmail("");
-  };
-
-  const removeFriend = (friendId: string) => {
-    setFriends(prev => prev.filter(f => f.id !== friendId));
-    toast({ title: "Friend removed" });
   };
 
   const formatTime = (minutes: number) => {
@@ -226,7 +216,7 @@ export function CommunityView() {
     if (!selectedFriend) return new Map();
     const map = new Map<string, number>();
     selectedFriend.practiceDays.forEach(day => {
-      map.set(day.date, day.minutes);
+      map.set(day.date, (map.get(day.date) || 0) + day.minutes);
     });
     return map;
   }, [selectedFriend]);
@@ -253,7 +243,7 @@ export function CommunityView() {
   if (selectedFriend) {
     return (
       <div className="min-h-screen bg-background pb-32">
-        <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+        <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
           {/* Back Button */}
           <Button 
             variant="ghost" 
@@ -271,7 +261,6 @@ export function CommunityView() {
           <div className="stats-card">
             <div className="flex items-center gap-5">
               <Avatar className="w-20 h-20 ring-2 ring-primary/30 ring-offset-2 ring-offset-background">
-                <AvatarImage src={selectedFriend.avatarUrl} alt={selectedFriend.name} />
                 <AvatarFallback className="text-xl bg-primary/20 text-primary">{getInitials(selectedFriend.name)}</AvatarFallback>
               </Avatar>
               <div className="flex-1">
@@ -281,7 +270,7 @@ export function CommunityView() {
                   <div className="flex items-center gap-2 mt-2">
                     <Flame className="w-6 h-6 streak-flame animate-pulse-soft" />
                     <span className="text-lg font-bold text-gradient">
-                      {getFriendStreak(selectedFriend)} day streak
+                      {selectedFriend.streak} day streak
                     </span>
                   </div>
                 )}
@@ -449,6 +438,7 @@ export function CommunityView() {
                       const thirtyDaysAgo = subDays(today, 30);
                       return !isAfter(sessionDate, today) && !isBefore(sessionDate, thirtyDaysAgo);
                     })
+                    .slice(0, 20)
                     .map((session, idx) => {
                       const [year, month, day] = session.date.split('-').map(Number);
                       const sessionDate = new Date(year, month - 1, day);
@@ -465,9 +455,7 @@ export function CommunityView() {
                               {format(sessionDate, "MMM d, yyyy")}
                             </div>
                           </div>
-                          <div className="text-sm font-semibold">
-                            {session.minutes}m
-                          </div>
+                          <div className="text-sm font-semibold">{session.minutes}m</div>
                         </div>
                       );
                     })}
@@ -475,161 +463,45 @@ export function CommunityView() {
               )}
             </Card>
           )}
-
-          {/* Privacy notice if some info is hidden */}
-          {(!selectedFriend.showStreak || !selectedFriend.showTechniques || !selectedFriend.showHistory) && (
-            <p className="text-sm text-muted-foreground text-center">
-              Some information is hidden based on {selectedFriend.name}'s privacy settings.
-            </p>
-          )}
-
-          {/* Remove Friend Button */}
-          <Button
-            variant="outline"
-            className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={() => setRemoveFriendDialogOpen(true)}
-          >
-            <UserMinus className="w-4 h-4 mr-2" />
-            Remove Friend
-          </Button>
-
-          {/* Remove Friend Confirmation Dialog */}
-          <AlertDialog open={removeFriendDialogOpen} onOpenChange={setRemoveFriendDialogOpen}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Remove Friend</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to remove {selectedFriend.name} from your friends list? This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => {
-                    removeFriend(selectedFriend.id);
-                    setSelectedFriend(null);
-                    setRemoveFriendDialogOpen(false);
-                  }}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  Remove
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </div>
       </div>
     );
   }
 
-  // Main Community View
+  // Main Community View with Activity Feed
   return (
     <div className="min-h-screen bg-background pb-32">
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-        {/* User Profile Section */}
-        <Card className="p-6 bg-gradient-to-br from-primary/10 to-primary/5">
+      <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
+        {/* User Profile Summary */}
+        <div className="stats-card">
           <div className="flex items-center gap-4">
-            <Avatar className="w-16 h-16 ring-2 ring-primary/20">
-              <AvatarFallback className="text-xl bg-primary/20">
+            <Avatar className="w-16 h-16 ring-2 ring-primary/30 ring-offset-2 ring-offset-background">
+              <AvatarFallback className="text-lg bg-primary/20 text-primary font-semibold">
                 {getInitials(userProfile?.name || null)}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <h2 className="text-xl font-bold">{userProfile?.name || "Meditator"}</h2>
-              
-              <div className="flex items-center gap-4 mt-2">
+              <h2 className="text-xl font-bold text-foreground">{userProfile?.name || "Meditator"}</h2>
+              <div className="flex items-center gap-4 mt-1">
                 <div className="flex items-center gap-1">
-                  <Flame className="w-4 h-4 text-orange-500" />
-                  <span className="font-semibold text-primary">
-                    {userProfile?.streak || 0} day streak
-                  </span>
+                  <Flame className="w-5 h-5 streak-flame" />
+                  <span className="font-semibold text-gradient">{userProfile?.streak || 0}</span>
                 </div>
+                <span className="text-sm text-muted-foreground">
+                  {formatTime(userProfile?.totalMinutes || 0)} total
+                </span>
               </div>
-
-              {userProfile?.favoriteTechnique && (
-                <div className="flex items-center gap-2 mt-1">
-                  <Heart className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    Most practiced: {userProfile.favoriteTechnique}
-                  </span>
-                </div>
-              )}
             </div>
           </div>
-        </Card>
-
-        {/* Community Section Header */}
-        <div className="flex items-center gap-2">
-          <Users className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold">Community</h2>
         </div>
 
-        {/* Add Friend */}
-        <Card className="p-4">
-          <div className="flex items-center gap-3 mb-3">
-            <UserPlus className="w-5 h-5 text-muted-foreground" />
-            <span className="font-medium">Add Friend</span>
-          </div>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Enter friend's email"
-              value={searchEmail}
-              onChange={(e) => setSearchEmail(e.target.value)}
-              className="min-h-[44px]"
-              onKeyDown={(e) => e.key === "Enter" && sendFriendRequest()}
-            />
-            <Button onClick={sendFriendRequest} className="min-h-[44px] px-6">
-              <Search className="w-4 h-4" />
-            </Button>
-          </div>
-        </Card>
+        {/* Friends List Button */}
+        <FriendsListDialog onViewFriend={viewFriendProfile} />
 
-        {/* Friends List */}
-        <div>
-          <h3 className="text-sm font-medium text-muted-foreground mb-3 px-1">
-            Friends ({friends.length})
-          </h3>
-          
-          {friends.length === 0 ? (
-            <Card className="p-8 text-center">
-              <Users className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
-              <p className="text-muted-foreground mb-2">No friends yet</p>
-              <p className="text-sm text-muted-foreground">
-                Add friends to see their meditation progress
-              </p>
-            </Card>
-          ) : (
-            <div className="space-y-2">
-              {friends.map((friend) => (
-                <Card 
-                  key={friend.id} 
-                  className="p-3"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Avatar className="w-10 h-10 shrink-0">
-                        <AvatarImage src={friend.avatarUrl} alt={friend.name} />
-                        <AvatarFallback>{getInitials(friend.name)}</AvatarFallback>
-                      </Avatar>
-                      <span className="font-medium truncate">{friend.name}</span>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedFriend(friend);
-                        setSelectedFriendDate(null);
-                      }}
-                      className="shrink-0"
-                    >
-                      <Eye className="w-4 h-4 mr-1" />
-                      View Profile
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
+        {/* Activity Feed Section */}
+        <div className="space-y-3">
+          <h3 className="text-lg font-semibold text-foreground">Activity Feed</h3>
+          <ActivityFeed />
         </div>
       </div>
     </div>

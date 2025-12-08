@@ -30,6 +30,7 @@ export function SettingsView() {
   const [streakVisibility, setStreakVisibility] = useState<'all' | 'friends' | 'private'>('friends');
   const [techniqueVisibility, setTechniqueVisibility] = useState<'all' | 'friends' | 'private'>('friends');
   const [historyVisibility, setHistoryVisibility] = useState<'all' | 'friends' | 'private'>('friends');
+  const [sessionFeedVisibility, setSessionFeedVisibility] = useState<'all' | 'friends' | 'none'>('friends');
   
   // Timer alert settings
   const [hapticEnabled, setHapticEnabled] = useState(true);
@@ -75,7 +76,7 @@ export function SettingsView() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("name, profile_preferences, profile_visibility, show_streak_to_friends, show_techniques_to_friends, show_practice_history")
+        .select("name, profile_preferences, profile_visibility, show_streak_to_friends, show_techniques_to_friends, show_practice_history, share_sessions_in_feed")
         .eq("id", user.id)
         .single();
 
@@ -88,6 +89,7 @@ export function SettingsView() {
         setStreakVisibility((profile.show_streak_to_friends as any) || 'friends');
         setTechniqueVisibility((profile.show_techniques_to_friends as any) || 'friends');
         setHistoryVisibility((profile.show_practice_history as any) || 'friends');
+        setSessionFeedVisibility((profile.share_sessions_in_feed as any) || 'friends');
       }
     } catch (error: any) {
       console.error("Error loading settings:", error);
@@ -460,6 +462,29 @@ export function SettingsView() {
                     <SelectItem value="all">All</SelectItem>
                     <SelectItem value="friends">Friends</SelectItem>
                     <SelectItem value="private">Private</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Session Feed Sharing</Label>
+                <p className="text-sm text-muted-foreground">
+                  Share your sessions in the community activity feed
+                </p>
+                <Select 
+                  value={sessionFeedVisibility} 
+                  onValueChange={(value: 'all' | 'friends' | 'none') => {
+                    setSessionFeedVisibility(value);
+                    handlePrivacyUpdate('share_sessions_in_feed', value);
+                  }}
+                >
+                  <SelectTrigger className="min-h-[44px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Everyone</SelectItem>
+                    <SelectItem value="friends">Friends Only</SelectItem>
+                    <SelectItem value="none">Don't Share</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
