@@ -17,9 +17,9 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "apple-touch-icon.png", "pwa-192x192.png", "pwa-512x512.png"],
       manifest: {
-        name: "InRoads — Practice with Literacy",
-        short_name: "InRoads",
-        description: "A minimal meditation app combining timer, technique library, and mastery tracking",
+        name: "Contempla — Contemplative Practice with Friends",
+        short_name: "Contempla",
+        description: "Contemplative practice with friends. Track your meditation, explore techniques, and grow together.",
         theme_color: "#2F6FAF",
         background_color: "#0a0a0f",
         display: "standalone",
