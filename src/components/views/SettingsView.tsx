@@ -478,7 +478,11 @@ export function SettingsView() {
                     await supabase.from("subscription_interest").insert({
                       user_id: user.id,
                       action_type: "settings_click",
-                      metadata: { source: "settings_card" }
+                      metadata: { 
+                        source: "settings_card",
+                        email: user.email,
+                        timestamp: new Date().toISOString()
+                      }
                     });
                   }
                 } catch (error) {

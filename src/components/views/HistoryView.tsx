@@ -144,12 +144,12 @@ export function HistoryView() {
 
   const getHeatmapColor = (minutes: number) => {
     if (minutes === 0) return "bg-muted/30";
-    // Fixed scale: 60 min = max, 45 min = near max
-    if (minutes >= 60) return "bg-gradient-to-br from-primary to-accent";
-    if (minutes >= 45) return "bg-gradient-to-br from-primary/90 to-accent/90";
-    if (minutes >= 30) return "bg-gradient-to-br from-primary/60 to-accent/40";
-    if (minutes >= 15) return "bg-gradient-to-br from-primary/40 to-primary/50";
-    return "bg-gradient-to-br from-primary/20 to-primary/30";
+    // Fixed scale with solid colors for clarity
+    if (minutes >= 60) return "bg-accent";
+    if (minutes >= 45) return "bg-primary";
+    if (minutes >= 30) return "bg-primary/70";
+    if (minutes >= 15) return "bg-primary/45";
+    return "bg-primary/25";
   };
 
   const totalMinutes = sessions.reduce((sum, s) => sum + s.duration_minutes, 0);
@@ -281,10 +281,10 @@ export function HistoryView() {
             <span>Less</span>
             <div className="flex gap-1.5">
               <div className="w-4 h-4 rounded-md bg-muted/30" />
-              <div className="w-4 h-4 rounded-md bg-gradient-to-br from-primary/20 to-primary/30" />
-              <div className="w-4 h-4 rounded-md bg-gradient-to-br from-primary/40 to-primary/50" />
-              <div className="w-4 h-4 rounded-md bg-gradient-to-br from-primary/60 to-accent/40" />
-              <div className="w-4 h-4 rounded-md bg-gradient-to-br from-primary to-accent" />
+              <div className="w-4 h-4 rounded-md bg-primary/25" />
+              <div className="w-4 h-4 rounded-md bg-primary/45" />
+              <div className="w-4 h-4 rounded-md bg-primary/70" />
+              <div className="w-4 h-4 rounded-md bg-accent" />
             </div>
             <span>More</span>
           </div>
