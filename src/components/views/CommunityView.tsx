@@ -598,43 +598,18 @@ export function CommunityView() {
               </p>
             </Card>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {friends.map((friend) => (
                 <Card 
                   key={friend.id} 
-                  className="p-4 cursor-pointer hover:bg-accent/50 transition-colors"
-                  onClick={() => {
-                    setSelectedFriend(friend);
-                    setSelectedFriendDate(null);
-                  }}
+                  className="p-3"
                 >
-                  <div className="flex items-center gap-4">
-                    <Avatar className="w-12 h-12">
-                      <AvatarImage src={friend.avatarUrl} alt={friend.name} />
-                      <AvatarFallback>{getInitials(friend.name)}</AvatarFallback>
-                    </Avatar>
-
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold truncate">{friend.name}</h3>
-                      <div className="flex items-center gap-3 mt-1">
-                        <div className="flex items-center gap-1">
-                          <Flame className="w-3 h-3 text-orange-500" />
-                          <span className="text-sm text-muted-foreground">
-                            {getFriendStreak(friend)} days
-                          </span>
-                        </div>
-                        <span className="text-xs text-muted-foreground">•</span>
-                        <span className="text-sm text-muted-foreground truncate">
-                          {friend.favoriteTechnique}
-                        </span>
-                      </div>
-                    </div>
-
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-medium truncate">{friend.name}</span>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
+                      onClick={() => {
                         setSelectedFriend(friend);
                         setSelectedFriendDate(null);
                       }}
