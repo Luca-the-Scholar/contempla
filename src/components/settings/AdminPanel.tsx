@@ -397,14 +397,6 @@ export function AdminPanel({ open, onOpenChange }: AdminPanelProps) {
 
                   <div className="flex gap-2 pt-4 border-t">
                     <Button
-                      onClick={() => handleApproval(selectedTechnique.id, true)}
-                      disabled={processing}
-                      className="flex-1"
-                    >
-                      <Check className="h-4 w-4 mr-2" />
-                      Approve
-                    </Button>
-                    <Button
                       variant="destructive"
                       onClick={() => handleApproval(selectedTechnique.id, false)}
                       disabled={processing}
@@ -412,6 +404,14 @@ export function AdminPanel({ open, onOpenChange }: AdminPanelProps) {
                     >
                       <X className="h-4 w-4 mr-2" />
                       Reject
+                    </Button>
+                    <Button
+                      onClick={() => handleApproval(selectedTechnique.id, true)}
+                      disabled={processing}
+                      className="flex-1"
+                    >
+                      <Check className="h-4 w-4 mr-2" />
+                      Approve
                     </Button>
                   </div>
                 </div>
@@ -446,6 +446,14 @@ export function AdminPanel({ open, onOpenChange }: AdminPanelProps) {
 
                         <div className="flex gap-2">
                           <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleApproval(technique.id, false)}
+                            disabled={processing}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                          <Button
                             variant="outline"
                             size="sm"
                             onClick={() => setSelectedTechnique(technique)}
@@ -459,14 +467,6 @@ export function AdminPanel({ open, onOpenChange }: AdminPanelProps) {
                             disabled={processing}
                           >
                             <Check className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleApproval(technique.id, false)}
-                            disabled={processing}
-                          >
-                            <X className="h-3 w-3" />
                           </Button>
                         </div>
                       </div>
