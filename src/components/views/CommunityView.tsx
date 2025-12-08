@@ -23,6 +23,7 @@ import {
 } from "date-fns";
 import { FriendsListDialog } from "@/components/community/FriendsListDialog";
 import { ActivityFeed } from "@/components/community/ActivityFeed";
+import { trackEvent } from "@/hooks/use-analytics";
 
 // Helper to calculate streak from practice days
 const calculateStreakFromDates = (dates: string[]): number => {
@@ -136,6 +137,9 @@ export function CommunityView() {
   };
 
   const viewFriendProfile = async (friendId: string) => {
+    // Track friend profile viewed
+    trackEvent('friend_profile_viewed', { friend_user_id: friendId });
+    
     try {
       // Fetch friend's profile
       const { data: profile } = await supabase

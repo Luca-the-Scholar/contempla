@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNoSleep } from "@/hooks/use-nosleep";
 import { useHaptic, TIMER_COMPLETE_PATTERN } from "@/hooks/use-haptic";
 import { useTimerSound, TimerSound, SOUND_LABELS } from "@/hooks/use-timer-sound";
+import { trackEvent } from "@/hooks/use-analytics";
 
 interface Technique {
   id: string;
@@ -121,6 +122,9 @@ export function TimerView() {
       return;
     }
 
+    // Track timer started
+    trackEvent('timer_started', { technique_id: selectedTechniqueId });
+
     // Unlock audio on iOS
     await unlockAudio();
 
@@ -185,6 +189,17 @@ export function TimerView() {
       });
 
       if (sessionError) throw sessionError;
+
+      // Track timer completed and practice logged
+      trackEvent('timer_completed', { 
+        technique_id: selectedTechniqueId, 
+        duration_minutes: minutesPracticed 
+      });
+      trackEvent('practice_logged', { 
+        technique_id: selectedTechniqueId, 
+        duration_minutes: minutesPracticed, 
+        method: 'timer' 
+      });
 
       setTimerState('complete');
     } catch (error: any) {

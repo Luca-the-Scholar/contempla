@@ -24,6 +24,7 @@ import { useHaptic } from "@/hooks/use-haptic";
 import { ProfileEditDialog } from "@/components/settings/ProfileEditDialog";
 import { AdminPanel } from "@/components/settings/AdminPanel";
 import { PremiumModal } from "@/components/settings/PremiumModal";
+import { trackEvent } from "@/hooks/use-analytics";
 
 export function SettingsView() {
   const [userName, setUserName] = useState("");
@@ -446,6 +447,7 @@ export function SettingsView() {
                 <Select value={sessionFeedVisibility} onValueChange={(value: 'all' | 'friends' | 'none') => {
                 setSessionFeedVisibility(value);
                 handlePrivacyUpdate('share_sessions_in_feed', value);
+                trackEvent('practice_visibility_toggled', { new_visibility_setting: value });
               }}>
                   <SelectTrigger className="min-h-[44px]">
                     <SelectValue />

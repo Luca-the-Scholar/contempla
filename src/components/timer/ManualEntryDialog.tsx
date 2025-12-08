@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { trackEvent } from '@/hooks/use-analytics';
 
 interface Technique {
   id: string;
@@ -73,6 +74,13 @@ export function ManualEntryDialog({ techniques, onEntryAdded }: ManualEntryDialo
       });
 
       if (error) throw error;
+
+      // Track practice logged via manual entry
+      trackEvent('practice_logged', {
+        technique_id: techniqueId,
+        duration_minutes: duration,
+        method: 'manual'
+      });
 
       // Save last used technique for convenience
       localStorage.setItem(LAST_TECHNIQUE_KEY, techniqueId);

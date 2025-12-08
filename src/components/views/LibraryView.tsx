@@ -27,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { GlobalLibraryTab } from "@/components/library/GlobalLibraryTab";
 import { UploadTechniqueDialog } from "@/components/library/UploadTechniqueDialog";
+import { trackEvent } from "@/hooks/use-analytics";
 
 interface Technique {
   id: string;
@@ -62,6 +63,8 @@ export function LibraryView() {
 
   useEffect(() => {
     fetchTechniques();
+    // Track library opened
+    trackEvent('library_opened');
   }, []);
 
   const fetchTechniques = async () => {
@@ -299,7 +302,10 @@ export function LibraryView() {
                       <Card 
                         key={technique.id} 
                         className="p-4 cursor-pointer card-interactive"
-                        onClick={() => setDetailTechnique(technique)}
+                        onClick={() => {
+                          trackEvent('technique_viewed', { technique_id: technique.id });
+                          setDetailTechnique(technique);
+                        }}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1 min-w-0">

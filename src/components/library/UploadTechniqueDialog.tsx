@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, X, GripVertical } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { trackEvent } from "@/hooks/use-analytics";
 
 interface UploadTechniqueDialogProps {
   open: boolean;
@@ -101,6 +102,23 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
         });
 
       if (error) throw error;
+
+      // Track technique submitted
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', user.id)
+        .maybeSingle();
+      
+      trackEvent('technique_submitted', {
+        submitter_name: profile?.name || 'Unknown',
+        technique_name: formData.title.trim(),
+        description: formData.description.trim(),
+        instructions: formattedInstructions,
+        approx_duration_minutes: formData.suggestedDuration ? parseInt(formData.suggestedDuration) : undefined,
+        legal_permission_confirmed: formData.legalConfirmation,
+        source_or_influence_name: formData.source.trim() || undefined
+      });
 
       toast({
         title: "Technique submitted!",

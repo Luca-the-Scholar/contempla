@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Shield, UserPlus, Crown, Loader2, Search, Clock, Check, X, FileText } from "lucide-react";
+import { trackEvent } from "@/hooks/use-analytics";
 
 interface UserWithRole {
   id: string;
@@ -198,6 +199,14 @@ export function AdminPanel({ open, onOpenChange }: AdminPanelProps) {
         .eq('id', techniqueId);
 
       if (error) throw error;
+
+      // Track technique approval
+      if (approve) {
+        trackEvent('technique_approved', {
+          technique_id: techniqueId,
+          admin_user_id: user.id
+        });
+      }
 
       toast({
         title: approve ? "Technique approved" : "Technique rejected",

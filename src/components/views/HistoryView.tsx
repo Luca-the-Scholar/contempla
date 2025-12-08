@@ -29,6 +29,7 @@ import {
   subMonths,
   getDay,
 } from "date-fns";
+import { trackEvent } from "@/hooks/use-analytics";
 
 interface Session {
   id: string;
@@ -56,6 +57,8 @@ export function HistoryView() {
 
   useEffect(() => {
     fetchData();
+    // Track calendar opened
+    trackEvent('calendar_opened');
   }, []);
 
   const fetchData = async () => {
@@ -317,7 +320,10 @@ export function HistoryView() {
               return (
                 <button
                   key={dateKey}
-                  onClick={() => setSelectedDate(day)}
+                  onClick={() => {
+                    trackEvent('calendar_day_clicked', { date_clicked: dateKey });
+                    setSelectedDate(day);
+                  }}
                   className={`
                     aspect-square rounded-lg transition-all duration-200 flex items-center justify-center
                     ${getHeatmapColor(minutes)}

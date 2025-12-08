@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Users, UserPlus, Check, X, Search, ChevronRight, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { trackEvent } from "@/hooks/use-analytics";
 
 interface Friend {
   id: string;
@@ -146,6 +147,9 @@ export function FriendsListDialog({ onViewFriend }: FriendsListDialogProps) {
 
       if (error) throw error;
 
+      // Track friend request sent
+      trackEvent('friend_request_sent', { target_user_id: targetUser.id });
+
       toast({
         title: "Friend request sent!",
         description: `Request sent to ${targetUser.name}`,
@@ -164,7 +168,7 @@ export function FriendsListDialog({ onViewFriend }: FriendsListDialogProps) {
     }
   };
 
-  const acceptRequest = async (friendshipId: string) => {
+  const acceptRequest = async (friendshipId: string, friendId: string) => {
     try {
       const { error } = await supabase
         .from("friendships")
@@ -172,6 +176,10 @@ export function FriendsListDialog({ onViewFriend }: FriendsListDialogProps) {
         .eq("id", friendshipId);
 
       if (error) throw error;
+      
+      // Track friend request accepted
+      trackEvent('friend_request_accepted', { target_user_id: friendId });
+      
       toast({ title: "Friend request accepted!" });
       fetchFriends();
     } catch (error: any) {
@@ -282,7 +290,7 @@ export function FriendsListDialog({ onViewFriend }: FriendsListDialogProps) {
                         <span className="font-medium">{friend.name}</span>
                       </div>
                       <div className="flex gap-1">
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-green-500" onClick={() => acceptRequest(friend.friendshipId)}>
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-green-500" onClick={() => acceptRequest(friend.friendshipId, friend.id)}>
                           <Check className="w-4 h-4" />
                         </Button>
                         <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => rejectRequest(friend.friendshipId)}>

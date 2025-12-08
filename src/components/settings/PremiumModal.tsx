@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, Music, BookOpen, Bell, Heart, Download, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { trackEvent } from "@/hooks/use-analytics";
 
 interface PremiumModalProps {
   open: boolean;
@@ -17,6 +18,10 @@ export function PremiumModal({ open, onOpenChange }: PremiumModalProps) {
 
   const handleSubscribeClick = async () => {
     setLoading(true);
+    
+    // Track premium CTA clicked
+    trackEvent('premium_cta_clicked');
+    
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
