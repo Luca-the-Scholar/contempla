@@ -291,15 +291,23 @@ export function CommunityView() {
             </Avatar>
             <div className="flex-1">
               <h2 className="text-xl font-bold text-foreground">{userProfile?.name || "Meditator"}</h2>
-              <div className="flex items-center gap-4 mt-1">
+              <div className="flex items-center gap-4 mt-1 flex-wrap">
                 <div className="flex items-center gap-1">
                   <Flame className="w-5 h-5 streak-flame" />
-                  <span className="font-semibold text-gradient">{userProfile?.streak || 0}</span>
+                  <span className="font-semibold text-gradient">{userProfile?.streak || 0} day streak</span>
                 </div>
                 <span className="text-sm text-muted-foreground">
                   {formatTime(userProfile?.totalMinutes || 0)} total
                 </span>
               </div>
+              {userProfile?.favoriteTechnique && (
+                <div className="flex items-center gap-2 mt-1.5">
+                  <Heart className="w-4 h-4 text-accent" />
+                  <span className="text-sm text-muted-foreground">
+                    Favorite: <span className="text-foreground font-medium">{userProfile.favoriteTechnique}</span>
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
