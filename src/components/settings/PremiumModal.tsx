@@ -23,7 +23,11 @@ export function PremiumModal({ open, onOpenChange }: PremiumModalProps) {
         await supabase.from("subscription_interest").insert({
           user_id: user.id,
           action_type: "modal_subscribe_click",
-          metadata: { price: "$5.99/month", timestamp: new Date().toISOString() }
+          metadata: { 
+            price: "$5.99/month", 
+            timestamp: new Date().toISOString(),
+            email: user.email 
+          }
         });
       }
       setShowConfirmation(true);
