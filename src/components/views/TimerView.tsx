@@ -401,7 +401,7 @@ export function TimerView() {
                 className="mt-4 p-4 rounded-lg bg-primary/5 border border-primary/20 cursor-pointer hover:bg-primary/10 hover:border-primary/30 transition-all"
                 onClick={() => setInstructionsModalOpen(true)}
               >
-                <p className="text-sm text-foreground/80 line-clamp-4">
+              <p className="text-sm text-foreground/80 line-clamp-4 whitespace-pre-wrap">
                   {selectedTechnique.instructions}
                 </p>
                 <p className="text-xs text-primary mt-2">Tap to view full instructions</p>
