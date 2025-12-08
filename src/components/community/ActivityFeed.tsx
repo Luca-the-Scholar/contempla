@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Heart, Clock, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import { trackEvent } from "@/hooks/use-analytics";
 
 interface FeedSession {
   id: string;
@@ -26,6 +27,7 @@ export function ActivityFeed() {
 
   useEffect(() => {
     fetchFeed();
+    trackEvent('activity_feed_viewed');
   }, []);
 
   const fetchFeed = async () => {
@@ -136,6 +138,11 @@ export function ActivityFeed() {
           .delete()
           .eq("session_id", session.id)
           .eq("user_id", user.id);
+        
+        trackEvent('kudos_removed', {
+          session_id: session.id,
+          session_owner_id: session.user_id,
+        });
       } else {
         // Give kudos
         await supabase
@@ -144,6 +151,11 @@ export function ActivityFeed() {
             session_id: session.id,
             user_id: user.id,
           });
+        
+        trackEvent('kudos_given', {
+          session_id: session.id,
+          session_owner_id: session.user_id,
+        });
       }
 
       // Update local state
@@ -206,7 +218,10 @@ export function ActivityFeed() {
       {sessions.map((session) => (
         <Card key={session.id} className="p-4 card-interactive">
           <div className="flex items-start gap-3">
-            <Avatar className="w-12 h-12 ring-2 ring-primary/20">
+            <Avatar 
+              className="w-12 h-12 ring-2 ring-primary/20 cursor-pointer hover:ring-primary/40 transition-all"
+              onClick={() => trackEvent('feed_profile_clicked', { friend_user_id: session.user_id })}
+            >
               <AvatarFallback className="bg-primary/20 text-primary font-semibold">
                 {getInitials(session.user_name)}
               </AvatarFallback>
