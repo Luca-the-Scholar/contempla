@@ -142,18 +142,14 @@ export function HistoryView() {
     return eachDayOfInterval({ start, end });
   }, [currentMonth]);
 
-  // Calculate max minutes for color scaling
-  const maxMinutes = useMemo(() => {
-    return Math.max(...Array.from(sessionsByDate.values()), 1);
-  }, [sessionsByDate]);
-
   const getHeatmapColor = (minutes: number) => {
     if (minutes === 0) return "bg-muted/30";
-    const intensity = Math.min(minutes / maxMinutes, 1);
-    if (intensity < 0.25) return "bg-gradient-to-br from-primary/20 to-primary/30";
-    if (intensity < 0.5) return "bg-gradient-to-br from-primary/40 to-primary/50";
-    if (intensity < 0.75) return "bg-gradient-to-br from-primary/60 to-accent/40";
-    return "bg-gradient-to-br from-primary to-accent";
+    // Fixed scale: 60 min = max, 45 min = near max
+    if (minutes >= 60) return "bg-gradient-to-br from-primary to-accent";
+    if (minutes >= 45) return "bg-gradient-to-br from-primary/90 to-accent/90";
+    if (minutes >= 30) return "bg-gradient-to-br from-primary/60 to-accent/40";
+    if (minutes >= 15) return "bg-gradient-to-br from-primary/40 to-primary/50";
+    return "bg-gradient-to-br from-primary/20 to-primary/30";
   };
 
   const totalMinutes = sessions.reduce((sum, s) => sum + s.duration_minutes, 0);
