@@ -605,7 +605,13 @@ export function CommunityView() {
                   className="p-3"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <span className="font-medium truncate">{friend.name}</span>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Avatar className="w-10 h-10 shrink-0">
+                        <AvatarImage src={friend.avatarUrl} alt={friend.name} />
+                        <AvatarFallback>{getInitials(friend.name)}</AvatarFallback>
+                      </Avatar>
+                      <span className="font-medium truncate">{friend.name}</span>
+                    </div>
                     <Button
                       variant="outline"
                       size="sm"
