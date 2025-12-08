@@ -362,144 +362,137 @@ export function TimerView() {
   return (
     <div className="min-h-screen bg-background pb-32">
 
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-        {/* Technique Selection */}
-        <Card className="p-6">
-          <h2 className="text-sm font-medium text-muted-foreground mb-3">
-            Select Technique
-          </h2>
-          <Select value={selectedTechniqueId} onValueChange={setSelectedTechniqueId}>
-            <SelectTrigger className="min-h-[48px]">
-              <SelectValue placeholder="Choose a technique" />
-            </SelectTrigger>
-            <SelectContent>
-              {techniques.map(technique => (
-                <SelectItem key={technique.id} value={technique.id}>
-                  <div>
-                    <span>{technique.name}</span>
-                    {technique.original_author_name && (
-                      <span className="text-xs text-muted-foreground ml-2">
-                        by {technique.original_author_name}
-                      </span>
-                    )}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {selectedTechnique && (
-            <div className="mt-4">
-              <Button
-                variant="ghost"
-                className="w-full text-left h-auto py-3"
-                onClick={() => setInstructionsModalOpen(true)}
-              >
-                <p className="text-sm text-muted-foreground line-clamp-2">
-                  {selectedTechnique.instructions}
-                </p>
-              </Button>
-            </div>
-          )}
-        </Card>
-
-        {/* Duration Selection */}
-        <Card className="p-6">
-          <h2 className="text-sm font-medium text-muted-foreground mb-4">
-            Duration: {duration} minutes
-          </h2>
-          
-          <div className="flex gap-2 mb-4">
-            {presetDurations.map(preset => (
-              <Button 
-                key={preset}
-                variant={duration === preset ? "default" : "outline"}
-                className="flex-1 min-h-[44px]"
-                onClick={() => setDuration(preset)}
-              >
-                {preset}m
-              </Button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Label htmlFor="custom-duration" className="text-sm text-muted-foreground whitespace-nowrap">
-              Custom:
-            </Label>
-            <Input
-              id="custom-duration"
-              type="number"
-              min={1}
-              max={480}
-              value={duration}
-              onChange={(e) => {
-                const val = parseInt(e.target.value, 10);
-                if (!isNaN(val) && val >= 1 && val <= 480) {
-                  setDuration(val);
-                }
-              }}
-              className="w-24"
-            />
-            <span className="text-sm text-muted-foreground">minutes</span>
-          </div>
-        </Card>
-
-        {/* Sound Selection */}
-        <Card className="p-6">
-          <h2 className="text-sm font-medium text-muted-foreground mb-3">
-            Completion Sound
-          </h2>
-          <div className="flex gap-2">
-            <Select 
-              value={selectedSound} 
-              onValueChange={(val) => {
-                stopSound();
-                setSelectedSound(val as TimerSound);
-                localStorage.setItem('selectedSound', val);
-              }}
-            >
-              <SelectTrigger className="min-h-[48px] flex-1">
-                <SelectValue />
+      <div className="max-w-2xl mx-auto px-4 py-6">
+        <Card className="p-6 space-y-6">
+          {/* Technique Selection */}
+          <div>
+            <h2 className="text-sm font-medium text-muted-foreground mb-3">
+              Select Technique
+            </h2>
+            <Select value={selectedTechniqueId} onValueChange={setSelectedTechniqueId}>
+              <SelectTrigger className="min-h-[48px]">
+                <SelectValue placeholder="Choose a technique" />
               </SelectTrigger>
               <SelectContent>
-                {(Object.keys(SOUND_LABELS) as TimerSound[]).map(sound => (
-                  <SelectItem key={sound} value={sound}>
-                    <div className="flex items-center gap-2">
-                      <Volume2 className="w-4 h-4" />
-                      {SOUND_LABELS[sound]}
+                {techniques.map(technique => (
+                  <SelectItem key={technique.id} value={technique.id}>
+                    <div>
+                      <span>{technique.name}</span>
+                      {technique.original_author_name && (
+                        <span className="text-xs text-muted-foreground ml-2">
+                          by {technique.original_author_name}
+                        </span>
+                      )}
                     </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Button
-              variant="outline"
-              size="icon"
-              className="min-h-[48px] min-w-[48px]"
-              onClick={async () => {
-                if (selectedSound !== 'none') {
-                  await unlockAudio();
-                  playSound(selectedSound);
-                }
-              }}
-              disabled={selectedSound === 'none'}
-            >
-              <Volume2 className="w-5 h-5" />
-            </Button>
-          </div>
-        </Card>
 
-        {/* Start Button */}
-        <Button 
-          onClick={handleStart} 
-          size="lg" 
-          className="w-full min-h-[56px] text-lg"
-          disabled={!selectedTechniqueId}
-        >
-          <Play className="w-5 h-5 mr-2" />
-          Start Meditation
-        </Button>
+            {selectedTechnique && (
+              <Card 
+                className="mt-4 p-4 bg-muted/50 border cursor-pointer hover:bg-muted/70 transition-colors"
+                onClick={() => setInstructionsModalOpen(true)}
+              >
+                <p className="text-sm text-muted-foreground line-clamp-4">
+                  {selectedTechnique.instructions}
+                </p>
+              </Card>
+            )}
+          </div>
+
+          {/* Duration Selection */}
+          <div>
+            <div className="flex gap-2 mb-3">
+              {presetDurations.map(preset => (
+                <Button 
+                  key={preset}
+                  variant={duration === preset ? "default" : "outline"}
+                  className="flex-1 min-h-[44px]"
+                  onClick={() => setDuration(preset)}
+                >
+                  {preset}m
+                </Button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Input
+                id="custom-duration"
+                type="number"
+                min={1}
+                max={480}
+                value={duration}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  if (!isNaN(val) && val >= 1 && val <= 480) {
+                    setDuration(val);
+                  }
+                }}
+                className="w-24"
+              />
+              <span className="text-sm text-muted-foreground">minutes</span>
+            </div>
+          </div>
+
+          {/* Sound Selection */}
+          <div>
+            <h2 className="text-sm font-medium text-muted-foreground mb-3">
+              Completion Sound
+            </h2>
+            <div className="flex gap-2">
+              <Select 
+                value={selectedSound} 
+                onValueChange={(val) => {
+                  stopSound();
+                  setSelectedSound(val as TimerSound);
+                  localStorage.setItem('selectedSound', val);
+                }}
+              >
+                <SelectTrigger className="min-h-[48px] flex-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(SOUND_LABELS) as TimerSound[]).map(sound => (
+                    <SelectItem key={sound} value={sound}>
+                      <div className="flex items-center gap-2">
+                        <Volume2 className="w-4 h-4" />
+                        {SOUND_LABELS[sound]}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="icon"
+                className="min-h-[48px] min-w-[48px]"
+                onClick={async () => {
+                  if (selectedSound !== 'none') {
+                    await unlockAudio();
+                    playSound(selectedSound);
+                  }
+                }}
+                disabled={selectedSound === 'none'}
+              >
+                <Volume2 className="w-5 h-5" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Start Button */}
+          <Button 
+            onClick={handleStart} 
+            size="lg" 
+            className="w-full min-h-[56px] text-lg"
+            disabled={!selectedTechniqueId}
+          >
+            <Play className="w-5 h-5 mr-2" />
+            Start Meditation
+          </Button>
+        </Card>
       </div>
+
 
       {/* Instructions Modal */}
       <Dialog open={instructionsModalOpen} onOpenChange={setInstructionsModalOpen}>
