@@ -36,7 +36,7 @@ export function TimerView() {
   const [initialDuration, setInitialDuration] = useState(0);
   const [instructionsModalOpen, setInstructionsModalOpen] = useState(false);
   const [showWakeLockWarning, setShowWakeLockWarning] = useState(false);
-  const [selectedSound, setSelectedSound] = useState<TimerSound>('singing-bowl');
+  const [selectedSound, setSelectedSound] = useState<TimerSound>('bowl-singing');
   const [hapticEnabled, setHapticEnabled] = useState(true);
   const [visualFlashEnabled, setVisualFlashEnabled] = useState(true);
   const [screenWakeLockEnabled, setScreenWakeLockEnabled] = useState(true);
