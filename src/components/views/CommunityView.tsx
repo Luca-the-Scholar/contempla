@@ -5,10 +5,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
-  Users, UserPlus, Check, X, Search, Flame, Trash2, ArrowLeft, 
-  ChevronLeft, ChevronRight, Heart 
+  Users, UserPlus, Check, X, Search, Flame, ArrowLeft, 
+  ChevronLeft, ChevronRight, Heart, Eye, UserMinus
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   format,
   startOfMonth,
@@ -109,6 +119,7 @@ export function CommunityView() {
   const [selectedFriend, setSelectedFriend] = useState<MockFriend | null>(null);
   const [friendCalendarMonth, setFriendCalendarMonth] = useState(new Date());
   const [selectedFriendDate, setSelectedFriendDate] = useState<Date | null>(null);
+  const [removeFriendDialogOpen, setRemoveFriendDialogOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -470,6 +481,41 @@ export function CommunityView() {
               Some information is hidden based on {selectedFriend.name}'s privacy settings.
             </p>
           )}
+
+          {/* Remove Friend Button */}
+          <Button
+            variant="outline"
+            className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={() => setRemoveFriendDialogOpen(true)}
+          >
+            <UserMinus className="w-4 h-4 mr-2" />
+            Remove Friend
+          </Button>
+
+          {/* Remove Friend Confirmation Dialog */}
+          <AlertDialog open={removeFriendDialogOpen} onOpenChange={setRemoveFriendDialogOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Remove Friend</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to remove {selectedFriend.name} from your friends list? This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    removeFriend(selectedFriend.id);
+                    setSelectedFriend(null);
+                    setRemoveFriendDialogOpen(false);
+                  }}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Remove
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
     );
@@ -585,15 +631,17 @@ export function CommunityView() {
                     </div>
 
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        removeFriend(friend.id);
+                        setSelectedFriend(friend);
+                        setSelectedFriendDate(null);
                       }}
-                      className="text-muted-foreground hover:text-destructive shrink-0"
+                      className="shrink-0"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Eye className="w-4 h-4 mr-1" />
+                      View Profile
                     </Button>
                   </div>
                 </Card>
