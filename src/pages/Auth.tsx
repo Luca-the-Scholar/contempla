@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Sparkles } from "lucide-react";
+import { Compass } from "lucide-react";
 import { z } from "zod";
 
 const loginSchema = z.object({
@@ -102,30 +102,36 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
       {/* Floating stars background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(20)].map((_, i) => (
+        {[...Array(30)].map((_, i) => (
           <div
             key={i}
-            className="absolute rounded-full bg-primary/30"
+            className="absolute rounded-full"
             style={{
               width: Math.random() * 3 + 1 + "px",
               height: Math.random() * 3 + 1 + "px",
               left: Math.random() * 100 + "%",
               top: Math.random() * 100 + "%",
-              animation: `glow ${Math.random() * 3 + 2}s ease-in-out infinite`,
+              background: i % 5 === 0 ? 'hsl(var(--accent))' : 'hsl(var(--primary))',
+              opacity: Math.random() * 0.5 + 0.3,
+              animation: `pulse ${Math.random() * 3 + 2}s ease-in-out infinite`,
               animationDelay: Math.random() * 2 + "s",
             }}
           />
         ))}
       </div>
 
-      <Card className="w-full max-w-md p-8 space-y-6 backdrop-blur-sm bg-card/80">
+      <Card className="w-full max-w-md p-8 space-y-6 backdrop-blur-sm border-primary/20">
         <div className="text-center space-y-2">
           <div className="flex justify-center mb-4">
-            <Sparkles className="w-12 h-12 text-primary" />
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow-md">
+              <Compass className="w-8 h-8 text-white" />
+            </div>
           </div>
-          <h1 className="text-3xl font-bold">Contempla</h1>
+          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
+            InRoads
+          </h1>
           <p className="text-muted-foreground">
-            Your personal meditation constellation
+            Your personal meditation journey
           </p>
         </div>
 
@@ -173,7 +179,8 @@ export default function Auth() {
           </div>
           <Button
             type="submit"
-            className="w-full glow-button"
+            variant="accent"
+            className="w-full"
             disabled={loading}
           >
             {loading ? "Loading..." : isLogin ? "Sign In" : "Sign Up"}
@@ -186,7 +193,7 @@ export default function Auth() {
               setIsLogin(!isLogin);
               setErrors({});
             }}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="text-sm text-muted-foreground hover:text-primary transition-colors"
           >
             {isLogin
               ? "Need an account? Sign up"

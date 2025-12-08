@@ -4,31 +4,61 @@
 
 @layer base {
   :root {
-    --background: 240 15% 8%;
-    --foreground: 240 5% 96%;
-    --card: 240 12% 12%;
-    --card-foreground: 240 5% 96%;
-    --popover: 240 12% 12%;
-    --popover-foreground: 240 5% 96%;
-    --primary: 208 58% 44%;
+    /* Vibrant Night Sky Theme */
+    --background: 222 47% 6%;
+    --foreground: 210 40% 98%;
+    
+    /* Cards with subtle blue tint */
+    --card: 222 40% 10%;
+    --card-foreground: 210 40% 98%;
+    
+    /* Popovers/dropdowns */
+    --popover: 222 45% 12%;
+    --popover-foreground: 210 40% 98%;
+    
+    /* Primary: Deep vibrant blue */
+    --primary: 210 75% 50%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 8% 18%;
-    --secondary-foreground: 240 5% 96%;
-    --muted: 240 8% 18%;
-    --muted-foreground: 240 5% 65%;
-    --accent: 28 78% 62%;
+    
+    /* Secondary: Muted blue-gray */
+    --secondary: 220 30% 18%;
+    --secondary-foreground: 210 40% 98%;
+    
+    /* Muted elements */
+    --muted: 220 25% 16%;
+    --muted-foreground: 215 20% 60%;
+    
+    /* Accent: Warm sunset orange */
+    --accent: 28 85% 55%;
     --accent-foreground: 0 0% 100%;
+    
+    /* Destructive */
     --destructive: 0 85% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 240 8% 22%;
-    --input: 240 8% 22%;
-    --ring: 208 58% 44%;
+    
+    /* Borders with subtle blue glow */
+    --border: 220 30% 22%;
+    --input: 220 30% 20%;
+    --ring: 210 75% 50%;
+    
     --radius: 0.75rem;
-    --chart-1: 208 58% 44%;
-    --chart-2: 200 70% 50%;
-    --chart-3: 320 65% 55%;
-    --chart-4: 30 80% 55%;
-    --chart-5: 160 60% 45%;
+    
+    /* Chart colors */
+    --chart-1: 210 75% 50%;
+    --chart-2: 195 80% 45%;
+    --chart-3: 28 85% 55%;
+    --chart-4: 35 90% 50%;
+    --chart-5: 180 60% 45%;
+    
+    /* Custom gradient colors */
+    --gradient-blue-start: 210 80% 55%;
+    --gradient-blue-end: 220 70% 40%;
+    --gradient-orange-start: 28 90% 60%;
+    --gradient-orange-end: 20 85% 45%;
+    
+    /* Glow effects */
+    --glow-blue: 210 100% 60%;
+    --glow-orange: 28 100% 60%;
   }
 
   * {
@@ -37,14 +67,81 @@
 
   body {
     @apply bg-background text-foreground;
+    background-image: 
+      radial-gradient(ellipse at top, hsl(220 60% 12%) 0%, transparent 50%),
+      radial-gradient(ellipse at bottom right, hsl(28 50% 8% / 0.3) 0%, transparent 40%);
+    background-attachment: fixed;
   }
 }
 
-/* Hide scrollbar */
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
+@layer components {
+  /* Vibrant gradient text */
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent;
+  }
+  
+  /* Glowing borders */
+  .border-glow {
+    @apply border border-primary/30;
+    box-shadow: 0 0 20px hsl(var(--glow-blue) / 0.15);
+  }
+  
+  .border-glow-accent {
+    @apply border border-accent/30;
+    box-shadow: 0 0 20px hsl(var(--glow-orange) / 0.15);
+  }
+  
+  /* Card with subtle gradient */
+  .card-gradient {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--card)) 0%,
+      hsl(220 35% 8%) 100%
+    );
+  }
+  
+  /* Interactive hover glow */
+  .hover-glow {
+    @apply transition-all duration-300;
+  }
+  .hover-glow:hover {
+    box-shadow: 0 0 30px hsl(var(--glow-blue) / 0.2);
+  }
+  
+  /* Accent button glow */
+  .btn-accent-glow {
+    @apply bg-accent text-accent-foreground;
+    box-shadow: 0 4px 20px hsl(var(--glow-orange) / 0.3);
+  }
+  .btn-accent-glow:hover {
+    box-shadow: 0 6px 30px hsl(var(--glow-orange) / 0.4);
+  }
 }
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+
+@layer utilities {
+  /* Hide scrollbar */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  /* Shimmer animation for loading states */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--muted-foreground) / 0.1) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+  
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
 }

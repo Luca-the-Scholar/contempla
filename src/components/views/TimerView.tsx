@@ -283,11 +283,11 @@ export function TimerView() {
   // Full-screen Timer Display
   if (timerState === 'running' || timerState === 'paused') {
     return (
-      <div className="fixed inset-0 bg-background z-50 flex flex-col items-center justify-center px-4">
+      <div className="fixed inset-0 bg-gradient-to-b from-background via-background to-primary/5 z-50 flex flex-col items-center justify-center px-4">
         <div className="max-w-md w-full space-y-8">
           {showWakeLockWarning && (
-            <Alert className="bg-accent/50 border-accent">
-              <AlertTriangle className="h-4 w-4" />
+            <Alert className="bg-accent/20 border-accent/50">
+              <AlertTriangle className="h-4 w-4 text-accent" />
               <AlertDescription className="text-sm">
                 For best results, please keep your screen awake during your meditation.
               </AlertDescription>
@@ -297,12 +297,12 @@ export function TimerView() {
           <div className="text-center space-y-2">
             <p className="text-sm text-muted-foreground">{selectedTechnique?.name}</p>
             {selectedTechnique?.original_author_name && (
-              <p className="text-xs text-primary">by {selectedTechnique.original_author_name}</p>
+              <p className="text-xs text-accent">by {selectedTechnique.original_author_name}</p>
             )}
           </div>
 
           <div className="relative">
-            <svg className="w-64 h-64 mx-auto -rotate-90">
+            <svg className="w-64 h-64 mx-auto -rotate-90 drop-shadow-lg">
               <circle 
                 cx="128" cy="128" r="120" 
                 stroke="hsl(var(--muted))" 
@@ -311,18 +311,25 @@ export function TimerView() {
               />
               <circle 
                 cx="128" cy="128" r="120" 
-                stroke="hsl(var(--primary))" 
+                stroke="url(#timerGradient)" 
                 strokeWidth="8" 
                 fill="none" 
                 strokeDasharray={`${2 * Math.PI * 120}`} 
                 strokeDashoffset={`${2 * Math.PI * 120 * (1 - progress / 100)}`} 
                 className="transition-all duration-1000 ease-linear" 
-                strokeLinecap="round" 
+                strokeLinecap="round"
+                style={{ filter: 'drop-shadow(0 0 8px hsl(var(--primary) / 0.5))' }}
               />
+              <defs>
+                <linearGradient id="timerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="hsl(var(--primary))" />
+                  <stop offset="100%" stopColor="hsl(var(--accent))" />
+                </linearGradient>
+              </defs>
             </svg>
             
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-7xl font-bold tabular-nums">
+              <div className="text-7xl font-bold tabular-nums text-foreground">
                 {formatTime(secondsLeft)}
               </div>
             </div>
@@ -342,7 +349,7 @@ export function TimerView() {
               </>
             ) : (
               <>
-                <Button onClick={handleResume} size="lg" className="flex-1">
+                <Button onClick={handleResume} variant="accent" size="lg" className="flex-1">
                   <Play className="w-5 h-5 mr-2" />
                   Resume
                 </Button>
@@ -390,14 +397,15 @@ export function TimerView() {
             </Select>
 
             {selectedTechnique && (
-              <Card 
-                className="mt-4 p-4 bg-muted/50 border cursor-pointer hover:bg-muted/70 transition-colors"
+              <div 
+                className="mt-4 p-4 rounded-lg bg-primary/5 border border-primary/20 cursor-pointer hover:bg-primary/10 hover:border-primary/30 transition-all"
                 onClick={() => setInstructionsModalOpen(true)}
               >
-                <p className="text-sm text-muted-foreground line-clamp-4">
+                <p className="text-sm text-foreground/80 line-clamp-4">
                   {selectedTechnique.instructions}
                 </p>
-              </Card>
+                <p className="text-xs text-primary mt-2">Tap to view full instructions</p>
+              </div>
             )}
           </div>
 
@@ -483,6 +491,7 @@ export function TimerView() {
           {/* Start Button */}
           <Button 
             onClick={handleStart} 
+            variant="accent"
             size="lg" 
             className="w-full min-h-[56px] text-lg"
             disabled={!selectedTechniqueId}
