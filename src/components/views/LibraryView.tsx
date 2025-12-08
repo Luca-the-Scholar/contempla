@@ -381,17 +381,17 @@ export function LibraryView() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="add-tradition">Tradition Name *</Label>
+              <Label htmlFor="add-tradition">Tradition/Category Name *</Label>
               <Input
                 id="add-tradition"
-                placeholder="e.g., Zen Buddhism, Vipassana, Secular Mindfulness"
+                placeholder="e.g., Zen Buddhism, Vipassana, Breathwork, Secular Mindfulness"
                 value={formData.tradition}
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, tradition: e.target.value }))
                 }
               />
               <p className="text-xs text-muted-foreground">
-                Please use a name for the community, tradition, lineage, or religion that you see this practice fitting within.
+                Please use a name for the community, tradition, lineage, or category that you see this practice fitting within.
               </p>
             </div>
 

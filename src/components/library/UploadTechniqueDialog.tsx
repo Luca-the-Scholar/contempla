@@ -50,6 +50,15 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
       return;
     }
 
+    if (!formData.tradition.trim()) {
+      toast({
+        title: "Tradition/Category required",
+        description: "Please enter a tradition or category name.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (filledSteps.length === 0) {
       toast({
         title: "Instructions required",
@@ -170,15 +179,15 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
 
             {/* Tradition */}
             <div className="space-y-2">
-              <Label htmlFor="tradition">Tradition Name</Label>
+              <Label htmlFor="tradition">Tradition/Category Name *</Label>
               <Input
                 id="tradition"
                 value={formData.tradition}
                 onChange={(e) => setFormData(prev => ({ ...prev, tradition: e.target.value }))}
-                placeholder="e.g., Zen Buddhism, Vipassana, Christian Contemplative, Secular Mindfulness"
+                placeholder="e.g., Zen Buddhism, Vipassana, Breathwork, Secular Mindfulness"
               />
               <p className="text-xs text-muted-foreground">
-                Please use a name for the community, tradition, lineage, or religion that you see this practice fitting within.
+                Please use a name for the community, tradition, lineage, or category that you see this practice fitting within.
               </p>
             </div>
 
