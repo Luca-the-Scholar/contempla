@@ -24,7 +24,16 @@ const SOUND_FILES: Record<Exclude<TimerSound, 'none'>, string> = {
 };
 
 export function useTimerSound() {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Stop any currently playing sound
+  const stopSound = useCallback(() => {
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current.currentTime = 0;
+      currentAudioRef.current = null;
+    }
+  }, []);
 
   // Preload audio for better responsiveness
   const preloadSound = useCallback((sound: TimerSound) => {
@@ -32,7 +41,6 @@ export function useTimerSound() {
     
     const audio = new Audio(SOUND_FILES[sound]);
     audio.preload = 'auto';
-    audioRef.current = audio;
   }, []);
 
   // Unlock audio on iOS - call this on user interaction before timer starts
@@ -51,8 +59,15 @@ export function useTimerSound() {
   const playSound = useCallback((sound: TimerSound, repeat: number = 1) => {
     if (sound === 'none') return;
 
+    // Stop any currently playing sound first
+    stopSound();
+
     const playSingle = () => {
+      // Stop previous before playing new
+      stopSound();
+      
       const audio = new Audio(SOUND_FILES[sound]);
+      currentAudioRef.current = audio;
       audio.play().catch(console.error);
     };
 
@@ -65,15 +80,7 @@ export function useTimerSound() {
         setTimeout(playSingle, i * 3000);
       }
     }
-  }, []);
-
-  const stopSound = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      audioRef.current = null;
-    }
-  }, []);
+  }, [stopSound]);
 
   return { playSound, stopSound, unlockAudio, preloadSound };
 }
