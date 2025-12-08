@@ -231,17 +231,14 @@ export function CommunityView() {
     return map;
   }, [selectedFriend]);
 
-  const maxFriendMinutes = useMemo(() => {
-    return Math.max(...Array.from(friendPracticeDayMap.values()), 1);
-  }, [friendPracticeDayMap]);
-
   const getHeatmapColor = (minutes: number) => {
-    if (minutes === 0) return "bg-muted/50";
-    const intensity = Math.min(minutes / maxFriendMinutes, 1);
-    if (intensity < 0.25) return "bg-primary/25";
-    if (intensity < 0.5) return "bg-primary/50";
-    if (intensity < 0.75) return "bg-primary/75";
-    return "bg-primary";
+    if (minutes === 0) return "bg-muted/30";
+    // Fixed scale: 60 min = max, 45 min = near max
+    if (minutes >= 60) return "bg-gradient-to-br from-primary to-accent";
+    if (minutes >= 45) return "bg-gradient-to-br from-primary/90 to-accent/90";
+    if (minutes >= 30) return "bg-gradient-to-br from-primary/60 to-accent/40";
+    if (minutes >= 15) return "bg-gradient-to-br from-primary/40 to-primary/50";
+    return "bg-gradient-to-br from-primary/20 to-primary/30";
   };
 
   if (loading) {
@@ -271,65 +268,67 @@ export function CommunityView() {
           </Button>
 
           {/* Friend Profile Header */}
-          <Card className="p-6">
-            <div className="flex items-center gap-4">
-              <Avatar className="w-20 h-20">
+          <div className="stats-card">
+            <div className="flex items-center gap-5">
+              <Avatar className="w-20 h-20 ring-2 ring-primary/30 ring-offset-2 ring-offset-background">
                 <AvatarImage src={selectedFriend.avatarUrl} alt={selectedFriend.name} />
-                <AvatarFallback className="text-xl">{getInitials(selectedFriend.name)}</AvatarFallback>
+                <AvatarFallback className="text-xl bg-primary/20 text-primary">{getInitials(selectedFriend.name)}</AvatarFallback>
               </Avatar>
               <div className="flex-1">
-                <h1 className="text-2xl font-bold">{selectedFriend.name}</h1>
+                <h1 className="text-2xl font-bold text-foreground">{selectedFriend.name}</h1>
                 
-{selectedFriend.showStreak && (
+                {selectedFriend.showStreak && (
                   <div className="flex items-center gap-2 mt-2">
-                    <Flame className="w-5 h-5 text-orange-500" />
-                    <span className="text-lg font-semibold text-primary">
+                    <Flame className="w-6 h-6 streak-flame animate-pulse-soft" />
+                    <span className="text-lg font-bold text-gradient">
                       {getFriendStreak(selectedFriend)} day streak
                     </span>
                   </div>
                 )}
 
                 {selectedFriend.showTechniques && selectedFriend.favoriteTechnique && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <Heart className="w-4 h-4 text-muted-foreground" />
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <Heart className="w-4 h-4 text-accent" />
                     <span className="text-sm text-muted-foreground">
-                      Favorite: {selectedFriend.favoriteTechnique}
+                      Favorite: <span className="text-foreground font-medium">{selectedFriend.favoriteTechnique}</span>
                     </span>
                   </div>
                 )}
               </div>
             </div>
-          </Card>
+          </div>
 
           {/* Friend's Practice Calendar (if shared) */}
           {selectedFriend.showHistory && (
-            <Card className="p-4">
-              <div className="flex items-center justify-between mb-4">
+            <Card className="p-5">
+              <div className="flex items-center justify-between mb-5">
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size="icon"
                   onClick={() => setFriendCalendarMonth(subMonths(friendCalendarMonth, 1))}
+                  className="h-9 w-9"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-5 w-5" />
                 </Button>
-                <h3 className="font-semibold">
+                <h3 className="font-semibold text-lg">
                   {format(friendCalendarMonth, "MMMM yyyy")}
                 </h3>
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size="icon"
                   onClick={() => setFriendCalendarMonth(addMonths(friendCalendarMonth, 1))}
+                  className="h-9 w-9"
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-5 w-5" />
                 </Button>
               </div>
 
               {/* Day headers */}
-              <div className="grid grid-cols-7 gap-1 mb-2">
+              <div className="grid grid-cols-7 gap-1.5 mb-2">
                 {["S", "M", "T", "W", "T", "F", "S"].map((day, i) => (
                   <div
                     key={i}
-                    className="text-center text-xs text-muted-foreground font-medium"
+                    className="text-center text-xs text-muted-foreground font-semibold py-1"
                   >
                     {day}
                   </div>
@@ -337,7 +336,7 @@ export function CommunityView() {
               </div>
 
               {/* Calendar grid */}
-              <div className="grid grid-cols-7 gap-1">
+              <div className="grid grid-cols-7 gap-1.5">
                 {/* Empty cells for days before month starts */}
                 {Array.from({ length: getDay(startOfMonth(friendCalendarMonth)) }).map(
                   (_, i) => (
@@ -362,29 +361,31 @@ export function CommunityView() {
                       onClick={() => !isOutOfRange && setSelectedFriendDate(day)}
                       disabled={isOutOfRange}
                       className={`
-                        aspect-square rounded-md flex items-center justify-center transition-all
+                        aspect-square rounded-lg transition-all duration-200 flex items-center justify-center
                         ${isOutOfRange ? "bg-muted/20 text-muted-foreground/40 cursor-not-allowed" : getHeatmapColor(minutes)}
-                        ${isToday ? "ring-2 ring-primary ring-offset-1 ring-offset-background" : ""}
-                        ${isSelected ? "ring-2 ring-foreground" : ""}
-                        ${!isOutOfRange ? "hover:opacity-80" : ""}
+                        ${isToday ? "ring-2 ring-accent ring-offset-2 ring-offset-background" : ""}
+                        ${isSelected ? "ring-2 ring-foreground scale-110" : ""}
+                        ${!isOutOfRange ? "hover:scale-105 active:scale-95" : ""}
                       `}
                       title={isOutOfRange ? format(day, "MMM d") : `${format(day, "MMM d")}: ${minutes}m`}
                     >
-                      <span className="text-xs">{format(day, "d")}</span>
+                      <span className={`text-xs font-medium ${!isOutOfRange && minutes > 0 ? 'text-white' : 'text-muted-foreground'}`}>
+                        {format(day, "d")}
+                      </span>
                     </button>
                   );
                 })}
               </div>
 
               {/* Legend */}
-              <div className="flex items-center justify-center gap-2 mt-4 text-xs text-muted-foreground">
+              <div className="flex items-center justify-center gap-3 mt-5 text-xs text-muted-foreground">
                 <span>Less</span>
-                <div className="flex gap-1">
-                  <div className="w-3 h-3 rounded bg-muted/50" />
-                  <div className="w-3 h-3 rounded bg-primary/25" />
-                  <div className="w-3 h-3 rounded bg-primary/50" />
-                  <div className="w-3 h-3 rounded bg-primary/75" />
-                  <div className="w-3 h-3 rounded bg-primary" />
+                <div className="flex gap-1.5">
+                  <div className="w-4 h-4 rounded-md bg-muted/30" />
+                  <div className="w-4 h-4 rounded-md bg-gradient-to-br from-primary/20 to-primary/30" />
+                  <div className="w-4 h-4 rounded-md bg-gradient-to-br from-primary/40 to-primary/50" />
+                  <div className="w-4 h-4 rounded-md bg-gradient-to-br from-primary/60 to-accent/40" />
+                  <div className="w-4 h-4 rounded-md bg-gradient-to-br from-primary to-accent" />
                 </div>
                 <span>More</span>
               </div>
@@ -393,8 +394,8 @@ export function CommunityView() {
 
           {/* Selected Date Sessions */}
           {selectedFriend.showHistory && selectedFriendDate && (
-            <Card className="p-4">
-              <h3 className="font-semibold mb-3">
+            <Card className="p-5 animate-fade-in">
+              <h3 className="font-semibold text-lg mb-4">
                 {format(selectedFriendDate, "MMMM d, yyyy")}
               </h3>
               {(() => {
@@ -403,21 +404,21 @@ export function CommunityView() {
                 
                 if (sessionsForDate.length === 0) {
                   return (
-                    <p className="text-sm text-muted-foreground text-center py-4">
+                    <p className="text-sm text-muted-foreground text-center py-6">
                       No sessions on this day
                     </p>
                   );
                 }
                 
                 return (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {sessionsForDate.map((session, idx) => (
                       <div
                         key={`${session.date}-${idx}`}
-                        className="flex items-center justify-between p-3 bg-accent/30 rounded-lg"
+                        className="flex items-center justify-between p-4 bg-primary/10 rounded-xl border border-primary/20"
                       >
                         <div>
-                          <div className="font-medium">{session.technique}</div>
+                          <div className="font-semibold text-foreground">{session.technique}</div>
                           <div className="text-sm text-muted-foreground">
                             {session.minutes} minutes
                           </div>
