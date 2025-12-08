@@ -27,7 +27,7 @@ export function ActivityFeed() {
 
   useEffect(() => {
     fetchFeed();
-    trackEvent('activity_feed_viewed');
+    trackEvent('feed_opened');
   }, []);
 
   const fetchFeed = async () => {
@@ -141,7 +141,7 @@ export function ActivityFeed() {
         
         trackEvent('kudos_removed', {
           session_id: session.id,
-          session_owner_id: session.user_id,
+          recipient_user_id: session.user_id,
         });
       } else {
         // Give kudos
@@ -154,7 +154,7 @@ export function ActivityFeed() {
         
         trackEvent('kudos_given', {
           session_id: session.id,
-          session_owner_id: session.user_id,
+          recipient_user_id: session.user_id,
         });
       }
 
