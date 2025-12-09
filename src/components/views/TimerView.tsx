@@ -7,12 +7,15 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Play, Pause, Square, Check, AlertTriangle, Volume2 } from "lucide-react";
+import { Play, Pause, Square, Check, AlertTriangle, Volume2, Share2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNoSleep } from "@/hooks/use-nosleep";
 import { useHaptic, TIMER_COMPLETE_PATTERN } from "@/hooks/use-haptic";
 import { useTimerSound, TimerSound, SOUND_LABELS } from "@/hooks/use-timer-sound";
 import { trackEvent } from "@/hooks/use-analytics";
+import { incrementSessionAndCheckReview } from "@/lib/app-review";
+import { shareSession, canShare } from "@/lib/native-share";
+import { scheduleTimerNotification, cancelTimerNotification } from "@/lib/notifications";
 
 interface Technique {
   id: string;
@@ -43,6 +46,7 @@ export function TimerView() {
   const [visualFlashEnabled, setVisualFlashEnabled] = useState(true);
   const [screenWakeLockEnabled, setScreenWakeLockEnabled] = useState(true);
   const [showCompletionFlash, setShowCompletionFlash] = useState(false);
+  const [notificationId, setNotificationId] = useState<number | null>(null);
   
   const presetDurations = [10, 30, 45, 60];
 
@@ -137,6 +141,12 @@ export function TimerView() {
       }
     }
 
+    // Schedule background notification for when timer completes
+    const notifId = await scheduleTimerNotification(duration * 60 * 1000);
+    if (notifId) {
+      setNotificationId(notifId);
+    }
+
     setInitialDuration(duration);
     setSecondsLeft(duration * 60);
     setTimerState('running');
@@ -168,7 +178,16 @@ export function TimerView() {
       vibrate(TIMER_COMPLETE_PATTERN);
     }
 
+    // Cancel any scheduled notification since we're handling completion
+    if (notificationId) {
+      await cancelTimerNotification(notificationId);
+      setNotificationId(null);
+    }
+
     await logSession(initialDuration);
+    
+    // Check if we should prompt for app review (after 50 sessions, only on native)
+    await incrementSessionAndCheckReview();
   };
   
   const dismissFlash = () => {
@@ -225,7 +244,13 @@ export function TimerView() {
     }
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
+    // Cancel any scheduled notification
+    if (notificationId) {
+      await cancelTimerNotification(notificationId);
+      setNotificationId(null);
+    }
+    
     noSleep.disable();
     setShowWakeLockWarning(false);
     setTimerState('setup');
