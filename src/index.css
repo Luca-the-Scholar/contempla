@@ -4,42 +4,42 @@
 
 @layer base {
   :root {
-    /* Mystical Midnight Gold Theme - Matching App Icon */
-    --background: 220 50% 8%;
-    --foreground: 40 25% 92%;
+    /* Twilight Navy Gold Theme - Matching App Logo */
+    --background: 218 55% 15%;
+    --foreground: 40 30% 93%;
     
     /* Cards with warm undertones */
-    --card: 220 45% 11%;
-    --card-foreground: 40 25% 92%;
+    --card: 218 50% 18%;
+    --card-foreground: 40 30% 93%;
     
     /* Popovers/dropdowns */
-    --popover: 220 45% 13%;
-    --popover-foreground: 40 25% 92%;
+    --popover: 218 50% 20%;
+    --popover-foreground: 40 30% 93%;
     
     /* Primary: Golden amber (matching icon spiral) */
-    --primary: 38 75% 55%;
-    --primary-foreground: 220 50% 8%;
+    --primary: 40 75% 55%;
+    --primary-foreground: 218 55% 12%;
     
-    /* Secondary: Deep midnight blue */
-    --secondary: 220 40% 14%;
-    --secondary-foreground: 40 25% 92%;
+    /* Secondary: Deep navy */
+    --secondary: 218 45% 22%;
+    --secondary-foreground: 40 30% 93%;
     
     /* Muted elements */
-    --muted: 220 35% 12%;
+    --muted: 218 40% 20%;
     --muted-foreground: 220 20% 55%;
     
     /* Accent: Rich gold (brighter for emphasis) */
-    --accent: 42 85% 60%;
-    --accent-foreground: 220 50% 8%;
+    --accent: 42 80% 58%;
+    --accent-foreground: 218 55% 12%;
     
     /* Destructive */
-    --destructive: 0 75% 50%;
-    --destructive-foreground: 40 25% 95%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 40 30% 95%;
     
-    /* Borders - subtle golden warmth */
-    --border: 220 30% 18%;
-    --input: 220 30% 15%;
-    --ring: 38 75% 55%;
+    /* Borders - subtle warmth on navy */
+    --border: 218 35% 28%;
+    --input: 218 40% 22%;
+    --ring: 40 75% 55%;
     
     --radius: 1rem;
     
@@ -70,16 +70,16 @@
   body {
     @apply bg-background text-foreground antialiased;
     background-image: 
-      radial-gradient(ellipse at 50% 30%, hsl(38 40% 15% / 0.25) 0%, transparent 50%),
-      radial-gradient(ellipse at 20% 80%, hsl(220 50% 12% / 0.6) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 20%, hsl(220 55% 10% / 0.5) 0%, transparent 45%),
-      radial-gradient(ellipse at 50% 50%, hsl(220 50% 8%) 0%, hsl(220 55% 5%) 100%);
+      radial-gradient(ellipse at 50% 30%, hsl(40 35% 22% / 0.18) 0%, transparent 45%),
+      radial-gradient(ellipse at 20% 80%, hsl(218 55% 18% / 0.5) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, hsl(218 60% 14% / 0.4) 0%, transparent 45%),
+      radial-gradient(ellipse at 50% 50%, hsl(218 55% 15%) 0%, hsl(218 60% 10%) 100%);
     background-attachment: fixed;
     min-height: 100vh;
     position: relative;
   }
   
-  /* Subtle star field */
+  /* Star field - more visible */
   body::before {
     content: '';
     position: fixed;
@@ -89,16 +89,16 @@
     bottom: 0;
     pointer-events: none;
     background-image: 
-      radial-gradient(1px 1px at 10% 15%, hsl(38 50% 70% / 0.35) 0%, transparent 100%),
-      radial-gradient(1.5px 1.5px at 40% 25%, hsl(40 45% 75% / 0.4) 0%, transparent 100%),
-      radial-gradient(1px 1px at 70% 30%, hsl(38 55% 80% / 0.35) 0%, transparent 100%),
-      radial-gradient(1px 1px at 15% 45%, hsl(35 50% 70% / 0.25) 0%, transparent 100%),
-      radial-gradient(1.5px 1.5px at 50% 40%, hsl(40 60% 75% / 0.3) 0%, transparent 100%),
-      radial-gradient(1px 1px at 80% 48%, hsl(38 50% 70% / 0.35) 0%, transparent 100%),
-      radial-gradient(1.5px 1.5px at 8% 72%, hsl(42 55% 75% / 0.35) 0%, transparent 100%),
-      radial-gradient(1px 1px at 38% 78%, hsl(38 60% 80% / 0.4) 0%, transparent 100%),
-      radial-gradient(1px 1px at 68% 82%, hsl(40 50% 70% / 0.35) 0%, transparent 100%),
-      radial-gradient(1px 1px at 88% 65%, hsl(35 55% 75% / 0.35) 0%, transparent 100%);
+      radial-gradient(1.5px 1.5px at 10% 15%, hsl(40 55% 80% / 0.5) 0%, transparent 100%),
+      radial-gradient(2px 2px at 40% 25%, hsl(42 50% 85% / 0.55) 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 70% 30%, hsl(38 60% 82% / 0.5) 0%, transparent 100%),
+      radial-gradient(1px 1px at 15% 45%, hsl(40 55% 78% / 0.4) 0%, transparent 100%),
+      radial-gradient(2px 2px at 50% 40%, hsl(42 65% 80% / 0.45) 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 80% 48%, hsl(38 55% 78% / 0.5) 0%, transparent 100%),
+      radial-gradient(2px 2px at 8% 72%, hsl(40 60% 82% / 0.5) 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 38% 78%, hsl(42 65% 85% / 0.55) 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 68% 82%, hsl(40 55% 78% / 0.5) 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 88% 65%, hsl(38 60% 80% / 0.5) 0%, transparent 100%);
     animation: twinkle 5s ease-in-out infinite;
     z-index: 0;
   }
@@ -112,16 +112,16 @@
     bottom: 0;
     pointer-events: none;
     background-image: 
-      radial-gradient(1px 1px at 25% 8%, hsl(38 50% 75% / 0.25) 0%, transparent 100%),
-      radial-gradient(1px 1px at 55% 12%, hsl(40 55% 70% / 0.3) 0%, transparent 100%),
-      radial-gradient(1.5px 1.5px at 85% 18%, hsl(42 60% 75% / 0.4) 0%, transparent 100%),
-      radial-gradient(1px 1px at 30% 55%, hsl(38 55% 80% / 0.35) 0%, transparent 100%),
-      radial-gradient(1px 1px at 65% 52%, hsl(40 50% 75% / 0.25) 0%, transparent 100%),
-      radial-gradient(1px 1px at 92% 38%, hsl(35 55% 80% / 0.3) 0%, transparent 100%),
-      radial-gradient(1px 1px at 22% 85%, hsl(38 50% 70% / 0.25) 0%, transparent 100%),
-      radial-gradient(1.5px 1.5px at 52% 68%, hsl(40 55% 75% / 0.3) 0%, transparent 100%),
-      radial-gradient(1px 1px at 78% 75%, hsl(42 50% 75% / 0.25) 0%, transparent 100%),
-      radial-gradient(1.5px 1.5px at 95% 88%, hsl(38 55% 70% / 0.3) 0%, transparent 100%);
+      radial-gradient(1.5px 1.5px at 25% 8%, hsl(40 55% 82% / 0.4) 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 55% 12%, hsl(42 60% 78% / 0.45) 0%, transparent 100%),
+      radial-gradient(2px 2px at 85% 18%, hsl(40 65% 82% / 0.55) 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 30% 55%, hsl(38 60% 85% / 0.5) 0%, transparent 100%),
+      radial-gradient(1px 1px at 65% 52%, hsl(42 55% 80% / 0.4) 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 92% 38%, hsl(40 60% 85% / 0.45) 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 22% 85%, hsl(38 55% 78% / 0.4) 0%, transparent 100%),
+      radial-gradient(2px 2px at 52% 68%, hsl(42 60% 82% / 0.45) 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 78% 75%, hsl(40 55% 80% / 0.4) 0%, transparent 100%),
+      radial-gradient(2px 2px at 95% 88%, hsl(38 60% 78% / 0.45) 0%, transparent 100%);
     animation: twinkle 6s ease-in-out infinite 2s;
     z-index: 0;
   }
