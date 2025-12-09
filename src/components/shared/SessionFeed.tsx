@@ -147,18 +147,31 @@ export function SessionFeed({
     }
   };
 
+  const hasExplicitTime = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      // If hours and minutes are both 0, assume no explicit time was set
+      return date.getHours() !== 0 || date.getMinutes() !== 0;
+    } catch {
+      return false;
+    }
+  };
+
   const formatFullDate = (dateStr: string) => {
     try {
       const date = new Date(dateStr);
-      const hasTime = dateStr.includes('T') && !dateStr.endsWith('T00:00:00.000Z');
-      
-      if (hasTime) {
-        return format(date, "EEEE, MMMM d, yyyy 'at' h:mm a");
-      } else {
-        return format(date, "EEEE, MMMM d, yyyy");
-      }
+      return format(date, "EEEE, MMMM d, yyyy");
     } catch {
       return dateStr;
+    }
+  };
+
+  const formatTime = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      return format(date, "h:mm a");
+    } catch {
+      return "";
     }
   };
 
@@ -271,6 +284,14 @@ export function SessionFeed({
                   <span className="text-muted-foreground">Date:</span>
                   <span className="font-medium">{formatFullDate(selectedSession.session_date)}</span>
                 </div>
+                
+                {hasExplicitTime(selectedSession.session_date) && (
+                  <div className="flex items-center gap-3 text-sm">
+                    <Clock className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Time:</span>
+                    <span className="font-medium">{formatTime(selectedSession.session_date)}</span>
+                  </div>
+                )}
                 
                 <div className="flex items-center gap-3 text-sm">
                   <Clock className="w-4 h-4 text-muted-foreground" />
