@@ -6,61 +6,61 @@
   :root {
     /* Twilight Navy Gold Theme - Matching App Logo */
     --background: 218 55% 15%;
-    --foreground: 40 30% 93%;
+    --foreground: 45 20% 90%;
     
     /* Cards with warm undertones */
     --card: 218 50% 18%;
-    --card-foreground: 40 30% 93%;
+    --card-foreground: 45 20% 90%;
     
     /* Popovers/dropdowns */
     --popover: 218 50% 20%;
-    --popover-foreground: 40 30% 93%;
+    --popover-foreground: 45 20% 90%;
     
-    /* Primary: Golden amber (matching icon spiral) */
-    --primary: 40 75% 55%;
+    /* Primary: Warm gold - softened for less vibrance */
+    --primary: 40 55% 52%;
     --primary-foreground: 218 55% 12%;
     
     /* Secondary: Deep navy */
-    --secondary: 218 45% 22%;
-    --secondary-foreground: 40 30% 93%;
+    --secondary: 218 45% 24%;
+    --secondary-foreground: 45 18% 88%;
     
     /* Muted elements */
-    --muted: 218 40% 20%;
-    --muted-foreground: 220 20% 55%;
+    --muted: 218 40% 22%;
+    --muted-foreground: 220 18% 58%;
     
-    /* Accent: Rich gold (brighter for emphasis) */
-    --accent: 42 80% 58%;
+    /* Accent: Muted amber - softer than primary */
+    --accent: 38 50% 50%;
     --accent-foreground: 218 55% 12%;
     
-    /* Destructive */
-    --destructive: 0 70% 55%;
-    --destructive-foreground: 40 30% 95%;
+    /* Destructive - softer red */
+    --destructive: 0 55% 50%;
+    --destructive-foreground: 0 10% 95%;
     
     /* Borders - subtle warmth on navy */
-    --border: 218 35% 28%;
-    --input: 218 40% 22%;
-    --ring: 40 75% 55%;
+    --border: 218 32% 30%;
+    --input: 218 40% 24%;
+    --ring: 40 50% 50%;
     
     --radius: 1rem;
     
-    /* Chart colors - golden spectrum */
-    --chart-1: 38 75% 55%;
-    --chart-2: 32 80% 50%;
-    --chart-3: 45 90% 60%;
-    --chart-4: 28 85% 45%;
-    --chart-5: 52 70% 55%;
+    /* Chart colors - golden spectrum, softened */
+    --chart-1: 38 55% 52%;
+    --chart-2: 32 60% 48%;
+    --chart-3: 45 65% 55%;
+    --chart-4: 28 60% 45%;
+    --chart-5: 52 50% 52%;
     
-    /* Glow effects - golden */
-    --glow-gold: 38 100% 55%;
-    --glow-amber: 28 100% 50%;
+    /* Glow effects - softer golden */
+    --glow-gold: 38 65% 55%;
+    --glow-amber: 28 60% 50%;
     
     /* Legacy glow names for compatibility */
-    --glow-blue: 38 100% 55%;
-    --glow-orange: 28 100% 50%;
+    --glow-blue: 38 65% 55%;
+    --glow-orange: 28 60% 50%;
     
-    /* Success */
-    --success: 150 65% 40%;
-    --success-foreground: 40 25% 95%;
+    /* Success - softer green */
+    --success: 150 50% 42%;
+    --success-foreground: 150 10% 95%;
   }
 
   * {

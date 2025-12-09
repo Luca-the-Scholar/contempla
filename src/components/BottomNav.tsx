@@ -39,8 +39,8 @@ export function BottomNav({ activeView, onViewChange }: BottomNavProps) {
             onClick={() => onViewChange('timer')}
             className={`flex flex-col items-center gap-0.5 px-3 py-2.5 rounded-2xl transition-all duration-200 flex-1 touch-target-lg tap-highlight-none no-select focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
               activeView === 'timer'
-                ? 'bg-gradient-to-br from-accent to-accent/80 text-accent-foreground scale-105 shadow-glow-orange-md'
-                : 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground active:scale-[0.98] shadow-glow-sm'
+                ? 'bg-primary text-primary-foreground scale-105'
+                : 'bg-primary/85 text-primary-foreground active:scale-[0.98]'
             }`}
           >
             <Timer className="w-6 h-6" />
