@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,17 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, X, GripVertical } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { trackEvent } from "@/hooks/use-analytics";
+
+// Validation schema with length limits
+const techniqueSchema = z.object({
+  title: z.string().min(1, "Title is required").max(100, "Title must be 100 characters or less"),
+  tradition: z.string().min(1, "Tradition/Category is required").max(100, "Tradition must be 100 characters or less"),
+  source: z.string().max(200, "Relevant text must be 200 characters or less").optional(),
+  description: z.string().min(1, "Description is required").max(2000, "Description must be 2000 characters or less"),
+  instructionSteps: z.array(z.string().max(500, "Each step must be 500 characters or less")).max(20, "Maximum 20 instruction steps allowed"),
+  suggestedDuration: z.string().optional(),
+  legalConfirmation: z.literal(true, { errorMap: () => ({ message: "You must confirm legal rights" }) })
+});
 
 interface UploadTechniqueDialogProps {
   open: boolean;
@@ -32,29 +44,24 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
     // Filter out empty instruction steps
     const filledSteps = formData.instructionSteps.filter(s => s.trim());
 
-    // Validate required fields
-    if (!formData.title.trim()) {
-      toast({
-        title: "Title required",
-        description: "Please enter a technique title.",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Validate with zod schema
+    const validationData = {
+      title: formData.title.trim(),
+      tradition: formData.tradition.trim(),
+      source: formData.source.trim() || undefined,
+      description: formData.description.trim(),
+      instructionSteps: filledSteps,
+      suggestedDuration: formData.suggestedDuration || undefined,
+      legalConfirmation: formData.legalConfirmation as true
+    };
 
-    if (!formData.description.trim()) {
+    const result = techniqueSchema.safeParse(validationData);
+    
+    if (!result.success) {
+      const firstError = result.error.errors[0];
       toast({
-        title: "Description required",
-        description: "Please provide a description of the technique.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!formData.tradition.trim()) {
-      toast({
-        title: "Tradition/Category required",
-        description: "Please enter a tradition or category name.",
+        title: "Validation error",
+        description: firstError.message,
         variant: "destructive",
       });
       return;
@@ -64,15 +71,6 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
       toast({
         title: "Instructions required",
         description: "Please add at least one instruction step.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!formData.legalConfirmation) {
-      toast({
-        title: "Legal confirmation required",
-        description: "Please confirm you have the legal right to share this technique.",
         variant: "destructive",
       });
       return;
