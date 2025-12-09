@@ -37,6 +37,7 @@ interface Technique {
   is_favorite: boolean;
   source_global_technique_id?: string | null;
   original_author_name?: string | null;
+  tags?: string[] | null;
 }
 
 export function LibraryView() {
@@ -71,7 +72,7 @@ export function LibraryView() {
     try {
       const { data: techniquesData, error: techError } = await supabase
         .from("techniques")
-        .select("id, name, instructions, tradition, is_favorite, source_global_technique_id, original_author_name")
+        .select("id, name, instructions, tradition, is_favorite, source_global_technique_id, original_author_name, tags")
         .order("name", { ascending: true });
 
       if (techError) throw techError;
@@ -527,10 +528,36 @@ export function LibraryView() {
             </div>
           ) : (
             <div className="space-y-4">
+              {/* Tradition */}
+              <div>
+                <h4 className="text-sm font-medium text-muted-foreground mb-1">Tradition/Category</h4>
+                <p>{detailTechnique?.tradition}</p>
+              </div>
+
+              {/* Instructions */}
               <div>
                 <h4 className="text-sm font-medium text-muted-foreground mb-1">Instructions</h4>
                 <p className="whitespace-pre-wrap">{detailTechnique?.instructions}</p>
               </div>
+
+              {/* Tags */}
+              {detailTechnique?.tags && detailTechnique.tags.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground mb-1">Tags</h4>
+                  <div className="flex flex-wrap gap-1">
+                    {detailTechnique.tags.map((tag, idx) => (
+                      <span key={idx} className="px-2 py-0.5 bg-muted rounded-md text-xs">{tag}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Source info */}
+              {detailTechnique?.source_global_technique_id && (
+                <div className="text-xs text-muted-foreground italic">
+                  Saved from Global Library
+                </div>
+              )}
 
               <div className="flex gap-2 pt-4 border-t">
                 <Button
