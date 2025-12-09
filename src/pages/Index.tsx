@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { BottomNav } from "@/components/BottomNav";
 import { CommunityView } from "@/components/views/CommunityView";
@@ -11,12 +11,22 @@ import { TimerView } from "@/components/views/TimerView";
 type ViewType = 'community' | 'library' | 'history' | 'settings' | 'timer';
 
 const Index = () => {
-  const [activeView, setActiveView] = useState<ViewType>('timer');
+  const [searchParams] = useSearchParams();
+  const initialTab = (searchParams.get('tab') as ViewType) || 'timer';
+  const [activeView, setActiveView] = useState<ViewType>(initialTab);
   const navigate = useNavigate();
 
   useEffect(() => {
     checkAuth();
   }, []);
+
+  // Handle deep link tab changes
+  useEffect(() => {
+    const tab = searchParams.get('tab') as ViewType;
+    if (tab && ['community', 'library', 'history', 'settings', 'timer'].includes(tab)) {
+      setActiveView(tab);
+    }
+  }, [searchParams]);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
