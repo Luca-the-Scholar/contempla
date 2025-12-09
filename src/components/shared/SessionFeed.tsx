@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Clock, ChevronUp, Loader2, Edit2, Trash2, Check, X } from "lucide-react";
+import { Clock, ChevronUp, Loader2, Edit2, Trash2, Check, X, Calendar, Timer, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
@@ -15,7 +15,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { format } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { format, differenceInDays, differenceInWeeks, differenceInMonths, differenceInYears } from "date-fns";
 
 export interface FeedSession {
   id: string;
@@ -59,6 +65,8 @@ export function SessionFeed({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editMinutes, setEditMinutes] = useState<string>('');
   const [saving, setSaving] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<FeedSession | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const feedRef = useRef<HTMLDivElement>(null);
@@ -115,28 +123,43 @@ export function SessionFeed({
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
   };
 
-  const formatSessionDate = (dateStr: string) => {
+  const getRelativeTime = (dateStr: string) => {
     try {
       const date = new Date(dateStr);
-      // Check if the date has a time component (not midnight)
-      const hasTime = dateStr.includes('T') && !dateStr.endsWith('T00:00:00.000Z');
+      const now = new Date();
       
-      if (hasTime) {
-        // Show date and time
-        return format(date, "MMM d, yyyy 'at' h:mm a");
-      } else {
-        // Show just date
-        return format(date, "MMM d, yyyy");
-      }
+      const days = differenceInDays(now, date);
+      const weeks = differenceInWeeks(now, date);
+      const months = differenceInMonths(now, date);
+      const years = differenceInYears(now, date);
+      
+      if (days === 0) return "Today";
+      if (days === 1) return "Yesterday";
+      if (days < 7) return `${days} days ago`;
+      if (weeks === 1) return "1 week ago";
+      if (weeks < 4) return `${weeks} weeks ago`;
+      if (months === 1) return "1 month ago";
+      if (months < 12) return `${months} months ago`;
+      if (years === 1) return "1 year ago";
+      return `${years} years ago`;
     } catch {
       return dateStr;
     }
   };
 
-  const parseSessionDate = (dateStr: string): Date => {
-    const datePart = dateStr.split('T')[0];
-    const [year, month, day] = datePart.split('-').map(Number);
-    return new Date(year, month - 1, day);
+  const formatFullDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      const hasTime = dateStr.includes('T') && !dateStr.endsWith('T00:00:00.000Z');
+      
+      if (hasTime) {
+        return format(date, "EEEE, MMMM d, yyyy 'at' h:mm a");
+      } else {
+        return format(date, "EEEE, MMMM d, yyyy");
+      }
+    } catch {
+      return dateStr;
+    }
   };
 
   const startEdit = (session: FeedSession) => {
@@ -163,6 +186,11 @@ export function SessionFeed({
     }
   };
 
+  const openDetails = (session: FeedSession) => {
+    setSelectedSession(session);
+    setDetailsOpen(true);
+  };
+
   const displayedSessions = sessions.slice(0, displayedCount);
 
   if (sessions.length === 0 && !loading) {
@@ -175,101 +203,144 @@ export function SessionFeed({
 
   return (
     <div ref={feedRef} className="relative">
-      <div className="space-y-3">
+      <div className="space-y-2">
         {displayedSessions.map((session) => (
-          <Card key={session.id} className="p-4 card-interactive">
-            <div className="flex items-start gap-3">
+          <Card 
+            key={session.id} 
+            className="p-3 card-interactive cursor-pointer hover:bg-accent/50 transition-colors"
+            onClick={() => !editingId && openDetails(session)}
+          >
+            <div className="flex items-center gap-3">
               {showUserInfo && session.user_name && (
-                <Avatar className="w-10 h-10 ring-2 ring-primary/20">
-                  <AvatarFallback className="bg-primary/20 text-primary font-semibold text-sm">
+                <Avatar className="w-8 h-8 ring-2 ring-primary/20">
+                  <AvatarFallback className="bg-primary/20 text-primary font-semibold text-xs">
                     {getInitials(session.user_name)}
                   </AvatarFallback>
                 </Avatar>
               )}
               
               <div className="flex-1 min-w-0">
-                {showUserInfo && session.user_name && (
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className="font-semibold text-foreground">{session.user_name}</span>
-                    <span className="text-muted-foreground text-sm">practiced</span>
-                  </div>
-                )}
-                
-                <p className="text-primary font-medium">
+                <p className="text-foreground font-medium truncate">
                   {session.technique_name}
                 </p>
-                
-                <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5" />
-                    {editingId === session.id ? (
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="number"
-                          value={editMinutes}
-                          onChange={(e) => setEditMinutes(e.target.value)}
-                          className="w-16 h-6 text-sm px-2"
-                          min="1"
-                        />
-                        <span>min</span>
-                      </div>
-                    ) : (
-                      <span>{session.duration_minutes} min</span>
-                    )}
-                  </div>
-                  <span>•</span>
-                  <span>{formatSessionDate(session.session_date)}</span>
-                  {session.manual_entry && (
-                    <>
-                      <span>•</span>
-                      <span className="text-xs">Manual</span>
-                    </>
-                  )}
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  {getRelativeTime(session.session_date)}
+                </p>
               </div>
 
+              <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Session Details Dialog */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-primary">
+              {selectedSession?.technique_name}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedSession && (
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 text-sm">
+                  <Timer className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Duration:</span>
+                  {editingId === selectedSession.id ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        value={editMinutes}
+                        onChange={(e) => setEditMinutes(e.target.value)}
+                        className="w-16 h-7 text-sm px-2"
+                        min="1"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span>min</span>
+                    </div>
+                  ) : (
+                    <span className="font-medium">{selectedSession.duration_minutes} minutes</span>
+                  )}
+                </div>
+                
+                <div className="flex items-center gap-3 text-sm">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Date:</span>
+                  <span className="font-medium">{formatFullDate(selectedSession.session_date)}</span>
+                </div>
+                
+                <div className="flex items-center gap-3 text-sm">
+                  <Clock className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Logged:</span>
+                  <span className="font-medium">
+                    {selectedSession.manual_entry ? "Manual entry" : "Timer"}
+                  </span>
+                </div>
+              </div>
+              
               {/* Edit/Delete Actions */}
               {editable && (
-                <div className="flex items-center gap-1">
-                  {editingId === session.id ? (
+                <div className="flex gap-2 pt-2 border-t border-border">
+                  {editingId === selectedSession.id ? (
                     <>
                       <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => saveEdit(session.id)}
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          saveEdit(selectedSession.id);
+                        }}
                         disabled={saving}
                       >
                         {saving ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
                         ) : (
-                          <Check className="h-4 w-4 text-green-500" />
+                          <Check className="h-4 w-4 mr-2 text-green-500" />
                         )}
+                        Save
                       </Button>
                       <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={cancelEdit}
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          cancelEdit();
+                        }}
                         disabled={saving}
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-4 w-4 mr-2" />
+                        Cancel
                       </Button>
                     </>
                   ) : (
                     <>
                       <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => startEdit(session)}
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          startEdit(selectedSession);
+                        }}
                       >
-                        <Edit2 className="h-4 w-4" />
+                        <Edit2 className="h-4 w-4 mr-2" />
+                        Edit
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <Trash2 className="h-4 w-4 text-destructive" />
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2 text-destructive" />
+                            Delete
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
@@ -282,7 +353,10 @@ export function SessionFeed({
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() => onDelete?.(session.id)}
+                              onClick={() => {
+                                onDelete?.(selectedSession.id);
+                                setDetailsOpen(false);
+                              }}
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
                               Delete
@@ -295,9 +369,9 @@ export function SessionFeed({
                 </div>
               )}
             </div>
-          </Card>
-        ))}
-      </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Load More Trigger */}
       <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
