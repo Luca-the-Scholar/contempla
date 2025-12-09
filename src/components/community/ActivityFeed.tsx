@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,8 @@ import { Heart, Clock, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { trackEvent } from "@/hooks/use-analytics";
+import { usePullToRefresh, shouldShowPullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { PullToRefreshIndicator } from "@/components/shared/PullToRefreshIndicator";
 
 interface FeedSession {
   id: string;
@@ -25,12 +27,7 @@ export function ActivityFeed() {
   const [givingKudos, setGivingKudos] = useState<string | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchFeed();
-    trackEvent('feed_opened');
-  }, []);
-
-  const fetchFeed = async () => {
+  const fetchFeed = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -123,9 +120,26 @@ export function ActivityFeed() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const toggleKudos = async (session: FeedSession) => {
+  useEffect(() => {
+    fetchFeed();
+    trackEvent('feed_opened');
+  }, [fetchFeed]);
+
+  // Pull-to-refresh
+  const handleRefresh = useCallback(async () => {
+    await fetchFeed();
+  }, [fetchFeed]);
+
+  const { pullDistance, isRefreshing, handlers } = usePullToRefresh({
+    onRefresh: handleRefresh,
+    disabled: loading,
+  });
+
+  const showPullToRefresh = shouldShowPullToRefresh();
+
+  const toggleKudos = useCallback(async (session: FeedSession) => {
     setGivingKudos(session.id);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -178,7 +192,7 @@ export function ActivityFeed() {
     } finally {
       setGivingKudos(null);
     }
-  };
+  }, [toast]);
 
   const getInitials = (name: string) => {
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
@@ -214,7 +228,16 @@ export function ActivityFeed() {
   }
 
   return (
-    <div className="space-y-3">
+    <div 
+      className="space-y-3"
+      {...(showPullToRefresh ? handlers : {})}
+    >
+      {showPullToRefresh && (
+        <PullToRefreshIndicator 
+          pullDistance={pullDistance} 
+          isRefreshing={isRefreshing} 
+        />
+      )}
       {sessions.map((session) => (
         <Card key={session.id} className="p-4 card-interactive">
           <div className="flex items-start gap-3">
