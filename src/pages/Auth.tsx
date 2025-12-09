@@ -128,10 +128,10 @@ export default function Auth() {
             </div>
           </div>
           <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
-            InRoads
+            Contempla
           </h1>
           <p className="text-muted-foreground">
-            Your personal meditation journey
+            Contemplative Practice with Friends
           </p>
         </div>
 
