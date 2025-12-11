@@ -4,10 +4,11 @@ const config: CapacitorConfig = {
   appId: 'app.lovable.c0338147c3324b2cb5d7a5ad61c0e9ec',
   appName: 'contempla',
   webDir: 'dist',
-  server: {
-    url: 'https://c0338147-c332-4b2c-b5d7-a5ad61c0e9ec.lovableproject.com?forceHideBadge=true',
-    cleartext: true,
-  },
+  // Server config disabled for iOS - use iOS capacitor.config.json instead
+  // server: {
+  //   url: 'https://c0338147-c332-4b2c-b5d7-a5ad61c0e9ec.lovableproject.com?forceHideBadge=true',
+  //   cleartext: true,
+  // },
   plugins: {
     StatusBar: {
       style: 'Dark',
