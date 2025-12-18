@@ -88,10 +88,22 @@ export function FriendsListDialog({ onViewFriend }: FriendsListDialogProps) {
   };
 
   const sendFriendRequest = async () => {
-    if (!searchQuery.trim()) {
+    const handle = searchQuery.trim().replace(/^@/, ''); // Remove leading @ if present
+    
+    if (!handle) {
       toast({
-        title: "Enter a name or email",
-        description: "Please enter your friend's display name or email",
+        title: "Enter a handle",
+        description: "Please enter your friend's handle to add them",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate handle format
+    if (!/^[a-zA-Z0-9_]{3,30}$/.test(handle)) {
+      toast({
+        title: "Invalid handle",
+        description: "Handles can only contain letters, numbers, and underscores (3-30 characters)",
         variant: "destructive",
       });
       return;
@@ -102,24 +114,33 @@ export function FriendsListDialog({ onViewFriend }: FriendsListDialogProps) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Search for user by name in profiles
+      // Search for user by exact handle match (case-insensitive)
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, name")
-        .ilike("name", `%${searchQuery}%`)
-        .neq("id", user.id)
+        .select("id, handle, name")
+        .ilike("handle", handle)
         .limit(1);
 
       if (!profiles || profiles.length === 0) {
         toast({
           title: "User not found",
-          description: "No user found with that name. Try a different search.",
+          description: `No user found with handle @${handle}`,
           variant: "destructive",
         });
         return;
       }
 
       const targetUser = profiles[0];
+
+      // Prevent adding yourself
+      if (targetUser.id === user.id) {
+        toast({
+          title: "Can't add yourself",
+          description: "You cannot send a friend request to yourself",
+          variant: "destructive",
+        });
+        return;
+      }
 
       // Check if friendship already exists
       const { data: existing } = await supabase
@@ -152,7 +173,7 @@ export function FriendsListDialog({ onViewFriend }: FriendsListDialogProps) {
 
       toast({
         title: "Friend request sent!",
-        description: `Request sent to ${targetUser.name}`,
+        description: `Request sent to @${targetUser.handle}`,
       });
       setSearchQuery("");
       setShowAddFriend(false);
@@ -235,7 +256,7 @@ export function FriendsListDialog({ onViewFriend }: FriendsListDialogProps) {
           {showAddFriend ? (
             <div className="flex gap-2">
               <Input
-                placeholder="Search by display name..."
+                placeholder="Enter handle (e.g. @username)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && sendFriendRequest()}
@@ -265,7 +286,7 @@ export function FriendsListDialog({ onViewFriend }: FriendsListDialogProps) {
               onClick={() => setShowAddFriend(true)}
             >
               <UserPlus className="w-4 h-4" />
-              Add Friend
+              Add Friend by Handle
             </Button>
           )}
 

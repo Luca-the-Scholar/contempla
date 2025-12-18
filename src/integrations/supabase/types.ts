@@ -351,6 +351,7 @@ export type Database = {
         Row: {
           consecutive_missed_days: number | null
           created_at: string | null
+          handle: string | null
           id: string
           last_meditation_date: string | null
           name: string | null
@@ -366,6 +367,7 @@ export type Database = {
         Insert: {
           consecutive_missed_days?: number | null
           created_at?: string | null
+          handle?: string | null
           id: string
           last_meditation_date?: string | null
           name?: string | null
@@ -381,6 +383,7 @@ export type Database = {
         Update: {
           consecutive_missed_days?: number | null
           created_at?: string | null
+          handle?: string | null
           id?: string
           last_meditation_date?: string | null
           name?: string | null
@@ -429,30 +432,36 @@ export type Database = {
           created_at: string | null
           duration_minutes: number
           effective_minutes: number | null
+          hidden_from_feed: boolean
           id: string
           manual_entry: boolean | null
           session_date: string | null
           technique_id: string
+          technique_name: string | null
           user_id: string
         }
         Insert: {
           created_at?: string | null
           duration_minutes: number
           effective_minutes?: number | null
+          hidden_from_feed?: boolean
           id?: string
           manual_entry?: boolean | null
           session_date?: string | null
           technique_id: string
+          technique_name?: string | null
           user_id: string
         }
         Update: {
           created_at?: string | null
           duration_minutes?: number
           effective_minutes?: number | null
+          hidden_from_feed?: boolean
           id?: string
           manual_entry?: boolean | null
           session_date?: string | null
           technique_id?: string
+          technique_name?: string | null
           user_id?: string
         }
         Relationships: [

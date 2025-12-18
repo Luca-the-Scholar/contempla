@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Vite
+.vite/
+vite.config.ts.timestamp-*.mjs
+
+# iOS config
+ios/App/App/config*.xml

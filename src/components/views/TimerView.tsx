@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -48,6 +48,11 @@ export function TimerView() {
   const [showCompletionFlash, setShowCompletionFlash] = useState(false);
   const [notificationId, setNotificationId] = useState<number | null>(null);
   
+  // Guard to prevent multiple completion triggers
+  const hasCompletedRef = useRef(false);
+  // Guard to prevent multiple start sound plays
+  const hasPlayedStartSoundRef = useRef(false);
+  
   const presetDurations = [10, 30, 45, 60];
 
   // Load timer alert preferences from localStorage
@@ -78,15 +83,21 @@ export function TimerView() {
 
   useEffect(() => {
     if (timerState !== 'running') return;
+    
     const interval = setInterval(() => {
       setSecondsLeft(prev => {
         if (prev <= 1) {
-          handleTimerComplete();
+          // Guard: only complete once per timer run
+          if (!hasCompletedRef.current) {
+            hasCompletedRef.current = true;
+            handleTimerComplete();
+          }
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
+    
     return () => clearInterval(interval);
   }, [timerState]);
 
@@ -126,11 +137,25 @@ export function TimerView() {
       return;
     }
 
+    // Reset guards for new timer run
+    hasCompletedRef.current = false;
+    hasPlayedStartSoundRef.current = false;
+
     // Track timer started
     trackEvent('timer_started', { technique_id: selectedTechniqueId });
 
     // Unlock audio on iOS
     await unlockAudio();
+
+    // Read start sound setting directly from localStorage (SettingsView is source of truth)
+    const startSoundStored = localStorage.getItem('startSoundEnabled');
+    const isStartSoundEnabled = startSoundStored === null ? true : startSoundStored === 'true';
+    
+    // Play start sound exactly once if enabled
+    if (isStartSoundEnabled && !hasPlayedStartSoundRef.current) {
+      hasPlayedStartSoundRef.current = true;
+      playSound(selectedSound);
+    }
 
     // Enable NoSleep
     if (screenWakeLockEnabled) {
@@ -170,8 +195,8 @@ export function TimerView() {
       setShowCompletionFlash(true);
     }
     
-    // Play sound
-    playSound(selectedSound, 2);
+    // Play sound exactly once
+    playSound(selectedSound);
     
     // Vibrate
     if (hapticEnabled) {
@@ -184,10 +209,12 @@ export function TimerView() {
       setNotificationId(null);
     }
 
-    await logSession(initialDuration);
-    
-    // Check if we should prompt for app review (after 50 sessions, only on native)
-    await incrementSessionAndCheckReview();
+    try {
+      await logSession(initialDuration);
+    } finally {
+      // Check if we should prompt for app review (after 50 sessions, only on native)
+      await incrementSessionAndCheckReview();
+    }
   };
   
   const dismissFlash = () => {
@@ -197,11 +224,12 @@ export function TimerView() {
   const logSession = async (minutesPracticed: number) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user || !selectedTechniqueId) return;
+      if (!user || !selectedTechniqueId || !selectedTechnique) return;
 
       const { error: sessionError } = await supabase.from("sessions").insert({
         user_id: user.id,
         technique_id: selectedTechniqueId,
+        technique_name: selectedTechnique.name,
         duration_minutes: minutesPracticed,
         session_date: formatDateForStorage(new Date(), true),
         manual_entry: false
@@ -245,6 +273,13 @@ export function TimerView() {
   };
 
   const handleReset = async () => {
+    // Reset guards
+    hasCompletedRef.current = false;
+    hasPlayedStartSoundRef.current = false;
+    
+    // Stop any playing sound
+    stopSound();
+    
     // Cancel any scheduled notification
     if (notificationId) {
       await cancelTimerNotification(notificationId);

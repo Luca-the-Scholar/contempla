@@ -80,6 +80,10 @@ export function ManualEntryDialog({ techniques, onEntryAdded }: ManualEntryDialo
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      // Get the technique name for denormalized storage
+      const selectedTechnique = techniques.find(t => t.id === techniqueId);
+      if (!selectedTechnique) throw new Error('Technique not found');
+
       // Format with time if provided, otherwise just the date
       const sessionDateStr = timeHour 
         ? formatDateForStorage(sessionDate, true)
@@ -88,6 +92,7 @@ export function ManualEntryDialog({ techniques, onEntryAdded }: ManualEntryDialo
       const { error } = await supabase.from('sessions').insert({
         user_id: user.id,
         technique_id: techniqueId,
+        technique_name: selectedTechnique.name,
         duration_minutes: duration,
         session_date: sessionDateStr,
         manual_entry: true,

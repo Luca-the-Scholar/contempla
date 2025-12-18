@@ -3,12 +3,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Heart, Clock, Loader2 } from "lucide-react";
+import { Heart, Clock, Loader2, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { trackEvent } from "@/hooks/use-analytics";
 import { usePullToRefresh, shouldShowPullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { PullToRefreshIndicator } from "@/components/shared/PullToRefreshIndicator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface FeedSession {
   id: string;
@@ -25,12 +35,24 @@ export function ActivityFeed() {
   const [sessions, setSessions] = useState<FeedSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [givingKudos, setGivingKudos] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [sessionToHide, setSessionToHide] = useState<FeedSession | null>(null);
+  const [isHiding, setIsHiding] = useState(false);
   const { toast } = useToast();
 
   const fetchFeed = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      
+      setCurrentUserId(user.id);
+
+      // Get current user's profile to check their sharing setting
+      const { data: currentUserProfile } = await supabase
+        .from("profiles")
+        .select("id, name, share_sessions_in_feed")
+        .eq("id", user.id)
+        .single();
 
       // Get accepted friendships
       const { data: friendships } = await supabase
@@ -43,29 +65,44 @@ export function ActivityFeed() {
         f.user_id === user.id ? f.friend_id : f.user_id
       ) || [];
 
-      if (friendIds.length === 0) {
-        setSessions([]);
-        setLoading(false);
-        return;
-      }
-
-      // Get friends' profiles who share sessions
-      const { data: profiles } = await supabase
+      // Get friends' profiles who share sessions (friends or all)
+      const { data: friendProfiles } = await supabase
         .from("profiles")
         .select("id, name, share_sessions_in_feed")
         .in("id", friendIds)
         .in("share_sessions_in_feed", ["friends", "all"]);
 
-      const sharingFriendIds = profiles?.map(p => p.id) || [];
-      const profileMap = new Map(profiles?.map(p => [p.id, p.name]) || []);
+      // Build the list of user IDs whose sessions we want to fetch
+      const sharingFriendIds = friendProfiles?.map(p => p.id) || [];
+      
+      // Build profile map for name lookups
+      const profileMap = new Map<string, string>();
+      friendProfiles?.forEach(p => profileMap.set(p.id, p.name || "Unknown"));
+      
+      // Add current user to the profile map
+      if (currentUserProfile) {
+        profileMap.set(user.id, currentUserProfile.name || "You");
+      }
 
-      if (sharingFriendIds.length === 0) {
+      // Determine which user IDs to fetch sessions for
+      const userIdsToFetch: string[] = [...sharingFriendIds];
+      
+      // Include current user's sessions if their sharing setting is not 'none'
+      const currentUserShares = currentUserProfile?.share_sessions_in_feed && 
+        currentUserProfile.share_sessions_in_feed !== 'none';
+      if (currentUserShares) {
+        userIdsToFetch.push(user.id);
+      }
+
+      // If no one to fetch sessions from, show empty state
+      if (userIdsToFetch.length === 0) {
         setSessions([]);
         setLoading(false);
         return;
       }
 
-      // Get recent sessions from friends
+      // Get recent sessions (using denormalized technique_name to avoid RLS issues)
+      // Filter out sessions that are hidden from feed
       const { data: sessionsData, error } = await supabase
         .from("sessions")
         .select(`
@@ -73,10 +110,10 @@ export function ActivityFeed() {
           user_id,
           duration_minutes,
           session_date,
-          technique_id,
-          techniques(name)
+          technique_name
         `)
-        .in("user_id", sharingFriendIds)
+        .in("user_id", userIdsToFetch)
+        .eq("hidden_from_feed", false)
         .order("session_date", { ascending: false })
         .limit(50);
 
@@ -85,24 +122,26 @@ export function ActivityFeed() {
       // Get kudos counts and user's kudos
       const sessionIds = sessionsData?.map(s => s.id) || [];
       
-      const { data: kudosData } = await supabase
-        .from("session_kudos")
-        .select("session_id, user_id")
-        .in("session_id", sessionIds);
+      let kudosBySession = new Map<string, { count: number; hasGiven: boolean }>();
+      if (sessionIds.length > 0) {
+        const { data: kudosData } = await supabase
+          .from("session_kudos")
+          .select("session_id, user_id")
+          .in("session_id", sessionIds);
 
-      const kudosBySession = new Map<string, { count: number; hasGiven: boolean }>();
-      kudosData?.forEach(k => {
-        const existing = kudosBySession.get(k.session_id) || { count: 0, hasGiven: false };
-        existing.count++;
-        if (k.user_id === user.id) existing.hasGiven = true;
-        kudosBySession.set(k.session_id, existing);
-      });
+        kudosData?.forEach(k => {
+          const existing = kudosBySession.get(k.session_id) || { count: 0, hasGiven: false };
+          existing.count++;
+          if (k.user_id === user.id) existing.hasGiven = true;
+          kudosBySession.set(k.session_id, existing);
+        });
+      }
 
       const feedSessions: FeedSession[] = (sessionsData || []).map(s => ({
         id: s.id,
         user_id: s.user_id,
         user_name: profileMap.get(s.user_id) || "Unknown",
-        technique_name: (s.techniques as any)?.name || "Meditation",
+        technique_name: s.technique_name || "Meditation",
         duration_minutes: s.duration_minutes,
         session_date: s.session_date,
         kudos_count: kudosBySession.get(s.id)?.count || 0,
@@ -194,6 +233,41 @@ export function ActivityFeed() {
     }
   }, [toast]);
 
+  const hideSession = useCallback(async (session: FeedSession) => {
+    setIsHiding(true);
+    try {
+      const { error } = await supabase
+        .from("sessions")
+        .update({ hidden_from_feed: true })
+        .eq("id", session.id)
+        .eq("user_id", currentUserId!); // Ensure only owner can hide
+
+      if (error) throw error;
+
+      // Optimistically remove from UI
+      setSessions(prev => prev.filter(s => s.id !== session.id));
+      
+      trackEvent('session_hidden_from_feed', {
+        session_id: session.id,
+      });
+
+      toast({
+        title: "Session removed",
+        description: "This session has been removed from the activity feed.",
+      });
+    } catch (error: any) {
+      console.error("Error hiding session:", error);
+      toast({
+        title: "Error",
+        description: "Failed to remove session from feed.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsHiding(false);
+      setSessionToHide(null);
+    }
+  }, [currentUserId, toast]);
+
   const getInitials = (name: string) => {
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
   };
@@ -230,7 +304,7 @@ export function ActivityFeed() {
         <Heart className="w-12 h-12 mx-auto mb-3 opacity-50" />
         <p className="font-medium">No activity yet</p>
         <p className="text-sm mt-1">
-          When your friends meditate, their sessions will appear here.
+          Complete a meditation or connect with friends to see activity here.
         </p>
       </div>
     );
@@ -282,20 +356,35 @@ export function ActivityFeed() {
 
           {/* Kudos Button */}
           <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between">
-            <Button
-              variant={session.has_given_kudos ? "default" : "ghost"}
-              size="sm"
-              className={`gap-2 ${session.has_given_kudos ? "bg-accent/80 hover:bg-accent text-accent-foreground" : ""}`}
-              onClick={() => toggleKudos(session)}
-              disabled={givingKudos === session.id}
-            >
-              {givingKudos === session.id ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Heart className={`w-4 h-4 ${session.has_given_kudos ? "fill-current" : ""}`} />
+            <div className="flex items-center gap-2">
+              <Button
+                variant={session.has_given_kudos ? "default" : "ghost"}
+                size="sm"
+                className={`gap-2 ${session.has_given_kudos ? "bg-accent/80 hover:bg-accent text-accent-foreground" : ""}`}
+                onClick={() => toggleKudos(session)}
+                disabled={givingKudos === session.id}
+              >
+                {givingKudos === session.id ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Heart className={`w-4 h-4 ${session.has_given_kudos ? "fill-current" : ""}`} />
+                )}
+                Kudos
+              </Button>
+              
+              {/* Hide button - only for current user's sessions */}
+              {session.user_id === currentUserId && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2 text-muted-foreground hover:text-destructive"
+                  onClick={() => setSessionToHide(session)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Remove
+                </Button>
               )}
-              Kudos
-            </Button>
+            </div>
             
             {session.kudos_count > 0 && (
               <span className="text-sm text-muted-foreground">
@@ -305,6 +394,35 @@ export function ActivityFeed() {
           </div>
         </Card>
       ))}
+
+      {/* Confirmation Dialog for Hiding Session */}
+      <AlertDialog open={!!sessionToHide} onOpenChange={(open) => !open && setSessionToHide(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove from Activity Feed?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This session will be removed from the activity feed. Your meditation data will still be preserved for your personal history and statistics.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isHiding}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => sessionToHide && hideSession(sessionToHide)}
+              disabled={isHiding}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isHiding ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Removing...
+                </>
+              ) : (
+                "Remove"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

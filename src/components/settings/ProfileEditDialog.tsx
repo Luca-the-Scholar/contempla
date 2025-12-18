@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
-type EditType = "name" | "email" | "password";
+type EditType = "name" | "email" | "password" | "handle";
 
 interface ProfileEditDialogProps {
   open: boolean;
@@ -33,6 +33,7 @@ export function ProfileEditDialog({
     name: "Change Display Name",
     email: "Change Email",
     password: "Change Password",
+    handle: "Set Your Handle",
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,6 +62,32 @@ export function ProfileEditDialog({
         
         if (error) throw error;
         toast({ title: "Display name updated!" });
+      } else if (editType === "handle") {
+        // Validate handle format
+        const handle = newValue.trim().replace(/^@/, '');
+        if (!/^[a-zA-Z0-9_]{3,30}$/.test(handle)) {
+          throw new Error("Handle must be 3-30 characters, using only letters, numbers, and underscores");
+        }
+        
+        // Check if handle is already taken
+        const { data: existing } = await supabase
+          .from("profiles")
+          .select("id")
+          .ilike("handle", handle)
+          .neq("id", user.id)
+          .maybeSingle();
+        
+        if (existing) {
+          throw new Error("This handle is already taken");
+        }
+        
+        const { error } = await supabase
+          .from("profiles")
+          .update({ handle })
+          .eq("id", user.id);
+        
+        if (error) throw error;
+        toast({ title: "Handle updated!", description: `Your handle is now @${handle}` });
       } else if (editType === "email") {
         if (newValue !== confirmValue) {
           throw new Error("Email addresses don't match");
@@ -123,6 +150,7 @@ export function ProfileEditDialog({
           <div className="space-y-2">
             <Label htmlFor="new-value">
               {editType === "name" ? "New Display Name" : 
+               editType === "handle" ? "Your Handle" :
                editType === "email" ? "New Email" : "New Password"}
             </Label>
             <Input
@@ -132,11 +160,17 @@ export function ProfileEditDialog({
               onChange={(e) => setNewValue(e.target.value)}
               placeholder={
                 editType === "name" ? "Enter new display name" :
+                editType === "handle" ? "username (letters, numbers, underscores)" :
                 editType === "email" ? "Enter new email" : "Enter new password"
               }
               required
               className="min-h-[44px]"
             />
+            {editType === "handle" && (
+              <p className="text-xs text-muted-foreground">
+                3-30 characters. Letters, numbers, and underscores only. Friends can find you by this handle.
+              </p>
+            )}
           </div>
 
           {(editType === "email" || editType === "password") && (

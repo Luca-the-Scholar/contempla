@@ -28,6 +28,7 @@ import { trackEvent } from "@/hooks/use-analytics";
 
 export function SettingsView() {
   const [userName, setUserName] = useState("");
+  const [userHandle, setUserHandle] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState("");
   const [notifications, setNotifications] = useState(false);
   const [dailyReminder, setDailyReminder] = useState(false);
@@ -35,7 +36,7 @@ export function SettingsView() {
 
   // Edit dialog states
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editType, setEditType] = useState<"name" | "email" | "password">("name");
+  const [editType, setEditType] = useState<"name" | "email" | "password" | "handle">("name");
 
   // Privacy settings
   // Granular privacy settings only
@@ -48,6 +49,7 @@ export function SettingsView() {
   const [hapticEnabled, setHapticEnabled] = useState(true);
   const [screenWakeLock, setScreenWakeLock] = useState(true);
   const [visualFlash, setVisualFlash] = useState(true);
+  const [startSoundEnabled, setStartSoundEnabled] = useState(true);
   const [testingFlash, setTestingFlash] = useState(false);
 
   // Admin state
@@ -70,6 +72,8 @@ export function SettingsView() {
     if (wakeLockStored !== null) setScreenWakeLock(wakeLockStored === 'true');
     const flashStored = localStorage.getItem('visualFlash');
     if (flashStored !== null) setVisualFlash(flashStored === 'true');
+    const startSoundStored = localStorage.getItem('startSoundEnabled');
+    if (startSoundStored !== null) setStartSoundEnabled(startSoundStored === 'true');
   }, []);
   const fetchSettings = async () => {
     try {
@@ -91,9 +95,10 @@ export function SettingsView() {
       setIsAdmin(!!adminCheck);
       const {
         data: profile
-      } = await supabase.from("profiles").select("name, profile_preferences, profile_visibility, show_streak_to_friends, show_techniques_to_friends, show_practice_history, share_sessions_in_feed").eq("id", user.id).single();
+      } = await supabase.from("profiles").select("name, handle, profile_preferences, profile_visibility, show_streak_to_friends, show_techniques_to_friends, show_practice_history, share_sessions_in_feed").eq("id", user.id).single();
       if (profile) {
         setUserName(profile.name || "");
+        setUserHandle(profile.handle);
         const prefs = profile.profile_preferences as any;
         setNotifications(prefs?.notifications || false);
         setDailyReminder(prefs?.dailyReminder || false);
@@ -107,7 +112,7 @@ export function SettingsView() {
       console.error("Error loading settings:", error);
     }
   };
-  const openEditDialog = (type: "name" | "email" | "password") => {
+  const openEditDialog = (type: "name" | "email" | "password" | "handle") => {
     setEditType(type);
     setEditDialogOpen(true);
   };
@@ -236,6 +241,19 @@ export function SettingsView() {
                 </Button>
               </div>
 
+              {/* Handle */}
+              <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <Label className="text-muted-foreground text-sm">Handle</Label>
+                  <p className="text-foreground font-medium truncate">
+                    {userHandle ? `@${userHandle}` : <span className="text-muted-foreground italic">Not set — friends can't find you</span>}
+                  </p>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => openEditDialog("handle")} className="shrink-0">
+                  <Pencil className="w-4 h-4" />
+                </Button>
+              </div>
+
               {/* Email */}
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
@@ -265,7 +283,7 @@ export function SettingsView() {
           </Card>
 
           {/* Edit Profile Dialog */}
-          <ProfileEditDialog open={editDialogOpen} onOpenChange={setEditDialogOpen} editType={editType} currentValue={editType === "name" ? userName : editType === "email" ? userEmail : ""} onSuccess={fetchSettings} />
+          <ProfileEditDialog open={editDialogOpen} onOpenChange={setEditDialogOpen} editType={editType} currentValue={editType === "name" ? userName : editType === "handle" ? (userHandle || "") : editType === "email" ? userEmail : ""} onSuccess={fetchSettings} />
 
           {/* Notifications */}
           <Card className="p-6">
@@ -363,6 +381,20 @@ export function SettingsView() {
                 <Switch id="wake-lock" checked={screenWakeLock} onCheckedChange={checked => {
                 setScreenWakeLock(checked);
                 localStorage.setItem('screenWakeLock', String(checked));
+              }} />
+              </div>
+
+              {/* Start Sound */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="start-sound">Start Sound</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Play a sound when timer begins
+                  </p>
+                </div>
+                <Switch id="start-sound" checked={startSoundEnabled} onCheckedChange={checked => {
+                setStartSoundEnabled(checked);
+                localStorage.setItem('startSoundEnabled', String(checked));
               }} />
               </div>
             </div>

@@ -29,9 +29,13 @@ const MAX_DURATION_MS = 10000;
 export function useTimerSound() {
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const currentTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isPlayingRef = useRef<boolean>(false);
 
   // Stop any currently playing sound
   const stopSound = useCallback(() => {
+    // Clear playing flag
+    isPlayingRef.current = false;
+    
     // Clear any pending timeout
     if (currentTimeoutRef.current) {
       clearTimeout(currentTimeoutRef.current);
@@ -67,72 +71,52 @@ export function useTimerSound() {
   }, []);
 
   /**
-   * Play a single sound with automatic 10-second cutoff
-   * Returns the audio element for cleanup
+   * Play a sound exactly once. Guarded against multiple calls.
+   * @param sound The sound to play
    */
-  const playAlarmSound = useCallback((soundPath: string): HTMLAudioElement => {
-    const audio = new Audio(soundPath);
+  const playSound = useCallback((sound: TimerSound) => {
+    if (sound === 'none') return;
     
-    // Start playing immediately
-    audio.play().catch((err) => {
-      console.error('Failed to play sound:', err);
-    });
+    // Guard: prevent multiple simultaneous plays
+    if (isPlayingRef.current) {
+      return;
+    }
     
-    // Set up 10-second cutoff timer
-    const cutoff = setTimeout(() => {
-      audio.pause();
-      audio.currentTime = 0; // reset to start
+    // Stop any previous sound and mark as playing
+    stopSound();
+    isPlayingRef.current = true;
+
+    const audio = new Audio(SOUND_FILES[sound]);
+    currentAudioRef.current = audio;
+    
+    // Clean up when sound ends or errors
+    const cleanup = () => {
+      isPlayingRef.current = false;
+      if (currentTimeoutRef.current) {
+        clearTimeout(currentTimeoutRef.current);
+        currentTimeoutRef.current = null;
+      }
       if (currentAudioRef.current === audio) {
         currentAudioRef.current = null;
-      }
-      if (currentTimeoutRef.current === cutoff) {
-        clearTimeout(cutoff);
-        currentTimeoutRef.current = null;
-      }
-    }, MAX_DURATION_MS);
-    
-    // Track the timeout for cleanup
-    currentTimeoutRef.current = cutoff;
-    
-    // Clean up timeout if audio ends naturally or is paused
-    const cleanup = () => {
-      if (currentTimeoutRef.current === cutoff) {
-        clearTimeout(cutoff);
-        currentTimeoutRef.current = null;
       }
     };
     
     audio.addEventListener('ended', cleanup);
-    audio.addEventListener('pause', cleanup);
+    audio.addEventListener('error', cleanup);
     
-    return audio;
-  }, []);
-
-  const playSound = useCallback((sound: TimerSound, repeat: number = 1) => {
-    if (sound === 'none') return;
-
-    // Stop any currently playing sound first
-    stopSound();
-
-    const playSingle = () => {
-      // Stop previous before playing new
-      stopSound();
-      
-      // Play sound with automatic 10-second cutoff
-      const audio = playAlarmSound(SOUND_FILES[sound]);
-      currentAudioRef.current = audio;
-    };
-
-    // Play sound immediately
-    playSingle();
+    // Set up safety cutoff timer (10 seconds max)
+    currentTimeoutRef.current = setTimeout(() => {
+      audio.pause();
+      audio.currentTime = 0;
+      cleanup();
+    }, MAX_DURATION_MS);
     
-    // Repeat if requested
-    if (repeat > 1) {
-      for (let i = 1; i < repeat; i++) {
-        setTimeout(playSingle, i * 3000);
-      }
-    }
-  }, [stopSound, playAlarmSound]);
+    // Start playing
+    audio.play().catch((err) => {
+      console.error('Failed to play sound:', err);
+      cleanup();
+    });
+  }, [stopSound]);
 
   return { playSound, stopSound, unlockAudio, preloadSound };
 }
