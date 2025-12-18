@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
-import { RateApp } from 'capacitor-rate-app';
+// temporarily disabled until new plugin is installed
+// import { RateApp } from 'capacitor-rate-app';
 
 const REVIEW_STORAGE_KEY = 'contempla_review_state';
 const SESSIONS_THRESHOLD = 50;
@@ -56,31 +57,21 @@ export async function incrementSessionAndCheckReview(): Promise<void> {
 /**
  * Prompt the user to rate the app
  * Uses native App Store / Play Store review prompt
+ * Temporarily disabled until new plugin is installed
  */
 async function promptForReview(): Promise<void> {
-  try {
-    await RateApp.requestReview();
-  } catch (err) {
-    console.warn('Failed to request app review:', err);
-  }
+  // temporarily disabled until new plugin is installed
+  return; // no-op
 }
 
 /**
  * Manually request a review (e.g., from settings)
  * Only works on native platforms
+ * Temporarily disabled until new plugin is installed
  */
 export async function requestAppReview(): Promise<boolean> {
-  if (!Capacitor.isNativePlatform()) {
-    return false;
-  }
-  
-  try {
-    await RateApp.requestReview();
-    return true;
-  } catch (err) {
-    console.warn('Failed to request app review:', err);
-    return false;
-  }
+  // temporarily disabled until new plugin is installed
+  return false; // no-op
 }
 
 /**

@@ -9,8 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, UserPlus, Crown, Loader2, Search, Clock, Check, X, FileText } from "lucide-react";
+import { Shield, UserPlus, Crown, Loader2, Search, Clock, Check, X, FileText, Database } from "lucide-react";
 import { trackEvent } from "@/hooks/use-analytics";
+import { migrateSessionDates, checkMigrationNeeded, MigrationResult } from "@/lib/migrate-session-dates";
 
 interface UserWithRole {
   id: string;
@@ -50,14 +51,65 @@ export function AdminPanel({ open, onOpenChange }: AdminPanelProps) {
   const [processing, setProcessing] = useState(false);
   const [selectedTechnique, setSelectedTechnique] = useState<PendingTechnique | null>(null);
   
+  // Migration state
+  const [migrating, setMigrating] = useState(false);
+  const [migrationResult, setMigrationResult] = useState<MigrationResult | null>(null);
+  const [checkingMigration, setCheckingMigration] = useState(false);
+  const [migrationNeeded, setMigrationNeeded] = useState<{ needed: boolean; count: number } | null>(null);
+  
   const { toast } = useToast();
 
   useEffect(() => {
     if (open) {
       fetchAdminUsers();
       fetchPendingTechniques();
+      checkMigrationStatus();
     }
   }, [open]);
+
+  const checkMigrationStatus = async () => {
+    setCheckingMigration(true);
+    try {
+      const status = await checkMigrationNeeded();
+      setMigrationNeeded(status);
+    } catch (error) {
+      console.error('Error checking migration status:', error);
+    } finally {
+      setCheckingMigration(false);
+    }
+  };
+
+  const handleRunMigration = async () => {
+    setMigrating(true);
+    setMigrationResult(null);
+    try {
+      const result = await migrateSessionDates();
+      setMigrationResult(result);
+      
+      if (result.success) {
+        toast({
+          title: "Migration completed",
+          description: `Updated ${result.updatedSessions} of ${result.totalSessions} sessions.`,
+        });
+        // Refresh migration status
+        await checkMigrationStatus();
+      } else {
+        toast({
+          title: "Migration completed with errors",
+          description: `Updated ${result.updatedSessions} sessions. ${result.errors.length} errors occurred.`,
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Migration failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setMigrating(false);
+    }
+  };
 
   const fetchAdminUsers = async () => {
     setLoading(true);
@@ -348,6 +400,85 @@ export function AdminPanel({ open, onOpenChange }: AdminPanelProps) {
                 )}
               </ScrollArea>
             </div>
+
+            {/* Database Migration Section */}
+            <Card className="p-4">
+              <h3 className="font-medium mb-3 flex items-center gap-2">
+                <Database className="w-4 h-4" />
+                Database Migrations
+              </h3>
+              <div className="space-y-3">
+                <div className="text-sm text-muted-foreground">
+                  <p className="mb-2">
+                    Migrate session dates from UTC to local time format. This fixes sessions that appear on the wrong day.
+                  </p>
+                  {checkingMigration ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Checking migration status...
+                    </div>
+                  ) : migrationNeeded ? (
+                    <div className="p-2 rounded-md bg-muted">
+                      {migrationNeeded.needed ? (
+                        <p className="text-foreground">
+                          <strong>{migrationNeeded.count}</strong> session(s) need migration
+                        </p>
+                      ) : (
+                        <p className="text-foreground">
+                          All sessions are up to date
+                        </p>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+                
+                {migrationResult && (
+                  <div className={`p-3 rounded-md text-sm ${
+                    migrationResult.success 
+                      ? 'bg-green-500/10 text-green-700 dark:text-green-400' 
+                      : 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400'
+                  }`}>
+                    <p><strong>Results:</strong></p>
+                    <ul className="list-disc list-inside mt-1 space-y-1">
+                      <li>Total sessions: {migrationResult.totalSessions}</li>
+                      <li>Updated: {migrationResult.updatedSessions}</li>
+                      {migrationResult.errors.length > 0 && (
+                        <li>Errors: {migrationResult.errors.length}</li>
+                      )}
+                    </ul>
+                    {migrationResult.errors.length > 0 && (
+                      <details className="mt-2">
+                        <summary className="cursor-pointer font-medium">View errors</summary>
+                        <ul className="list-disc list-inside mt-1 text-xs">
+                          {migrationResult.errors.map((error, i) => (
+                            <li key={i}>{error}</li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
+                  </div>
+                )}
+
+                <Button 
+                  onClick={handleRunMigration} 
+                  disabled={migrating || checkingMigration}
+                  variant={migrationNeeded?.needed ? "default" : "outline"}
+                  className="w-full"
+                >
+                  {migrating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Migrating...
+                    </>
+                  ) : (
+                    <>
+                      <Database className="w-4 h-4 mr-2" />
+                      Run Session Date Migration
+                    </>
+                  )}
+                </Button>
+              </div>
+            </Card>
           </TabsContent>
 
           {/* Techniques Tab */}

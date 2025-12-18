@@ -23,11 +23,21 @@ const SOUND_FILES: Record<Exclude<TimerSound, 'none'>, string> = {
   'bell-2': '/sounds/small-bell-2.wav',
 };
 
+// Maximum duration for any sound playback (10 seconds)
+const MAX_DURATION_MS = 10000;
+
 export function useTimerSound() {
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const currentTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Stop any currently playing sound
   const stopSound = useCallback(() => {
+    // Clear any pending timeout
+    if (currentTimeoutRef.current) {
+      clearTimeout(currentTimeoutRef.current);
+      currentTimeoutRef.current = null;
+    }
+    
     if (currentAudioRef.current) {
       currentAudioRef.current.pause();
       currentAudioRef.current.currentTime = 0;
@@ -56,6 +66,48 @@ export function useTimerSound() {
     return true;
   }, []);
 
+  /**
+   * Play a single sound with automatic 10-second cutoff
+   * Returns the audio element for cleanup
+   */
+  const playAlarmSound = useCallback((soundPath: string): HTMLAudioElement => {
+    const audio = new Audio(soundPath);
+    
+    // Start playing immediately
+    audio.play().catch((err) => {
+      console.error('Failed to play sound:', err);
+    });
+    
+    // Set up 10-second cutoff timer
+    const cutoff = setTimeout(() => {
+      audio.pause();
+      audio.currentTime = 0; // reset to start
+      if (currentAudioRef.current === audio) {
+        currentAudioRef.current = null;
+      }
+      if (currentTimeoutRef.current === cutoff) {
+        clearTimeout(cutoff);
+        currentTimeoutRef.current = null;
+      }
+    }, MAX_DURATION_MS);
+    
+    // Track the timeout for cleanup
+    currentTimeoutRef.current = cutoff;
+    
+    // Clean up timeout if audio ends naturally or is paused
+    const cleanup = () => {
+      if (currentTimeoutRef.current === cutoff) {
+        clearTimeout(cutoff);
+        currentTimeoutRef.current = null;
+      }
+    };
+    
+    audio.addEventListener('ended', cleanup);
+    audio.addEventListener('pause', cleanup);
+    
+    return audio;
+  }, []);
+
   const playSound = useCallback((sound: TimerSound, repeat: number = 1) => {
     if (sound === 'none') return;
 
@@ -66,9 +118,9 @@ export function useTimerSound() {
       // Stop previous before playing new
       stopSound();
       
-      const audio = new Audio(SOUND_FILES[sound]);
+      // Play sound with automatic 10-second cutoff
+      const audio = playAlarmSound(SOUND_FILES[sound]);
       currentAudioRef.current = audio;
-      audio.play().catch(console.error);
     };
 
     // Play sound immediately
@@ -80,7 +132,7 @@ export function useTimerSound() {
         setTimeout(playSingle, i * 3000);
       }
     }
-  }, [stopSound]);
+  }, [stopSound, playAlarmSound]);
 
   return { playSound, stopSound, unlockAudio, preloadSound };
 }

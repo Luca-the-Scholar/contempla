@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { format, differenceInDays, differenceInWeeks, differenceInMonths, differenceInYears } from "date-fns";
 import { cn } from "@/lib/utils";
+import { formatDateForStorage } from "@/lib/date-utils";
 
 export interface FeedSession {
   id: string;
@@ -214,7 +215,7 @@ export function SessionFeed({
     
     setSaving(true);
     try {
-      await onEdit(sessionId, newMinutes, newSessionDate.toISOString());
+      await onEdit(sessionId, newMinutes, formatDateForStorage(newSessionDate, !!editTime));
       setEditingId(null);
       setEditMinutes('');
       setEditDate(undefined);

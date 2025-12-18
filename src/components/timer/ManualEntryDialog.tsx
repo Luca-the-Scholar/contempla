@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { trackEvent } from '@/hooks/use-analytics';
+import { formatDateForStorage } from '@/lib/date-utils';
 
 interface Technique {
   id: string;
@@ -81,8 +82,8 @@ export function ManualEntryDialog({ techniques, onEntryAdded }: ManualEntryDialo
 
       // Format with time if provided, otherwise just the date
       const sessionDateStr = timeHour 
-        ? sessionDate.toISOString()
-        : format(date, 'yyyy-MM-dd');
+        ? formatDateForStorage(sessionDate, true)
+        : formatDateForStorage(date, false);
 
       const { error } = await supabase.from('sessions').insert({
         user_id: user.id,

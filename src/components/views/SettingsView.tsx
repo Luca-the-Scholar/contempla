@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { useHaptic } from "@/hooks/use-haptic";
+import { triggerVibration } from "@/lib/haptics";
 import { ProfileEditDialog } from "@/components/settings/ProfileEditDialog";
 import { AdminPanel } from "@/components/settings/AdminPanel";
 import { PremiumModal } from "@/components/settings/PremiumModal";
@@ -60,9 +60,6 @@ export function SettingsView() {
     toast
   } = useToast();
   const navigate = useNavigate();
-  const {
-    testVibration
-  } = useHaptic();
   
   useEffect(() => {
     fetchSettings();
@@ -320,8 +317,8 @@ export function SettingsView() {
                   localStorage.setItem('hapticEnabled', String(checked));
                 }} />
                 </div>
-                <Button variant="outline" size="sm" onClick={() => {
-                const success = testVibration();
+                <Button variant="outline" size="sm" onClick={async () => {
+                const success = await triggerVibration();
                 if (!success) {
                   toast({
                     title: "Vibration not available",

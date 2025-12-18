@@ -18,6 +18,7 @@ import {
   getDay,
 } from "date-fns";
 import { trackEvent } from "@/hooks/use-analytics";
+import { parseStoredDate, getLocalDateKey, isSameLocalDay } from "@/lib/date-utils";
 
 interface Session {
   id: string;
@@ -83,12 +84,9 @@ export function HistoryView() {
   };
 
   // Helper to parse date string without timezone shift
+  // Uses the utility function for consistency
   const parseSessionDate = (dateStr: string): Date => {
-    // session_date comes as "YYYY-MM-DD" or "YYYY-MM-DDTHH:MM:SS"
-    // Extract just the date part and create a local date
-    const datePart = dateStr.split('T')[0];
-    const [year, month, day] = datePart.split('-').map(Number);
-    return new Date(year, month - 1, day);
+    return parseStoredDate(dateStr);
   };
 
   const calculateStreak = (sessionData: Session[]) => {
@@ -97,15 +95,13 @@ export function HistoryView() {
       return;
     }
 
+    // Use local date keys for consistency
     const uniqueDates = new Set(
-      sessionData.map((s) => format(parseSessionDate(s.session_date), "yyyy-MM-dd"))
+      sessionData.map((s) => getLocalDateKey(parseSessionDate(s.session_date)))
     );
 
-    const today = format(new Date(), "yyyy-MM-dd");
-    const yesterday = format(
-      new Date(Date.now() - 24 * 60 * 60 * 1000),
-      "yyyy-MM-dd"
-    );
+    const today = getLocalDateKey(new Date());
+    const yesterday = getLocalDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
 
     // Check if practiced today or yesterday
     if (!uniqueDates.has(today) && !uniqueDates.has(yesterday)) {
@@ -116,7 +112,7 @@ export function HistoryView() {
     let streak = 0;
     let checkDate = uniqueDates.has(today) ? new Date() : new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    while (uniqueDates.has(format(checkDate, "yyyy-MM-dd"))) {
+    while (uniqueDates.has(getLocalDateKey(checkDate))) {
       streak++;
       checkDate = new Date(checkDate.getTime() - 24 * 60 * 60 * 1000);
     }
@@ -158,7 +154,7 @@ export function HistoryView() {
   const sessionsByDate = useMemo(() => {
     const map = new Map<string, number>();
     sessions.forEach((session) => {
-      const dateKey = format(parseSessionDate(session.session_date), "yyyy-MM-dd");
+      const dateKey = getLocalDateKey(parseSessionDate(session.session_date));
       map.set(dateKey, (map.get(dateKey) || 0) + session.duration_minutes);
     });
     return map;
@@ -185,14 +181,27 @@ export function HistoryView() {
   const totalHours = Math.floor(totalMinutes / 60);
   const remainingMinutes = totalMinutes % 60;
 
-  // Convert sessions to FeedSession format
-  const feedSessions: FeedSession[] = sessions.map(s => ({
-    id: s.id,
-    technique_name: s.technique_name || "Unknown",
-    duration_minutes: s.duration_minutes,
-    session_date: s.session_date,
-    manual_entry: s.manual_entry,
-  }));
+  // Convert sessions to FeedSession format, filtered by selected date if any
+  const feedSessions: FeedSession[] = useMemo(() => {
+    let filteredSessions = sessions;
+    
+    // If a date is selected, filter sessions to that date
+    if (selectedDate) {
+      const selectedDateKey = getLocalDateKey(selectedDate);
+      filteredSessions = sessions.filter(s => {
+        const sessionDateKey = getLocalDateKey(parseSessionDate(s.session_date));
+        return sessionDateKey === selectedDateKey;
+      });
+    }
+    
+    return filteredSessions.map(s => ({
+      id: s.id,
+      technique_name: s.technique_name || "Unknown",
+      duration_minutes: s.duration_minutes,
+      session_date: s.session_date,
+      manual_entry: s.manual_entry,
+    }));
+  }, [sessions, selectedDate]);
 
   if (loading) {
     return (
@@ -281,7 +290,7 @@ export function HistoryView() {
             )}
 
             {calendarDays.map((day) => {
-              const dateKey = format(day, "yyyy-MM-dd");
+              const dateKey = getLocalDateKey(day);
               const minutes = sessionsByDate.get(dateKey) || 0;
               const isToday = isSameDay(day, new Date());
               const isSelected = selectedDate && isSameDay(day, selectedDate);
@@ -291,7 +300,12 @@ export function HistoryView() {
                   key={dateKey}
                   onClick={() => {
                     trackEvent('calendar_day_clicked', { date_clicked: dateKey });
-                    setSelectedDate(day);
+                    // Toggle selection: if already selected, deselect it
+                    if (isSelected) {
+                      setSelectedDate(null);
+                    } else {
+                      setSelectedDate(day);
+                    }
                   }}
                   className={`
                     aspect-square rounded-lg transition-all duration-200 flex items-center justify-center

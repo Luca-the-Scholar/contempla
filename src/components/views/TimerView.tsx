@@ -10,12 +10,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Play, Pause, Square, Check, AlertTriangle, Volume2, Share2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNoSleep } from "@/hooks/use-nosleep";
-import { useHaptic, TIMER_COMPLETE_PATTERN } from "@/hooks/use-haptic";
+import { triggerVibrationPattern } from "@/lib/haptics";
 import { useTimerSound, TimerSound, SOUND_LABELS } from "@/hooks/use-timer-sound";
 import { trackEvent } from "@/hooks/use-analytics";
 import { incrementSessionAndCheckReview } from "@/lib/app-review";
 import { shareSession, canShare } from "@/lib/native-share";
 import { scheduleTimerNotification, cancelTimerNotification } from "@/lib/notifications";
+import { formatDateForStorage } from "@/lib/date-utils";
 
 interface Technique {
   id: string;
@@ -31,7 +32,6 @@ export function TimerView() {
   const { toast } = useToast();
   const noSleep = useNoSleep();
   const { playSound, stopSound, unlockAudio } = useTimerSound();
-  const { vibrate } = useHaptic();
   const [techniques, setTechniques] = useState<Technique[]>([]);
   const [selectedTechniqueId, setSelectedTechniqueId] = useState<string>("");
   const [selectedTechnique, setSelectedTechnique] = useState<Technique | null>(null);
@@ -175,7 +175,7 @@ export function TimerView() {
     
     // Vibrate
     if (hapticEnabled) {
-      vibrate(TIMER_COMPLETE_PATTERN);
+      await triggerVibrationPattern([300, 100, 300, 100, 500]);
     }
 
     // Cancel any scheduled notification since we're handling completion
@@ -203,7 +203,7 @@ export function TimerView() {
         user_id: user.id,
         technique_id: selectedTechniqueId,
         duration_minutes: minutesPracticed,
-        session_date: new Date().toISOString(),
+        session_date: formatDateForStorage(new Date(), true),
         manual_entry: false
       });
 

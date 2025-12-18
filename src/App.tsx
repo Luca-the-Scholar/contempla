@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import { initDeepLinking, DEEP_LINK_ROUTES } from "./lib/deep-linking";
 import { requestNotificationPermission } from "./lib/notifications";
 import { Capacitor } from "@capacitor/core";
+import { AppContainer } from "./components/layout/AppContainer";
 
 const queryClient = new QueryClient();
 
@@ -49,11 +50,13 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <DeepLinkHandler />
-        <Routes>
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/" element={<Index />} />
-          <Route path="*" element={<Auth />} />
-        </Routes>
+        <AppContainer>
+          <Routes>
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/" element={<Index />} />
+            <Route path="*" element={<Auth />} />
+          </Routes>
+        </AppContainer>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

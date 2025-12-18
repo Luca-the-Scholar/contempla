@@ -11,6 +11,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { formatDateForStorage } from '@/lib/date-utils';
 
 interface Session {
   id: string;
@@ -150,7 +151,7 @@ export function ManualEntriesView({ onEntriesChanged }: ManualEntriesViewProps) 
         .from('sessions')
         .update({ 
           duration_minutes: newMinutes,
-          session_date: newSessionDate.toISOString(),
+          session_date: formatDateForStorage(newSessionDate, !!editTime),
         })
         .eq('id', session.id);
 
