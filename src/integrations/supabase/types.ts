@@ -351,7 +351,6 @@ export type Database = {
         Row: {
           consecutive_missed_days: number | null
           created_at: string | null
-          handle: string | null
           id: string
           last_meditation_date: string | null
           name: string | null
@@ -367,7 +366,6 @@ export type Database = {
         Insert: {
           consecutive_missed_days?: number | null
           created_at?: string | null
-          handle?: string | null
           id: string
           last_meditation_date?: string | null
           name?: string | null
@@ -383,7 +381,6 @@ export type Database = {
         Update: {
           consecutive_missed_days?: number | null
           created_at?: string | null
-          handle?: string | null
           id?: string
           last_meditation_date?: string | null
           name?: string | null
