@@ -1,5 +1,18 @@
 import { useCallback, useRef } from 'react';
 
+/**
+ * iOS Audio Playback Notes:
+ * -------------------------
+ * iOS (WKWebView) has strict requirements for audio playback:
+ * 1. Audio must be initiated directly from a user gesture (click/tap handler)
+ * 2. The audio.play() call must happen synchronously within the gesture context
+ * 3. Awaiting promises before audio.play() can break the gesture context
+ * 
+ * The root cause of iOS-only failures was awaiting unlockAudio() before playing,
+ * which broke the gesture context chain. Solution: call unlockAudio() without await
+ * and immediately call playSound() in the same synchronous handler.
+ */
+
 export type TimerSound = 'none' | 'bowl-struck-1' | 'bowl-struck-2' | 'bowl-struck-3' | 'bowl-struck-4' | 'gong' | 'bell-1' | 'bell-2';
 
 export const SOUND_LABELS: Record<TimerSound, string> = {
@@ -58,29 +71,29 @@ export function useTimerSound() {
   }, []);
 
   // Unlock audio on iOS - call this on user interaction before timer starts
-  const unlockAudio = useCallback(async () => {
+  // IMPORTANT: On iOS, this must be called synchronously from a user gesture (click/tap)
+  // and should NOT be awaited to avoid blocking the gesture context
+  const unlockAudio = useCallback(() => {
     // Create and play a silent audio to unlock audio on iOS
     const audio = new Audio();
     audio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
-    try {
-      await audio.play();
-    } catch {
-      // Ignore errors - this is just to unlock audio
-    }
+    // Don't await - fire and forget to avoid blocking the gesture
+    audio.play().catch(() => {
+      // Ignore errors - this is just to unlock audio context
+    });
     return true;
   }, []);
 
   /**
    * Play a sound exactly once. Guarded against multiple calls.
+   * IMPORTANT: On iOS, audio must be triggered from a user gesture context.
    * @param sound The sound to play
    */
   const playSound = useCallback((sound: TimerSound) => {
     if (sound === 'none') return;
     
     // Guard: prevent multiple simultaneous plays
-    if (isPlayingRef.current) {
-      return;
-    }
+    if (isPlayingRef.current) return;
     
     // Stop any previous sound and mark as playing
     stopSound();
@@ -111,11 +124,8 @@ export function useTimerSound() {
       cleanup();
     }, MAX_DURATION_MS);
     
-    // Start playing
-    audio.play().catch((err) => {
-      console.error('Failed to play sound:', err);
-      cleanup();
-    });
+    // Start playing - use .then().catch() for iOS compatibility
+    audio.play().catch(cleanup);
   }, [stopSound]);
 
   return { playSound, stopSound, unlockAudio, preloadSound };

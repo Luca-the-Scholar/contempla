@@ -144,8 +144,9 @@ export function TimerView() {
     // Track timer started
     trackEvent('timer_started', { technique_id: selectedTechniqueId });
 
-    // Unlock audio on iOS
-    await unlockAudio();
+    // Unlock audio on iOS - DO NOT await, must be synchronous in gesture context
+    // iOS requires audio to be initiated directly from user gesture
+    unlockAudio();
 
     // Read start sound setting directly from localStorage (SettingsView is source of truth)
     const startSoundStored = localStorage.getItem('startSoundEnabled');
@@ -564,11 +565,12 @@ export function TimerView() {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={async () => {
-                  if (selectedSound !== 'none') {
-                    await unlockAudio();
-                    playSound(selectedSound);
-                  }
+                onClick={() => {
+                  if (selectedSound === 'none') return;
+                  
+                  // Unlock audio on iOS - must be synchronous in gesture context
+                  unlockAudio();
+                  playSound(selectedSound);
                 }}
                 disabled={selectedSound === 'none'}
               >
