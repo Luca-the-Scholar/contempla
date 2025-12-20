@@ -88,22 +88,23 @@ export function FriendsListDialog({ onViewFriend }: FriendsListDialogProps) {
   };
 
   const sendFriendRequest = async () => {
-    const handle = searchQuery.trim().replace(/^@/, ''); // Remove leading @ if present
+    // Normalize: trim whitespace, remove leading @, convert to lowercase
+    const handle = searchQuery.trim().replace(/^@/, '').toLowerCase();
     
     if (!handle) {
       toast({
         title: "Enter a handle",
-        description: "Please enter your friend's handle to add them",
+        description: "Please enter your friend's exact handle to add them",
         variant: "destructive",
       });
       return;
     }
 
     // Validate handle format
-    if (!/^[a-zA-Z0-9_]{3,30}$/.test(handle)) {
+    if (!/^[a-z0-9_]{3,30}$/.test(handle)) {
       toast({
         title: "Invalid handle",
-        description: "Handles can only contain letters, numbers, and underscores (3-30 characters)",
+        description: "Handles can only contain lowercase letters, numbers, and underscores (3-30 characters)",
         variant: "destructive",
       });
       return;
@@ -114,17 +115,22 @@ export function FriendsListDialog({ onViewFriend }: FriendsListDialogProps) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Search for user by exact handle match (case-insensitive)
-      const { data: profiles } = await supabase
+      // Search for user by exact handle match (handles are stored lowercase)
+      const { data: profiles, error: searchError } = await supabase
         .from("profiles")
         .select("id, handle, name")
-        .ilike("handle", handle)
+        .eq("handle", handle)
         .limit(1);
+
+      if (searchError) {
+        console.error("Handle search error:", searchError);
+        throw searchError;
+      }
 
       if (!profiles || profiles.length === 0) {
         toast({
           title: "User not found",
-          description: `No user found with handle @${handle}`,
+          description: `No user found with handle @${handle}. Make sure you enter the exact handle.`,
           variant: "destructive",
         });
         return;
