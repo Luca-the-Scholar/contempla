@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,8 @@ import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Compass } from "lucide-react";
 import { z } from "zod";
+import { OAuthButtons } from "@/components/auth/OAuthButtons";
+import { HandlePromptDialog } from "@/components/auth/HandlePromptDialog";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -26,8 +28,56 @@ export default function Auth() {
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; displayName?: string }>({});
+  const [showHandlePrompt, setShowHandlePrompt] = useState(false);
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Check for OAuth callback and handle missing handles
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        // Check if user has a handle
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("handle")
+          .eq("id", session.user.id)
+          .maybeSingle();
+
+        if (!profile?.handle) {
+          setPendingUserId(session.user.id);
+          setShowHandlePrompt(true);
+        } else {
+          navigate("/");
+        }
+      }
+    };
+
+    checkSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === "SIGNED_IN" && session?.user) {
+          // Check if user has a handle
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("handle")
+            .eq("id", session.user.id)
+            .maybeSingle();
+
+          if (!profile?.handle) {
+            setPendingUserId(session.user.id);
+            setShowHandlePrompt(true);
+          } else {
+            navigate("/");
+          }
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -187,6 +237,19 @@ export default function Auth() {
           </Button>
         </form>
 
+        {/* Divider */}
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t border-muted-foreground/20" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-card px-2 text-muted-foreground">or</span>
+          </div>
+        </div>
+
+        {/* OAuth buttons */}
+        <OAuthButtons />
+
         <div className="text-center">
           <button
             onClick={() => {
@@ -201,6 +264,19 @@ export default function Auth() {
           </button>
         </div>
       </Card>
+
+      {/* Handle prompt for new OAuth users */}
+      {pendingUserId && (
+        <HandlePromptDialog
+          open={showHandlePrompt}
+          userId={pendingUserId}
+          onComplete={() => {
+            setShowHandlePrompt(false);
+            setPendingUserId(null);
+            navigate("/");
+          }}
+        />
+      )}
     </div>
   );
 }
