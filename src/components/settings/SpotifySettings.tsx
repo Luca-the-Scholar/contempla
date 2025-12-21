@@ -1,0 +1,345 @@
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Music, Loader2, ExternalLink, X } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+interface SpotifyPlaylist {
+  id: string;
+  name: string;
+  image: string | null;
+  tracks_total: number;
+}
+
+interface SpotifySettingsData {
+  access_token: string | null;
+  selected_playlist_id: string | null;
+  selected_playlist_name: string | null;
+  play_on_meditation_start: boolean;
+  token_expires_at: string | null;
+}
+
+export function SpotifySettings() {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [connecting, setConnecting] = useState(false);
+  const [loadingPlaylists, setLoadingPlaylists] = useState(false);
+  const [settings, setSettings] = useState<SpotifySettingsData | null>(null);
+  const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
+
+  const isConnected = !!settings?.access_token;
+
+  useEffect(() => {
+    loadSettings();
+    
+    // Handle OAuth callback
+    const urlParams = new URLSearchParams(window.location.search);
+    const spotifyCode = urlParams.get('spotify_code');
+    if (spotifyCode) {
+      handleOAuthCallback(spotifyCode);
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isConnected) {
+      loadPlaylists();
+    }
+  }, [isConnected]);
+
+  const loadSettings = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('spotify_settings')
+        .select('access_token, selected_playlist_id, selected_playlist_name, play_on_meditation_start, token_expires_at')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      
+      setSettings(data as SpotifySettingsData | null);
+    } catch (error: any) {
+      console.error('Error loading Spotify settings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOAuthCallback = async (code: string) => {
+    setConnecting(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const redirectUri = `${window.location.origin}/settings`;
+
+      const { data, error } = await supabase.functions.invoke('spotify-auth', {
+        body: { code, redirect_uri: redirectUri, user_id: user.id },
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({ title: "Spotify connected!" });
+      await loadSettings();
+    } catch (error: any) {
+      console.error('OAuth callback error:', error);
+      toast({
+        title: "Failed to connect Spotify",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const handleConnect = async () => {
+    setConnecting(true);
+    try {
+      const redirectUri = `${window.location.origin}/settings`;
+
+      const { data, error } = await supabase.functions.invoke('spotify-auth?action=authorize&redirect_uri=' + encodeURIComponent(redirectUri), {
+        method: 'GET',
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      // Redirect to Spotify
+      window.location.href = data.url;
+    } catch (error: any) {
+      console.error('Connect error:', error);
+      toast({
+        title: "Failed to connect",
+        description: error.message,
+        variant: "destructive",
+      });
+      setConnecting(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('spotify-auth?action=disconnect');
+      
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      setSettings(null);
+      setPlaylists([]);
+      toast({ title: "Spotify disconnected" });
+    } catch (error: any) {
+      toast({
+        title: "Failed to disconnect",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const loadPlaylists = async () => {
+    setLoadingPlaylists(true);
+    try {
+      // Check if token needs refresh
+      if (settings?.token_expires_at && new Date(settings.token_expires_at) < new Date()) {
+        await refreshToken();
+      }
+
+      const { data, error } = await supabase.functions.invoke('spotify-playlists');
+      
+      if (error) throw error;
+      if (data?.error) {
+        if (data.error.includes('expired')) {
+          await refreshToken();
+          // Retry
+          const retryData = await supabase.functions.invoke('spotify-playlists');
+          if (retryData.data?.playlists) {
+            setPlaylists(retryData.data.playlists);
+            return;
+          }
+        }
+        throw new Error(data.error);
+      }
+
+      setPlaylists(data.playlists || []);
+    } catch (error: any) {
+      console.error('Error loading playlists:', error);
+      toast({
+        title: "Failed to load playlists",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingPlaylists(false);
+    }
+  };
+
+  const refreshToken = async () => {
+    const { data, error } = await supabase.functions.invoke('spotify-auth?action=refresh');
+    if (error || data?.error) {
+      throw new Error('Failed to refresh token');
+    }
+    await loadSettings();
+  };
+
+  const handlePlaylistChange = async (playlistId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const playlist = playlists.find(p => p.id === playlistId);
+      
+      const { error } = await supabase
+        .from('spotify_settings')
+        .update({
+          selected_playlist_id: playlistId,
+          selected_playlist_name: playlist?.name || null,
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setSettings(prev => prev ? {
+        ...prev,
+        selected_playlist_id: playlistId,
+        selected_playlist_name: playlist?.name || null,
+      } : null);
+
+      toast({ title: "Playlist selected" });
+    } catch (error: any) {
+      toast({
+        title: "Failed to save playlist",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleTogglePlayOnStart = async (enabled: boolean) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('spotify_settings')
+        .update({ play_on_meditation_start: enabled })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setSettings(prev => prev ? { ...prev, play_on_meditation_start: enabled } : null);
+      toast({ title: enabled ? "Spotify will play when meditation starts" : "Spotify autoplay disabled" });
+    } catch (error: any) {
+      toast({
+        title: "Failed to update setting",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {!isConnected ? (
+        <div className="text-center py-4">
+          <p className="text-sm text-muted-foreground mb-4">
+            Connect your Spotify account to play music during meditation.
+          </p>
+          <Button 
+            onClick={handleConnect} 
+            disabled={connecting}
+            className="bg-[#1DB954] hover:bg-[#1ed760] text-white"
+          >
+            {connecting ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Music className="w-4 h-4 mr-2" />
+            )}
+            Connect Spotify
+          </Button>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-[#1DB954]" />
+              <span className="text-sm text-muted-foreground">Connected to Spotify</span>
+            </div>
+            <Button variant="ghost" size="sm" onClick={handleDisconnect}>
+              <X className="w-4 h-4 mr-1" />
+              Disconnect
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Playlist</Label>
+            <p className="text-sm text-muted-foreground">
+              Select a playlist to play during meditation
+            </p>
+            {loadingPlaylists ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Loading playlists...
+              </div>
+            ) : (
+              <Select 
+                value={settings?.selected_playlist_id || ""} 
+                onValueChange={handlePlaylistChange}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a playlist" />
+                </SelectTrigger>
+                <SelectContent>
+                  {playlists.map(playlist => (
+                    <SelectItem key={playlist.id} value={playlist.id}>
+                      {playlist.name} ({playlist.tracks_total} tracks)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between pt-2">
+            <div>
+              <Label htmlFor="play-on-start">Play when meditation starts</Label>
+              <p className="text-sm text-muted-foreground">
+                Automatically start Spotify when you begin a session
+              </p>
+            </div>
+            <Switch
+              id="play-on-start"
+              checked={settings?.play_on_meditation_start || false}
+              onCheckedChange={handleTogglePlayOnStart}
+              disabled={!settings?.selected_playlist_id}
+            />
+          </div>
+
+          {settings?.play_on_meditation_start && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <ExternalLink className="w-3 h-3" />
+              Make sure Spotify is open on a device for playback to work
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
