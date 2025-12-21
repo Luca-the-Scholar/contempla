@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Bell, LogOut, User, Shield, Vibrate, Sparkles, Check, Heart, Pencil, Mail, Lock, Crown, Trash2 } from "lucide-react";
+import { Bell, LogOut, User, Shield, Vibrate, Sparkles, Check, Heart, Pencil, Mail, Lock, Crown, Trash2, Music } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +24,7 @@ import { triggerVibration } from "@/lib/haptics";
 import { ProfileEditDialog } from "@/components/settings/ProfileEditDialog";
 import { AdminPanel } from "@/components/settings/AdminPanel";
 import { PremiumModal } from "@/components/settings/PremiumModal";
+import { SpotifySettings } from "@/components/settings/SpotifySettings";
 import { trackEvent } from "@/hooks/use-analytics";
 
 export function SettingsView() {
@@ -398,6 +399,15 @@ export function SettingsView() {
               }} />
               </div>
             </div>
+          </Card>
+
+          {/* Spotify */}
+          <Card className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Music className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold">Spotify</h2>
+            </div>
+            <SpotifySettings />
           </Card>
 
           {/* Privacy */}

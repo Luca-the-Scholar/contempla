@@ -17,6 +17,7 @@ import { incrementSessionAndCheckReview } from "@/lib/app-review";
 import { shareSession, canShare } from "@/lib/native-share";
 import { scheduleTimerNotification, cancelTimerNotification } from "@/lib/notifications";
 import { formatDateForStorage } from "@/lib/date-utils";
+import { startSpotifyPlayback } from "@/hooks/use-spotify";
 
 interface Technique {
   id: string;
@@ -172,6 +173,13 @@ export function TimerView() {
     if (notifId) {
       setNotificationId(notifId);
     }
+
+    // Try to start Spotify playback if configured (don't await - fire and forget)
+    startSpotifyPlayback().then(result => {
+      if (result.error) {
+        console.log('Spotify playback not started:', result.error);
+      }
+    });
 
     setInitialDuration(duration);
     setSecondsLeft(duration * 60);
