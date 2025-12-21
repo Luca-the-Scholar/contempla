@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Capacitor } from "@capacitor/core";
+import { Browser } from "@capacitor/browser";
 
 export function OAuthButtons() {
   const [loading, setLoading] = useState(false);
@@ -13,20 +14,61 @@ export function OAuthButtons() {
     
     try {
       const isNative = Capacitor.isNativePlatform();
+      
+      // For native iOS/Android, use custom URL scheme for deep link callback
+      // For web, redirect back to /auth page
       const redirectTo = isNative 
         ? "contempla://auth/callback"
-        : `${window.location.origin}/`;
+        : `${window.location.origin}/auth`;
 
-      const { error } = await supabase.auth.signInWithOAuth({
+      console.log('[OAuth] Starting Google OAuth flow', { 
+        isNative, 
+        redirectTo,
+        platform: Capacitor.getPlatform()
+      });
+
+      // Get the OAuth URL from Supabase
+      // skipBrowserRedirect: true means Supabase returns the URL instead of redirecting
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo,
-          skipBrowserRedirect: isNative,
+          skipBrowserRedirect: true, // Always get URL, we'll handle redirect ourselves
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[OAuth] signInWithOAuth error:', error);
+        throw error;
+      }
+
+      if (!data?.url) {
+        console.error('[OAuth] No OAuth URL returned');
+        throw new Error('Failed to get OAuth URL');
+      }
+
+      console.log('[OAuth] Got OAuth URL:', data.url);
+
+      if (isNative) {
+        // On iOS/Android, open in system browser (Safari/Chrome)
+        // This is required because WKWebView doesn't handle OAuth popups well
+        // The callback will come back via deep link (contempla://auth/callback)
+        console.log('[OAuth] Opening in system browser for native platform');
+        await Browser.open({ 
+          url: data.url,
+          presentationStyle: 'popover', // iOS: opens as in-app browser that can return
+        });
+      } else {
+        // On web, just redirect normally
+        console.log('[OAuth] Redirecting in browser');
+        window.location.href = data.url;
+      }
     } catch (error: any) {
+      console.error('[OAuth] Exception during OAuth:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to sign in with Google",

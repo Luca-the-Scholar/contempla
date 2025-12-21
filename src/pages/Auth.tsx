@@ -33,24 +33,88 @@ export default function Auth() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Ensure user profile exists - creates one if missing (for OAuth users where trigger may have failed)
+  const ensureProfileExists = async (userId: string, userMetadata: Record<string, any> | undefined) => {
+    console.log('[Auth] Ensuring profile exists for user:', userId);
+    console.log('[Auth] User metadata:', userMetadata);
+    
+    // Check if profile exists
+    const { data: existingProfile, error: fetchError } = await supabase
+      .from("profiles")
+      .select("id, handle, name")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('[Auth] Error fetching profile:', fetchError);
+    }
+
+    if (existingProfile) {
+      console.log('[Auth] Profile exists:', existingProfile);
+      return existingProfile;
+    }
+
+    // Profile doesn't exist - create it
+    // Google OAuth provides: full_name, name, email, avatar_url, etc.
+    // Email/password signup provides: name (set by us)
+    const displayName = userMetadata?.full_name || userMetadata?.name || userMetadata?.email?.split('@')[0] || 'User';
+    
+    console.log('[Auth] Creating new profile with name:', displayName);
+    
+    const { data: newProfile, error: insertError } = await supabase
+      .from("profiles")
+      .insert({ id: userId, name: displayName })
+      .select("id, handle, name")
+      .single();
+
+    if (insertError) {
+      console.error('[Auth] Error creating profile:', insertError);
+      // Profile might have been created by trigger in the meantime - try to fetch again
+      const { data: retryProfile } = await supabase
+        .from("profiles")
+        .select("id, handle, name")
+        .eq("id", userId)
+        .maybeSingle();
+      
+      if (retryProfile) {
+        console.log('[Auth] Profile found on retry:', retryProfile);
+        return retryProfile;
+      }
+      return null;
+    }
+
+    console.log('[Auth] Created new profile:', newProfile);
+    return newProfile;
+  };
+
   // Check for OAuth callback and handle missing handles
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      console.log('[Auth] Checking session on mount...');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('[Auth] Error getting session:', sessionError);
+        return;
+      }
+
       if (session?.user) {
-        // Check if user has a handle
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("handle")
-          .eq("id", session.user.id)
-          .maybeSingle();
+        console.log('[Auth] Found existing session for user:', session.user.id);
+        console.log('[Auth] User provider:', session.user.app_metadata?.provider);
+        
+        // Ensure profile exists
+        const profile = await ensureProfileExists(session.user.id, session.user.user_metadata);
 
         if (!profile?.handle) {
+          console.log('[Auth] User has no handle, showing prompt');
           setPendingUserId(session.user.id);
           setShowHandlePrompt(true);
         } else {
+          console.log('[Auth] User has handle, navigating to home');
           navigate("/");
         }
+      } else {
+        console.log('[Auth] No session found');
       }
     };
 
@@ -58,18 +122,22 @@ export default function Auth() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('[Auth] Auth state changed:', event, session?.user?.id);
+        
         if (event === "SIGNED_IN" && session?.user) {
-          // Check if user has a handle
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("handle")
-            .eq("id", session.user.id)
-            .maybeSingle();
+          console.log('[Auth] User signed in:', session.user.id);
+          console.log('[Auth] Provider:', session.user.app_metadata?.provider);
+          console.log('[Auth] User metadata:', session.user.user_metadata);
+          
+          // Ensure profile exists
+          const profile = await ensureProfileExists(session.user.id, session.user.user_metadata);
 
           if (!profile?.handle) {
+            console.log('[Auth] User has no handle after sign in, showing prompt');
             setPendingUserId(session.user.id);
             setShowHandlePrompt(true);
           } else {
+            console.log('[Auth] User has handle, navigating to home');
             navigate("/");
           }
         }

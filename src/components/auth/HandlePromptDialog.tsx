@@ -60,13 +60,18 @@ export function HandlePromptDialog({ open, userId, onComplete }: HandlePromptDia
         return;
       }
 
-      // Update the profile with the new handle
-      const { error: updateError } = await supabase
+      // Upsert the profile with the new handle (handles case where profile might not exist)
+      const { error: upsertError } = await supabase
         .from("profiles")
-        .update({ handle: trimmedHandle })
-        .eq("id", userId);
+        .upsert({ 
+          id: userId, 
+          handle: trimmedHandle,
+          updated_at: new Date().toISOString()
+        }, { 
+          onConflict: 'id' 
+        });
 
-      if (updateError) throw updateError;
+      if (upsertError) throw upsertError;
 
       toast({ title: "Handle set successfully!" });
       onComplete();

@@ -49,5 +49,16 @@
 		<string>audio</string>
 		<string>remote-notification</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>app.lovable.c0338147c3324b2cb5d7a5ad61c0e9ec</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>contempla</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

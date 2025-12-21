@@ -20,6 +20,8 @@ function DeepLinkHandler() {
   useEffect(() => {
     // Initialize deep linking
     initDeepLinking((path) => {
+      console.log('[DeepLinkHandler] Received path:', path);
+      
       // Map deep link paths to app routes
       const routeMap: Record<string, string> = {
         [DEEP_LINK_ROUTES.TIMER]: '/?tab=timer',
@@ -28,9 +30,11 @@ function DeepLinkHandler() {
         [DEEP_LINK_ROUTES.COMMUNITY]: '/?tab=community',
         [DEEP_LINK_ROUTES.SETTINGS]: '/?tab=settings',
         '/': '/',
+        '/auth/callback': '/auth', // OAuth callback goes to auth page
       };
 
-      const route = routeMap[path] || '/';
+      const route = routeMap[path] || '/auth'; // Default to auth for unknown paths
+      console.log('[DeepLinkHandler] Navigating to:', route);
       navigate(route);
     });
 
