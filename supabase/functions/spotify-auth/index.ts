@@ -49,8 +49,8 @@ serve(async (req) => {
       });
     }
 
-    // Exchange code for tokens
-    if (action === 'callback') {
+    // Exchange code for tokens (called via POST with body containing code)
+    if (action === 'callback' || (req.method === 'POST' && !action)) {
       const { code, redirect_uri, user_id } = await req.json();
       
       if (!code || !redirect_uri || !user_id) {
@@ -219,7 +219,7 @@ serve(async (req) => {
       });
     }
 
-    throw new Error(`Unknown action: ${action}`);
+    throw new Error(`Unknown action: ${action || 'none'}. Valid actions: authorize, refresh, disconnect`);
 
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
