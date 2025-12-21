@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Music, BookOpen, Bell, Heart, Download, Check } from "lucide-react";
+import { Sparkles, BookOpen, Bell, Heart, Download, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { trackEvent } from "@/hooks/use-analytics";
@@ -54,7 +54,6 @@ export function PremiumModal({ open, onOpenChange }: PremiumModalProps) {
   };
 
   const features = [
-    { icon: Music, text: "Spotify integration" },
     { icon: BookOpen, text: "10+ techniques in your personal library" },
     { icon: Bell, text: "15+ meditation chimes and sounds" },
     { icon: Heart, text: "Health tracking integration" },
