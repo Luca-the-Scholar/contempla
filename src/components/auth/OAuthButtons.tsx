@@ -1,13 +1,44 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
 
+// Production URL for OAuth redirects - this is the deployed app URL
+const PRODUCTION_URL = "https://contempla.app";
+
 export function OAuthButtons() {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  // Listen for app returning from browser OAuth on native
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    // On iOS, when we return from the browser, check for session
+    const checkSessionOnResume = async () => {
+      console.log('[OAuth] App resumed, checking for session...');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        console.log('[OAuth] Session found after resume:', session.user?.id);
+        setLoading(false);
+        // The Auth page's onAuthStateChange will handle navigation
+      }
+    };
+
+    // Listen for browser closed event (iOS returns control to app)
+    const handleBrowserFinished = () => {
+      console.log('[OAuth] Browser finished, checking session');
+      setTimeout(checkSessionOnResume, 500); // Small delay to let tokens propagate
+    };
+
+    Browser.addListener('browserFinished', handleBrowserFinished);
+
+    return () => {
+      Browser.removeAllListeners();
+    };
+  }, []);
 
   const handleGoogleOAuth = async () => {
     setLoading(true);
@@ -15,11 +46,13 @@ export function OAuthButtons() {
     try {
       const isNative = Capacitor.isNativePlatform();
       
-      // For native iOS/Android, use custom URL scheme for deep link callback
-      // For web, redirect back to /auth page
+      // For native iOS/Android: Use production HTTPS URL as redirect
+      // Google OAuth requires HTTPS - custom schemes won't work directly
+      // The production URL must be configured in Supabase Auth settings
+      // For web: use current origin
       const redirectTo = isNative 
-        ? "contempla://auth/callback"
-        : `${window.location.origin}/auth`;
+        ? `${PRODUCTION_URL}/auth`  // Production HTTPS URL for native
+        : `${window.location.origin}/auth`;  // Current origin for web
 
       console.log('[OAuth] Starting Google OAuth flow', { 
         isNative, 
@@ -28,12 +61,11 @@ export function OAuthButtons() {
       });
 
       // Get the OAuth URL from Supabase
-      // skipBrowserRedirect: true means Supabase returns the URL instead of redirecting
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo,
-          skipBrowserRedirect: true, // Always get URL, we'll handle redirect ourselves
+          skipBrowserRedirect: true,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -54,13 +86,13 @@ export function OAuthButtons() {
       console.log('[OAuth] Got OAuth URL:', data.url);
 
       if (isNative) {
-        // On iOS/Android, open in system browser (Safari/Chrome)
-        // This is required because WKWebView doesn't handle OAuth popups well
-        // The callback will come back via deep link (contempla://auth/callback)
+        // On iOS/Android, open in system browser
+        // After OAuth completes, user will be redirected to production URL
+        // They can then tap "Open in App" or we detect session on resume
         console.log('[OAuth] Opening in system browser for native platform');
         await Browser.open({ 
           url: data.url,
-          presentationStyle: 'popover', // iOS: opens as in-app browser that can return
+          presentationStyle: 'popover',
         });
       } else {
         // On web, just redirect normally
