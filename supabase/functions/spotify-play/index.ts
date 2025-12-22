@@ -9,6 +9,51 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
+// Helper to create consistent error responses
+function errorResponse(error: string, details?: unknown, spotifyError?: unknown, status = 400): Response {
+  const body = {
+    error,
+    details: details ?? null,
+    spotify_error: spotifyError ?? null,
+    status,
+  };
+  console.error('[spotify-play] Error response:', JSON.stringify(body));
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
+// Helper to handle Spotify API responses
+async function handleSpotifyResponse(response: Response, context: string): Promise<{ data: unknown; error: Response | null }> {
+  // For 204 No Content, return success
+  if (response.status === 204) {
+    console.log(`[spotify-play] ${context} - Status: 204 (No Content - Success)`);
+    return { data: { success: true }, error: null };
+  }
+  
+  const rawText = await response.text();
+  console.log(`[spotify-play] ${context} - Status: ${response.status}, Body: ${rawText}`);
+  
+  let parsed: unknown = null;
+  try {
+    parsed = rawText ? JSON.parse(rawText) : null;
+  } catch {
+    console.error(`[spotify-play] ${context} - Failed to parse response as JSON`);
+  }
+  
+  if (!response.ok) {
+    const spotifyError = parsed && typeof parsed === 'object' ? parsed : { raw: rawText };
+    const errorMessage = (parsed as any)?.error?.message || (parsed as any)?.error || `Spotify API error (${response.status})`;
+    return {
+      data: null,
+      error: errorResponse(errorMessage, { context, httpStatus: response.status }, spotifyError, response.status >= 500 ? 502 : 400),
+    };
+  }
+  
+  return { data: parsed, error: null };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -17,13 +62,20 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error('Authorization header required');
+      return errorResponse('Authorization header required', { context: 'auth_check' });
     }
 
-    const { playlist_id } = await req.json();
+    let body: { playlist_id?: string };
+    try {
+      body = await req.json();
+    } catch {
+      return errorResponse('Invalid JSON body', { context: 'parse_body' });
+    }
+    
+    const { playlist_id } = body;
     
     if (!playlist_id) {
-      throw new Error('playlist_id is required');
+      return errorResponse('playlist_id is required', { providedBody: body });
     }
 
     // Get user from JWT
@@ -35,7 +87,7 @@ serve(async (req) => {
     
     const { data: { user }, error: userError } = await anonSupabase.auth.getUser();
     if (userError || !user) {
-      throw new Error('Unauthorized');
+      return errorResponse('Unauthorized', { userError: userError?.message }, null, 401);
     }
 
     // Get access token from database
@@ -48,17 +100,16 @@ serve(async (req) => {
       .maybeSingle();
 
     if (settingsError || !settings?.access_token) {
-      throw new Error('Spotify not connected');
+      return errorResponse('Spotify not connected', { settingsError: settingsError?.message, userId: user.id });
     }
 
     // Check if token is expired
     if (new Date(settings.token_expires_at) < new Date()) {
-      throw new Error('Token expired - refresh required');
+      return errorResponse('Token expired - refresh required', { expiresAt: settings.token_expires_at });
     }
 
-    console.log(`Starting playback for playlist: ${playlist_id}`);
+    console.log(`[spotify-play] Starting playback for playlist: ${playlist_id}`);
 
-    // Start playback on Spotify
     // First, try to get user's available devices
     const devicesResponse = await fetch('https://api.spotify.com/v1/me/player/devices', {
       headers: {
@@ -66,8 +117,10 @@ serve(async (req) => {
       },
     });
 
-    const devicesData = await devicesResponse.json();
-    console.log('Available devices:', devicesData);
+    const { data: devicesData, error: devicesError } = await handleSpotifyResponse(devicesResponse, 'Get Devices');
+    if (devicesError) return devicesError;
+
+    console.log('[spotify-play] Available devices:', JSON.stringify(devicesData));
 
     // Try to start playback
     const playResponse = await fetch('https://api.spotify.com/v1/me/player/play', {
@@ -81,19 +134,20 @@ serve(async (req) => {
       }),
     });
 
-    // 204 = success, 404 = no active device
+    // 204 = success
     if (playResponse.status === 204) {
-      console.log('Playback started successfully');
+      console.log('[spotify-play] Playback started successfully');
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    // 404 = no active device
     if (playResponse.status === 404) {
-      // No active device - try to activate one if available
-      if (devicesData.devices && devicesData.devices.length > 0) {
-        const device = devicesData.devices[0];
-        console.log(`Activating device: ${device.name}`);
+      const devices = (devicesData as any)?.devices;
+      if (devices && devices.length > 0) {
+        const device = devices[0];
+        console.log(`[spotify-play] Activating device: ${device.name} (${device.id})`);
         
         const transferResponse = await fetch('https://api.spotify.com/v1/me/player', {
           method: 'PUT',
@@ -107,38 +161,45 @@ serve(async (req) => {
           }),
         });
 
-        if (transferResponse.status === 204) {
-          // Now try to play again
-          await fetch('https://api.spotify.com/v1/me/player/play', {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${settings.access_token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              context_uri: `spotify:playlist:${playlist_id}`,
-            }),
-          });
-          
-          return new Response(JSON.stringify({ success: true }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
+        const { error: transferError } = await handleSpotifyResponse(transferResponse, 'Transfer Playback');
+        if (transferError) return transferError;
+
+        // Now try to play again
+        const retryPlayResponse = await fetch('https://api.spotify.com/v1/me/player/play', {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${settings.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            context_uri: `spotify:playlist:${playlist_id}`,
+          }),
+        });
+
+        const { error: retryError } = await handleSpotifyResponse(retryPlayResponse, 'Retry Play');
+        if (retryError) return retryError;
+        
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
       
-      throw new Error('No active Spotify device found. Please open Spotify on a device first.');
+      return errorResponse('No active Spotify device found. Please open Spotify on a device first.', { devices });
     }
 
-    const errorData = await playResponse.json().catch(() => ({}));
-    console.error('Spotify play error:', errorData);
-    throw new Error(errorData.error?.message || 'Failed to start playback');
+    // Handle other non-2xx responses
+    const { error: playError } = await handleSpotifyResponse(playResponse, 'Start Playback');
+    if (playError) return playError;
+
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
 
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Spotify play error:', error);
-    return new Response(JSON.stringify({ error: message }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    const stack = error instanceof Error ? error.stack : undefined;
+    
+    console.error('[spotify-play] Unhandled error:', { message, stack });
+    return errorResponse(message, { stack }, null, 500);
   }
 });
