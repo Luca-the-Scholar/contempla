@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Music, Loader2, ExternalLink, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Capacitor } from "@capacitor/core";
+import { Browser } from "@capacitor/browser";
 
 interface SpotifyPlaylist {
   id: string;
@@ -35,13 +37,29 @@ export function SpotifySettings() {
   useEffect(() => {
     loadSettings();
     
-    // Handle OAuth callback
+    // Handle OAuth callback from web (query param) or native deep link (sessionStorage)
     const urlParams = new URLSearchParams(window.location.search);
-    const spotifyCode = urlParams.get('spotify_code');
-    if (spotifyCode) {
-      handleOAuthCallback(spotifyCode);
+    const spotifyCode = urlParams.get('spotify_code') || urlParams.get('code');
+    const isSpotifyCallback = urlParams.get('spotify_callback') === 'true';
+    
+    // Check for code in sessionStorage (set by deep link handler on native)
+    const deepLinkCode = sessionStorage.getItem('spotify_oauth_code');
+    const isFromDeepLink = sessionStorage.getItem('spotify_oauth_from_deeplink') === 'true';
+    
+    if (deepLinkCode && isFromDeepLink) {
+      console.log('[Spotify] Found code from deep link, processing...');
+      // Clear the stored values
+      sessionStorage.removeItem('spotify_oauth_code');
+      sessionStorage.removeItem('spotify_oauth_from_deeplink');
+      handleOAuthCallback(deepLinkCode, true);
+    } else if (spotifyCode) {
+      console.log('[Spotify] Found code in URL params, processing...');
+      handleOAuthCallback(spotifyCode, false);
       // Clean up URL
       window.history.replaceState({}, '', window.location.pathname);
+    } else if (isSpotifyCallback) {
+      // Callback came but no code - might be an error or the code is coming
+      console.log('[Spotify] Spotify callback detected but no code yet');
     }
   }, []);
 
@@ -72,13 +90,19 @@ export function SpotifySettings() {
     }
   };
 
-  const handleOAuthCallback = async (code: string) => {
+  const handleOAuthCallback = async (code: string, isFromDeepLink: boolean = false) => {
     setConnecting(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const redirectUri = `${window.location.origin}/settings`;
+      // Must match the redirect_uri used in the initial authorize request
+      const isNative = Capacitor.isNativePlatform();
+      const redirectUri = isNative || isFromDeepLink
+        ? "contempla://spotify/callback"
+        : `${window.location.origin}/settings`;
+
+      console.log('[Spotify] Processing OAuth callback', { isNative, isFromDeepLink, redirectUri });
 
       const { data, error } = await supabase.functions.invoke('spotify-auth', {
         body: { code, redirect_uri: redirectUri, user_id: user.id },
@@ -91,7 +115,7 @@ export function SpotifySettings() {
       toast({ title: "Spotify connected!" });
       await loadSettings();
     } catch (error: any) {
-      console.error('OAuth callback error:', error);
+      console.error('[Spotify] OAuth callback error:', error);
       toast({
         title: "Failed to connect Spotify",
         description: error.message,
@@ -105,7 +129,16 @@ export function SpotifySettings() {
   const handleConnect = async () => {
     setConnecting(true);
     try {
-      const redirectUri = `${window.location.origin}/settings`;
+      const isNative = Capacitor.isNativePlatform();
+      
+      // For native, use deep link callback; for web, use origin URL
+      // Note: Spotify requires the redirect_uri to be registered in their dashboard
+      // For native, we use a special callback that our edge function will handle
+      const redirectUri = isNative 
+        ? "contempla://spotify/callback"
+        : `${window.location.origin}/settings`;
+
+      console.log('[Spotify] Starting OAuth flow', { isNative, redirectUri });
 
       const { data, error } = await supabase.functions.invoke('spotify-auth?action=authorize&redirect_uri=' + encodeURIComponent(redirectUri), {
         method: 'GET',
@@ -114,10 +147,22 @@ export function SpotifySettings() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      // Redirect to Spotify
-      window.location.href = data.url;
+      console.log('[Spotify] Got OAuth URL:', data.url);
+
+      if (isNative) {
+        // On iOS/Android, open in system browser
+        console.log('[Spotify] Opening in system browser for native platform');
+        await Browser.open({ 
+          url: data.url,
+          presentationStyle: 'popover',
+        });
+      } else {
+        // On web, just redirect normally
+        console.log('[Spotify] Redirecting in browser');
+        window.location.href = data.url;
+      }
     } catch (error: any) {
-      console.error('Connect error:', error);
+      console.error('[Spotify] Connect error:', error);
       toast({
         title: "Failed to connect",
         description: error.message,

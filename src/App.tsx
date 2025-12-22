@@ -19,8 +19,8 @@ function DeepLinkHandler() {
 
   useEffect(() => {
     // Initialize deep linking
-    initDeepLinking((path) => {
-      console.log('[DeepLinkHandler] Received path:', path);
+    initDeepLinking((path, params) => {
+      console.log('[DeepLinkHandler] Received path:', path, 'params:', params?.toString());
       
       // Map deep link paths to app routes
       const routeMap: Record<string, string> = {
@@ -30,10 +30,17 @@ function DeepLinkHandler() {
         [DEEP_LINK_ROUTES.COMMUNITY]: '/?tab=community',
         [DEEP_LINK_ROUTES.SETTINGS]: '/?tab=settings',
         '/': '/',
-        '/auth/callback': '/auth', // OAuth callback goes to auth page
+        '/auth/callback': '/auth', // Google OAuth callback goes to auth page
+        '/spotify/callback': '/?tab=settings', // Spotify OAuth callback goes to settings
       };
 
-      const route = routeMap[path] || '/auth'; // Default to auth for unknown paths
+      let route = routeMap[path] || '/auth'; // Default to auth for unknown paths
+      
+      // Preserve query params for callbacks
+      if (params && params.toString()) {
+        route += (route.includes('?') ? '&' : '?') + params.toString();
+      }
+      
       console.log('[DeepLinkHandler] Navigating to:', route);
       navigate(route);
     });

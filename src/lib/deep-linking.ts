@@ -29,9 +29,20 @@ export function initDeepLinking(handler: DeepLinkHandler): void {
  */
 async function handleDeepLink(url: string): Promise<void> {
   try {
-    // Check if this is an OAuth callback
+    console.log('[DeepLink] Processing URL:', url);
+    
+    // Check if this is a Spotify OAuth callback
+    // Format: contempla://spotify/callback?code=xxx
+    if (url.includes('spotify/callback') || url.includes('spotify_code')) {
+      console.log('[DeepLink] Detected Spotify OAuth callback');
+      await handleSpotifyCallback(url);
+      return;
+    }
+    
+    // Check if this is a Google/Supabase OAuth callback
+    // Format: contempla://auth/callback#access_token=xxx
     if (url.includes('auth/callback') || url.includes('access_token') || url.includes('refresh_token')) {
-      console.log('[DeepLink] Detected OAuth callback');
+      console.log('[DeepLink] Detected Google OAuth callback');
       await handleOAuthCallback(url);
       return;
     }
@@ -138,13 +149,70 @@ async function handleOAuthCallback(url: string): Promise<void> {
 }
 
 /**
+ * Handle Spotify OAuth callback from deep link
+ * URL format: contempla://spotify/callback?code=xxx
+ */
+async function handleSpotifyCallback(url: string): Promise<void> {
+  try {
+    console.log('[DeepLink] Processing Spotify callback URL');
+    
+    // Close the browser window that was opened for OAuth
+    try {
+      await Browser.close();
+      console.log('[DeepLink] Closed browser window');
+    } catch (e) {
+      console.log('[DeepLink] Browser already closed or error closing:', e);
+    }
+
+    // Extract the code from URL
+    // Format: contempla://spotify/callback?code=xxx
+    let code = '';
+    
+    if (url.includes('?')) {
+      const queryPart = url.split('?')[1];
+      const params = new URLSearchParams(queryPart);
+      code = params.get('code') || '';
+    }
+
+    if (!code) {
+      console.error('[DeepLink] No code found in Spotify callback');
+      // Check for error
+      const errorMatch = url.match(/error=([^&]+)/);
+      if (errorMatch) {
+        console.error('[DeepLink] Spotify OAuth error:', decodeURIComponent(errorMatch[1]));
+      }
+      // Navigate to settings anyway
+      if (deepLinkHandler) {
+        deepLinkHandler('/settings', new URLSearchParams());
+      }
+      return;
+    }
+
+    console.log('[DeepLink] Found Spotify code, storing for callback handling');
+    
+    // Store the code in sessionStorage for the SpotifySettings component to pick up
+    // This is needed because we can't directly call React component methods from here
+    sessionStorage.setItem('spotify_oauth_code', code);
+    sessionStorage.setItem('spotify_oauth_from_deeplink', 'true');
+    
+    // Navigate to settings page where SpotifySettings will handle the code
+    if (deepLinkHandler) {
+      deepLinkHandler('/settings', new URLSearchParams({ spotify_callback: 'true' }));
+    }
+  } catch (err) {
+    console.error('[DeepLink] Error handling Spotify callback:', err);
+  }
+}
+
+/**
  * Supported deep link routes:
  * - contempla://timer - Opens the timer view
  * - contempla://history - Opens the history view
  * - contempla://library - Opens the library view
  * - contempla://community - Opens the community view
  * - contempla://settings - Opens the settings view
- * - contempla://technique/:id - Opens a specific technique (future)
+ * - contempla://auth/callback - Google OAuth callback
+ * - contempla://spotify/callback - Spotify OAuth callback
  */
 export const DEEP_LINK_ROUTES = {
   TIMER: '/timer',
