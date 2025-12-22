@@ -58,10 +58,15 @@ export async function startSpotifyPlayback(): Promise<{ success: boolean; error?
       return { success: false };
     }
 
-    console.log('Starting Spotify playback...');
+    // Standardized payload for play action
+    const payload = { 
+      action: 'play',
+      playlist_id: settings.selected_playlist_id,
+    };
+    console.log('[Spotify] Play payload:', JSON.stringify(payload));
 
     const { data, error } = await supabase.functions.invoke('spotify-play', {
-      body: { playlist_id: settings.selected_playlist_id },
+      body: payload,
     });
 
     if (error) {

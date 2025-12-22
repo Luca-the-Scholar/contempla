@@ -49,6 +49,28 @@ async function handleSpotifyResponse(response: Response, context: string): Promi
 }
 
 serve(async (req) => {
+  // ========== DIAGNOSTIC LOGGING ==========
+  const reqId = crypto.randomUUID();
+  const method = req.method;
+  const contentType = req.headers.get('content-type');
+  
+  let rawBody = '';
+  if (method !== 'GET' && method !== 'OPTIONS') {
+    try {
+      rawBody = await req.text();
+    } catch (e) {
+      console.error(`[spotify-playlists] [${reqId}] Failed to read body:`, e);
+    }
+  }
+  
+  console.log(`[spotify-playlists] [${reqId}] DIAGNOSTIC:`, {
+    method,
+    contentType,
+    bodyLength: rawBody.length,
+    bodyPreview: rawBody.substring(0, 500),
+  });
+  // ========================================
+
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -56,7 +78,7 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return errorResponse('Authorization header required', { context: 'auth_check' });
+      return errorResponse('Authorization header required', { context: 'auth_check', reqId });
     }
 
     // Get user from JWT

@@ -146,11 +146,18 @@ export function SpotifySettings() {
         ? "contempla://spotify/callback"
         : `${window.location.origin}/settings`;
 
+      // Standardized payload - explicit JSON object
+      const payload = {
+        code,
+        redirect_uri: redirectUri,
+        user_id: user.id,
+      };
+
+      console.log('[Spotify] OAuth callback payload:', JSON.stringify(payload));
       console.log('[Spotify] Processing OAuth callback', { isNative, isFromDeepLink, redirectUri });
 
       const { data, error } = await supabase.functions.invoke('spotify-auth', {
-        body: { code, redirect_uri: redirectUri, user_id: user.id },
-        headers: { 'Content-Type': 'application/json' },
+        body: payload,
       });
 
       if (error) throw error;
@@ -177,16 +184,27 @@ export function SpotifySettings() {
       const isNative = Capacitor.isNativePlatform();
       
       // For native, use deep link callback; for web, use origin URL
-      // Note: Spotify requires the redirect_uri to be registered in their dashboard
-      // For native, we use a special callback that our edge function will handle
       const redirectUri = isNative 
         ? "contempla://spotify/callback"
         : `${window.location.origin}/settings`;
 
+      // Standardized payload for authorize action
+      const payload = {
+        action: 'authorize',
+        redirect_uri: redirectUri,
+      };
+
+      console.log('[Spotify] Connect payload:', JSON.stringify(payload));
       console.log('[Spotify] Starting OAuth flow', { isNative, redirectUri });
 
-      const { data, error } = await supabase.functions.invoke('spotify-auth?action=authorize&redirect_uri=' + encodeURIComponent(redirectUri), {
+      // Use query params for GET-style action (authorize returns a URL)
+      const { data, error } = await supabase.functions.invoke('spotify-auth', {
         method: 'GET',
+        body: payload,
+        headers: {
+          'x-spotify-action': 'authorize',
+          'x-spotify-redirect-uri': redirectUri,
+        },
       });
 
       if (error) throw error;
@@ -195,14 +213,12 @@ export function SpotifySettings() {
       console.log('[Spotify] Got OAuth URL:', data.url);
 
       if (isNative) {
-        // On iOS/Android, open in system browser
         console.log('[Spotify] Opening in system browser for native platform');
         await Browser.open({ 
           url: data.url,
           presentationStyle: 'popover',
         });
       } else {
-        // On web, just redirect normally
         console.log('[Spotify] Redirecting in browser');
         window.location.href = data.url;
       }
@@ -220,7 +236,13 @@ export function SpotifySettings() {
 
   const handleDisconnect = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('spotify-auth?action=disconnect');
+      // Standardized payload for disconnect action
+      const payload = { action: 'disconnect' };
+      console.log('[Spotify] Disconnect payload:', JSON.stringify(payload));
+
+      const { data, error } = await supabase.functions.invoke('spotify-auth', {
+        body: payload,
+      });
       
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -245,14 +267,24 @@ export function SpotifySettings() {
         await refreshToken();
       }
 
-      const { data, error } = await supabase.functions.invoke('spotify-playlists');
+      // Standardized payload for playlists
+      const payload = { action: 'list' };
+      console.log('[Spotify] Load playlists payload:', JSON.stringify(payload));
+
+      const { data, error } = await supabase.functions.invoke('spotify-playlists', {
+        body: payload,
+      });
       
       if (error) throw error;
       if (data?.error) {
         if (data.error.includes('expired')) {
           await refreshToken();
-          // Retry
-          const retryData = await supabase.functions.invoke('spotify-playlists');
+          // Retry with same standardized format
+          const retryPayload = { action: 'list' };
+          console.log('[Spotify] Retry playlists payload:', JSON.stringify(retryPayload));
+          const retryData = await supabase.functions.invoke('spotify-playlists', {
+            body: retryPayload,
+          });
           if (retryData.data?.playlists) {
             setPlaylists(retryData.data.playlists);
             return;
@@ -275,7 +307,13 @@ export function SpotifySettings() {
   };
 
   const refreshToken = async () => {
-    const { data, error } = await supabase.functions.invoke('spotify-auth?action=refresh');
+    // Standardized payload for refresh action
+    const payload = { action: 'refresh' };
+    console.log('[Spotify] Refresh token payload:', JSON.stringify(payload));
+
+    const { data, error } = await supabase.functions.invoke('spotify-auth', {
+      body: payload,
+    });
     if (error || data?.error) {
       throw new Error('Failed to refresh token');
     }
