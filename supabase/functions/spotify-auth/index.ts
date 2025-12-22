@@ -57,6 +57,29 @@ async function handleSpotifyResponse(response: Response, context: string): Promi
 }
 
 serve(async (req) => {
+  // ========== DIAGNOSTIC LOGGING START ==========
+  const reqId = crypto.randomUUID();
+  const method = req.method;
+  const contentType = req.headers.get('content-type');
+  
+  // Read body once using req.text() - NEVER use req.json()
+  let rawBody = '';
+  if (method !== 'GET' && method !== 'OPTIONS') {
+    try {
+      rawBody = await req.text();
+    } catch (e) {
+      console.error(`[spotify-auth] [${reqId}] Failed to read body:`, e);
+    }
+  }
+  
+  console.log(`[spotify-auth] [${reqId}] DIAGNOSTIC:`, {
+    method,
+    contentType,
+    bodyLength: rawBody.length,
+    bodyPreview: rawBody.substring(0, 500),
+  });
+  // ========== DIAGNOSTIC LOGGING END ==========
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -67,18 +90,18 @@ serve(async (req) => {
     const action = url.searchParams.get('action');
     const hasAuthHeader = !!req.headers.get('authorization');
 
-    console.log(`[spotify-auth] Action: ${action}`, { hasAuthHeader, method: req.method });
+    console.log(`[spotify-auth] [${reqId}] Action: ${action}`, { hasAuthHeader, method: req.method });
 
     // Generate authorization URL
     if (action === 'authorize') {
       const redirectUri = url.searchParams.get('redirect_uri');
       if (!redirectUri) {
-        return errorResponse('redirect_uri is required', { action });
+        return errorResponse('redirect_uri is required', { action, reqId });
       }
 
       const clientId = requireEnv('SPOTIFY_CLIENT_ID', SPOTIFY_CLIENT_ID);
 
-      console.log('[spotify-auth] Authorize redirect_uri:', redirectUri);
+      console.log(`[spotify-auth] [${reqId}] Authorize redirect_uri:`, redirectUri);
 
       const scopes = [
         'playlist-read-private',
@@ -101,11 +124,30 @@ serve(async (req) => {
 
     // Exchange code for tokens (called via POST with body containing code)
     if (action === 'callback' || (req.method === 'POST' && !action)) {
+      // Handle empty body
+      if (!rawBody || rawBody.trim() === '') {
+        console.error(`[spotify-auth] [${reqId}] Empty body received`);
+        return new Response(JSON.stringify({ error: 'Empty body', reqId }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      // Parse body manually
       let body: { code?: string; redirect_uri?: string; user_id?: string };
       try {
-        body = await req.json();
-      } catch {
-        return errorResponse('Invalid JSON body', { action });
+        body = JSON.parse(rawBody);
+      } catch (parseError) {
+        console.error(`[spotify-auth] [${reqId}] JSON parse failed:`, parseError);
+        return new Response(JSON.stringify({ 
+          error: 'JSON parse failed', 
+          reqId,
+          parseError: parseError instanceof Error ? parseError.message : 'Unknown parse error',
+          bodyPreview: rawBody.substring(0, 200),
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
       
       const { code, redirect_uri, user_id } = body;
