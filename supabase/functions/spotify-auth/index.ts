@@ -17,6 +17,45 @@ function requireEnv(name: string, value: string | undefined): string {
   return value;
 }
 
+// Helper to create consistent error responses
+function errorResponse(error: string, details?: unknown, spotifyError?: unknown, status = 400): Response {
+  const body = {
+    error,
+    details: details ?? null,
+    spotify_error: spotifyError ?? null,
+    status,
+  };
+  console.error('[spotify-auth] Error response:', JSON.stringify(body));
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
+// Helper to handle Spotify API responses
+async function handleSpotifyResponse(response: Response, context: string): Promise<{ data: unknown; error: Response | null }> {
+  const rawText = await response.text();
+  console.log(`[spotify-auth] ${context} - Status: ${response.status}, Body: ${rawText}`);
+  
+  let parsed: unknown = null;
+  try {
+    parsed = JSON.parse(rawText);
+  } catch {
+    console.error(`[spotify-auth] ${context} - Failed to parse response as JSON`);
+  }
+  
+  if (!response.ok) {
+    const spotifyError = parsed && typeof parsed === 'object' ? parsed : { raw: rawText };
+    const errorMessage = (parsed as any)?.error_description || (parsed as any)?.error?.message || (parsed as any)?.error || `Spotify API error (${response.status})`;
+    return {
+      data: null,
+      error: errorResponse(errorMessage, { context, httpStatus: response.status }, spotifyError, response.status >= 500 ? 502 : 400),
+    };
+  }
+  
+  return { data: parsed, error: null };
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -28,18 +67,18 @@ serve(async (req) => {
     const action = url.searchParams.get('action');
     const hasAuthHeader = !!req.headers.get('authorization');
 
-    console.log(`Spotify auth action: ${action}`, { hasAuthHeader });
+    console.log(`[spotify-auth] Action: ${action}`, { hasAuthHeader, method: req.method });
 
     // Generate authorization URL
     if (action === 'authorize') {
       const redirectUri = url.searchParams.get('redirect_uri');
       if (!redirectUri) {
-        throw new Error('redirect_uri is required');
+        return errorResponse('redirect_uri is required', { action });
       }
 
       const clientId = requireEnv('SPOTIFY_CLIENT_ID', SPOTIFY_CLIENT_ID);
 
-      console.log('Authorize redirect_uri:', redirectUri);
+      console.log('[spotify-auth] Authorize redirect_uri:', redirectUri);
 
       const scopes = [
         'playlist-read-private',
@@ -62,19 +101,26 @@ serve(async (req) => {
 
     // Exchange code for tokens (called via POST with body containing code)
     if (action === 'callback' || (req.method === 'POST' && !action)) {
-      const { code, redirect_uri, user_id } = await req.json();
+      let body: { code?: string; redirect_uri?: string; user_id?: string };
+      try {
+        body = await req.json();
+      } catch {
+        return errorResponse('Invalid JSON body', { action });
+      }
+      
+      const { code, redirect_uri, user_id } = body;
       
       if (!code || !redirect_uri || !user_id) {
-        throw new Error('code, redirect_uri, and user_id are required');
+        return errorResponse('code, redirect_uri, and user_id are required', { code: !!code, redirect_uri: !!redirect_uri, user_id: !!user_id });
       }
 
       const clientId = requireEnv('SPOTIFY_CLIENT_ID', SPOTIFY_CLIENT_ID);
       const clientSecret = requireEnv('SPOTIFY_CLIENT_SECRET', SPOTIFY_CLIENT_SECRET);
 
-      console.log('Exchanging code for tokens...', {
+      console.log('[spotify-auth] Exchanging code for tokens...', {
         redirect_uri,
         user_id,
-        code_length: typeof code === 'string' ? code.length : 0,
+        code_length: code.length,
       });
 
       const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
@@ -90,19 +136,14 @@ serve(async (req) => {
         }),
       });
 
-      console.log('Spotify token exchange HTTP status:', tokenResponse.status);
+      const { data: tokenData, error: tokenError } = await handleSpotifyResponse(tokenResponse, 'Token Exchange');
+      if (tokenError) return tokenError;
 
-      const tokenData = await tokenResponse.json();
-
-      if (!tokenResponse.ok || tokenData.error) {
-        console.error('Spotify token error:', { status: tokenResponse.status, tokenData });
-        throw new Error(tokenData.error_description || tokenData.error || `Token exchange failed (${tokenResponse.status})`);
-      }
-
-      console.log('Token exchange successful');
+      const tokens = tokenData as { access_token: string; refresh_token: string; expires_in: number };
+      console.log('[spotify-auth] Token exchange successful');
 
       // Calculate token expiration time
-      const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
+      const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
 
       // Store tokens in database using service role
       const supabase = createClient(
@@ -114,14 +155,14 @@ serve(async (req) => {
         .from('spotify_settings')
         .upsert({
           user_id,
-          access_token: tokenData.access_token,
-          refresh_token: tokenData.refresh_token,
+          access_token: tokens.access_token,
+          refresh_token: tokens.refresh_token,
           token_expires_at: expiresAt,
         }, { onConflict: 'user_id' });
 
       if (upsertError) {
-        console.error('Database upsert error:', upsertError);
-        throw upsertError;
+        console.error('[spotify-auth] Database upsert error:', upsertError);
+        return errorResponse('Failed to save Spotify tokens', { supabaseError: upsertError.message }, null, 500);
       }
 
       return new Response(JSON.stringify({ success: true }), {
@@ -133,7 +174,7 @@ serve(async (req) => {
     if (action === 'refresh') {
       const authHeader = req.headers.get('Authorization');
       if (!authHeader) {
-        throw new Error('Authorization header required');
+        return errorResponse('Authorization header required', { action });
       }
 
       const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
@@ -147,7 +188,7 @@ serve(async (req) => {
       
       const { data: { user }, error: userError } = await anonSupabase.auth.getUser();
       if (userError || !user) {
-        throw new Error('Unauthorized');
+        return errorResponse('Unauthorized', { userError: userError?.message }, null, 401);
       }
 
       // Get refresh token from database
@@ -158,10 +199,10 @@ serve(async (req) => {
         .maybeSingle();
 
       if (settingsError || !settings?.refresh_token) {
-        throw new Error('No refresh token found');
+        return errorResponse('No refresh token found', { settingsError: settingsError?.message, userId: user.id });
       }
 
-      console.log('Refreshing Spotify token...');
+      console.log('[spotify-auth] Refreshing Spotify token...');
 
       const clientId = requireEnv('SPOTIFY_CLIENT_ID', SPOTIFY_CLIENT_ID);
       const clientSecret = requireEnv('SPOTIFY_CLIENT_SECRET', SPOTIFY_CLIENT_SECRET);
@@ -178,34 +219,29 @@ serve(async (req) => {
         }),
       });
 
-      console.log('Spotify token refresh HTTP status:', tokenResponse.status);
+      const { data: tokenData, error: tokenError } = await handleSpotifyResponse(tokenResponse, 'Token Refresh');
+      if (tokenError) return tokenError;
 
-      const tokenData = await tokenResponse.json();
-
-      if (!tokenResponse.ok || tokenData.error) {
-        console.error('Token refresh error:', { status: tokenResponse.status, tokenData });
-        throw new Error(tokenData.error_description || tokenData.error || `Token refresh failed (${tokenResponse.status})`);
-      }
-
-      const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
+      const tokens = tokenData as { access_token: string; expires_in: number; refresh_token?: string };
+      const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
 
       // Update tokens in database
       const { error: updateError } = await supabase
         .from('spotify_settings')
         .update({
-          access_token: tokenData.access_token,
+          access_token: tokens.access_token,
           token_expires_at: expiresAt,
-          ...(tokenData.refresh_token && { refresh_token: tokenData.refresh_token }),
+          ...(tokens.refresh_token && { refresh_token: tokens.refresh_token }),
         })
         .eq('user_id', user.id);
 
       if (updateError) {
-        console.error('Token update error:', updateError);
-        throw updateError;
+        console.error('[spotify-auth] Token update error:', updateError);
+        return errorResponse('Failed to update tokens', { supabaseError: updateError.message }, null, 500);
       }
 
       return new Response(JSON.stringify({ 
-        access_token: tokenData.access_token,
+        access_token: tokens.access_token,
         expires_at: expiresAt 
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -216,7 +252,7 @@ serve(async (req) => {
     if (action === 'disconnect') {
       const authHeader = req.headers.get('Authorization');
       if (!authHeader) {
-        throw new Error('Authorization header required');
+        return errorResponse('Authorization header required', { action });
       }
 
       const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
@@ -229,7 +265,7 @@ serve(async (req) => {
       
       const { data: { user }, error: userError } = await anonSupabase.auth.getUser();
       if (userError || !user) {
-        throw new Error('Unauthorized');
+        return errorResponse('Unauthorized', { userError: userError?.message }, null, 401);
       }
 
       const { error: deleteError } = await supabase
@@ -238,8 +274,8 @@ serve(async (req) => {
         .eq('user_id', user.id);
 
       if (deleteError) {
-        console.error('Delete error:', deleteError);
-        throw deleteError;
+        console.error('[spotify-auth] Delete error:', deleteError);
+        return errorResponse('Failed to disconnect Spotify', { supabaseError: deleteError.message }, null, 500);
       }
 
       return new Response(JSON.stringify({ success: true }), {
@@ -247,16 +283,14 @@ serve(async (req) => {
       });
     }
 
-    throw new Error(`Unknown action: ${action || 'none'}. Valid actions: authorize, refresh, disconnect`);
+    return errorResponse(`Unknown action: ${action || 'none'}. Valid actions: authorize, refresh, disconnect`, { providedAction: action });
 
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const status = message.toLowerCase().includes('is not set') ? 500 : 400;
-
-    console.error('Spotify auth error:', error);
-    return new Response(JSON.stringify({ error: message }), {
-      status,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    const stack = error instanceof Error ? error.stack : undefined;
+    const isConfigError = message.toLowerCase().includes('is not set');
+    
+    console.error('[spotify-auth] Unhandled error:', { message, stack });
+    return errorResponse(message, { stack }, null, isConfigError ? 500 : 400);
   }
 });

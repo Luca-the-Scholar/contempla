@@ -9,6 +9,45 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
+// Helper to create consistent error responses
+function errorResponse(error: string, details?: unknown, spotifyError?: unknown, status = 400): Response {
+  const body = {
+    error,
+    details: details ?? null,
+    spotify_error: spotifyError ?? null,
+    status,
+  };
+  console.error('[spotify-playlists] Error response:', JSON.stringify(body));
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
+// Helper to handle Spotify API responses
+async function handleSpotifyResponse(response: Response, context: string): Promise<{ data: unknown; error: Response | null }> {
+  const rawText = await response.text();
+  console.log(`[spotify-playlists] ${context} - Status: ${response.status}, Body: ${rawText.substring(0, 500)}${rawText.length > 500 ? '...' : ''}`);
+  
+  let parsed: unknown = null;
+  try {
+    parsed = JSON.parse(rawText);
+  } catch {
+    console.error(`[spotify-playlists] ${context} - Failed to parse response as JSON`);
+  }
+  
+  if (!response.ok) {
+    const spotifyError = parsed && typeof parsed === 'object' ? parsed : { raw: rawText };
+    const errorMessage = (parsed as any)?.error?.message || (parsed as any)?.error || `Spotify API error (${response.status})`;
+    return {
+      data: null,
+      error: errorResponse(errorMessage, { context, httpStatus: response.status }, spotifyError, response.status >= 500 ? 502 : 400),
+    };
+  }
+  
+  return { data: parsed, error: null };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -17,7 +56,7 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error('Authorization header required');
+      return errorResponse('Authorization header required', { context: 'auth_check' });
     }
 
     // Get user from JWT
@@ -29,7 +68,7 @@ serve(async (req) => {
     
     const { data: { user }, error: userError } = await anonSupabase.auth.getUser();
     if (userError || !user) {
-      throw new Error('Unauthorized');
+      return errorResponse('Unauthorized', { userError: userError?.message }, null, 401);
     }
 
     // Get access token from database
@@ -42,15 +81,15 @@ serve(async (req) => {
       .maybeSingle();
 
     if (settingsError || !settings?.access_token) {
-      throw new Error('Spotify not connected');
+      return errorResponse('Spotify not connected', { settingsError: settingsError?.message, userId: user.id });
     }
 
     // Check if token is expired
     if (new Date(settings.token_expires_at) < new Date()) {
-      throw new Error('Token expired - refresh required');
+      return errorResponse('Token expired - refresh required', { expiresAt: settings.token_expires_at });
     }
 
-    console.log('Fetching Spotify playlists...');
+    console.log('[spotify-playlists] Fetching Spotify playlists...');
 
     // Fetch user's playlists from Spotify
     const playlistsResponse = await fetch('https://api.spotify.com/v1/me/playlists?limit=50', {
@@ -59,22 +98,18 @@ serve(async (req) => {
       },
     });
 
-    if (!playlistsResponse.ok) {
-      const errorData = await playlistsResponse.json();
-      console.error('Spotify API error:', errorData);
-      throw new Error(errorData.error?.message || 'Failed to fetch playlists');
-    }
+    const { data: playlistsData, error: playlistsError } = await handleSpotifyResponse(playlistsResponse, 'Fetch Playlists');
+    if (playlistsError) return playlistsError;
 
-    const playlistsData = await playlistsResponse.json();
-
-    const playlists = playlistsData.items.map((p: any) => ({
+    const items = (playlistsData as any)?.items || [];
+    const playlists = items.map((p: any) => ({
       id: p.id,
       name: p.name,
       image: p.images?.[0]?.url || null,
       tracks_total: p.tracks?.total || 0,
     }));
 
-    console.log(`Found ${playlists.length} playlists`);
+    console.log(`[spotify-playlists] Found ${playlists.length} playlists`);
 
     return new Response(JSON.stringify({ playlists }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -82,10 +117,9 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Spotify playlists error:', error);
-    return new Response(JSON.stringify({ error: message }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    const stack = error instanceof Error ? error.stack : undefined;
+    
+    console.error('[spotify-playlists] Unhandled error:', { message, stack });
+    return errorResponse(message, { stack }, null, 500);
   }
 });
