@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
+import { App } from "@capacitor/app";
 
 // Production URL for OAuth redirects - this is the deployed app URL
 const PRODUCTION_URL = "https://contempla.app";
@@ -16,29 +17,61 @@ export function OAuthButtons() {
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
-    // On iOS, when we return from the browser, check for session
+    let checkingSession = false;
+
+    // Check session and trigger auth state update
     const checkSessionOnResume = async () => {
-      console.log('[OAuth] App resumed, checking for session...');
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        console.log('[OAuth] Session found after resume:', session.user?.id);
+      if (checkingSession) return;
+      checkingSession = true;
+      
+      console.log('[OAuth] Checking session on app resume...');
+      try {
+        // Force refresh session from server to pick up OAuth tokens
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('[OAuth] Error getting session:', error);
+        } else if (session) {
+          console.log('[OAuth] Session found after OAuth:', session.user?.id);
+          setLoading(false);
+          // Session exists - the Auth page's onAuthStateChange will handle navigation
+          // But we also need to trigger a refresh to ensure the state updates
+          await supabase.auth.refreshSession();
+        } else {
+          console.log('[OAuth] No session found after resume');
+        }
+      } catch (err) {
+        console.error('[OAuth] Exception checking session:', err);
+      } finally {
+        checkingSession = false;
         setLoading(false);
-        // The Auth page's onAuthStateChange will handle navigation
       }
     };
 
     // Listen for browser closed event (iOS returns control to app)
     const handleBrowserFinished = () => {
-      console.log('[OAuth] Browser finished, checking session');
-      setTimeout(checkSessionOnResume, 500); // Small delay to let tokens propagate
+      console.log('[OAuth] Browser finished event');
+      // Delay slightly to allow any pending auth to complete
+      setTimeout(checkSessionOnResume, 500);
+    };
+
+    // Also listen for app resume (covers more cases)
+    const handleAppStateChange = (state: { isActive: boolean }) => {
+      console.log('[OAuth] App state changed:', state);
+      if (state.isActive && loading) {
+        // App became active while we were waiting for OAuth
+        setTimeout(checkSessionOnResume, 500);
+      }
     };
 
     Browser.addListener('browserFinished', handleBrowserFinished);
+    App.addListener('appStateChange', handleAppStateChange);
 
     return () => {
       Browser.removeAllListeners();
+      App.removeAllListeners();
     };
-  }, []);
+  }, [loading]);
 
   const handleGoogleOAuth = async () => {
     setLoading(true);
@@ -88,7 +121,7 @@ export function OAuthButtons() {
       if (isNative) {
         // On iOS/Android, open in system browser
         // After OAuth completes, user will be redirected to production URL
-        // They can then tap "Open in App" or we detect session on resume
+        // We'll detect session on app resume
         console.log('[OAuth] Opening in system browser for native platform');
         await Browser.open({ 
           url: data.url,

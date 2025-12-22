@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Compass } from "lucide-react";
 import { z } from "zod";
 import { OAuthButtons } from "@/components/auth/OAuthButtons";
 import { HandlePromptDialog } from "@/components/auth/HandlePromptDialog";
+import { Session, User } from "@supabase/supabase-js";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -27,6 +28,7 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [errors, setErrors] = useState<{ email?: string; password?: string; displayName?: string }>({});
   const [showHandlePrompt, setShowHandlePrompt] = useState(false);
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
@@ -34,9 +36,8 @@ export default function Auth() {
   const { toast } = useToast();
 
   // Ensure user profile exists - creates one if missing (for OAuth users where trigger may have failed)
-  const ensureProfileExists = async (userId: string, userMetadata: Record<string, any> | undefined) => {
+  const ensureProfileExists = useCallback(async (userId: string, userMetadata: Record<string, any> | undefined) => {
     console.log('[Auth] Ensuring profile exists for user:', userId);
-    console.log('[Auth] User metadata:', userMetadata);
     
     // Check if profile exists
     const { data: existingProfile, error: fetchError } = await supabase
@@ -55,15 +56,13 @@ export default function Auth() {
     }
 
     // Profile doesn't exist - create it
-    // Google OAuth provides: full_name, name, email, avatar_url, etc.
-    // Email/password signup provides: name (set by us)
-    const displayName = userMetadata?.full_name || userMetadata?.name || userMetadata?.email?.split('@')[0] || 'User';
+    const name = userMetadata?.full_name || userMetadata?.name || userMetadata?.email?.split('@')[0] || 'User';
     
-    console.log('[Auth] Creating new profile with name:', displayName);
+    console.log('[Auth] Creating new profile with name:', name);
     
     const { data: newProfile, error: insertError } = await supabase
       .from("profiles")
-      .insert({ id: userId, name: displayName })
+      .insert({ id: userId, name })
       .select("id, handle, name")
       .single();
 
@@ -85,67 +84,90 @@ export default function Auth() {
 
     console.log('[Auth] Created new profile:', newProfile);
     return newProfile;
-  };
+  }, []);
 
-  // Check for OAuth callback and handle missing handles
+  // Handle authenticated user - check profile and navigate
+  const handleAuthenticatedUser = useCallback(async (user: User) => {
+    console.log('[Auth] Handling authenticated user:', user.id);
+    
+    const profile = await ensureProfileExists(user.id, user.user_metadata);
+
+    if (!profile?.handle) {
+      console.log('[Auth] User has no handle, showing prompt');
+      setPendingUserId(user.id);
+      setShowHandlePrompt(true);
+    } else {
+      console.log('[Auth] User has handle, navigating to home');
+      navigate("/", { replace: true });
+    }
+  }, [ensureProfileExists, navigate]);
+
+  // Check for existing session and set up auth listener
   useEffect(() => {
-    const checkSession = async () => {
-      console.log('[Auth] Checking session on mount...');
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.error('[Auth] Error getting session:', sessionError);
-        return;
-      }
+    let mounted = true;
 
-      if (session?.user) {
-        console.log('[Auth] Found existing session for user:', session.user.id);
-        console.log('[Auth] User provider:', session.user.app_metadata?.provider);
-        
-        // Ensure profile exists
-        const profile = await ensureProfileExists(session.user.id, session.user.user_metadata);
-
-        if (!profile?.handle) {
-          console.log('[Auth] User has no handle, showing prompt');
-          setPendingUserId(session.user.id);
-          setShowHandlePrompt(true);
-        } else {
-          console.log('[Auth] User has handle, navigating to home');
-          navigate("/");
-        }
-      } else {
-        console.log('[Auth] No session found');
-      }
-    };
-
-    checkSession();
-
+    // Set up auth state listener FIRST (synchronous callback - no async!)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         console.log('[Auth] Auth state changed:', event, session?.user?.id);
         
-        if (event === "SIGNED_IN" && session?.user) {
-          console.log('[Auth] User signed in:', session.user.id);
-          console.log('[Auth] Provider:', session.user.app_metadata?.provider);
-          console.log('[Auth] User metadata:', session.user.user_metadata);
-          
-          // Ensure profile exists
-          const profile = await ensureProfileExists(session.user.id, session.user.user_metadata);
-
-          if (!profile?.handle) {
-            console.log('[Auth] User has no handle after sign in, showing prompt');
-            setPendingUserId(session.user.id);
-            setShowHandlePrompt(true);
-          } else {
-            console.log('[Auth] User has handle, navigating to home');
-            navigate("/");
-          }
+        // Handle sign in events - defer async work with setTimeout to avoid deadlock
+        if (event === "SIGNED_IN" && session?.user && mounted) {
+          console.log('[Auth] SIGNED_IN event detected');
+          // Use setTimeout to break out of the callback and avoid Supabase deadlock
+          setTimeout(() => {
+            if (mounted) {
+              handleAuthenticatedUser(session.user);
+            }
+          }, 0);
+        }
+        
+        // Also handle INITIAL_SESSION for OAuth redirects
+        if (event === "INITIAL_SESSION" && session?.user && mounted) {
+          console.log('[Auth] INITIAL_SESSION with user detected');
+          setTimeout(() => {
+            if (mounted) {
+              handleAuthenticatedUser(session.user);
+            }
+          }, 0);
         }
       }
     );
 
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+    // THEN check for existing session
+    const checkInitialSession = async () => {
+      console.log('[Auth] Checking initial session...');
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('[Auth] Error getting session:', error);
+          setCheckingSession(false);
+          return;
+        }
+
+        if (session?.user && mounted) {
+          console.log('[Auth] Found existing session for user:', session.user.id);
+          await handleAuthenticatedUser(session.user);
+        } else {
+          console.log('[Auth] No existing session');
+        }
+      } catch (err) {
+        console.error('[Auth] Exception checking session:', err);
+      } finally {
+        if (mounted) {
+          setCheckingSession(false);
+        }
+      }
+    };
+
+    checkInitialSession();
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [handleAuthenticatedUser]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,7 +211,7 @@ export default function Auth() {
         });
         if (error) throw error;
         toast({ title: "Welcome back!" });
-        navigate("/");
+        // Navigation handled by onAuthStateChange
       } else {
         const { error } = await supabase.auth.signUp({
           email,
@@ -203,7 +225,7 @@ export default function Auth() {
         });
         if (error) throw error;
         toast({ title: "Account created! Welcome to your practice." });
-        navigate("/");
+        // Navigation handled by onAuthStateChange
       }
     } catch (error: any) {
       toast({
@@ -211,10 +233,20 @@ export default function Auth() {
         description: error.message,
         variant: "destructive",
       });
-    } finally {
       setLoading(false);
     }
   };
+
+  // Show loading state while checking session
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow-md animate-pulse">
+          <Compass className="w-8 h-8 text-white" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
@@ -341,7 +373,7 @@ export default function Auth() {
           onComplete={() => {
             setShowHandlePrompt(false);
             setPendingUserId(null);
-            navigate("/");
+            navigate("/", { replace: true });
           }}
         />
       )}
