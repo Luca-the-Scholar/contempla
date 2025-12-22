@@ -10,6 +10,12 @@ const SPOTIFY_CLIENT_ID = Deno.env.get('SPOTIFY_CLIENT_ID');
 const SPOTIFY_CLIENT_SECRET = Deno.env.get('SPOTIFY_CLIENT_SECRET');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
+
+function requireEnv(name: string, value: string | undefined): string {
+  if (!value) throw new Error(`${name} is not set`);
+  return value;
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -20,8 +26,9 @@ serve(async (req) => {
   try {
     const url = new URL(req.url);
     const action = url.searchParams.get('action');
+    const hasAuthHeader = !!req.headers.get('authorization');
 
-    console.log(`Spotify auth action: ${action}`);
+    console.log(`Spotify auth action: ${action}`, { hasAuthHeader });
 
     // Generate authorization URL
     if (action === 'authorize') {
@@ -29,6 +36,10 @@ serve(async (req) => {
       if (!redirectUri) {
         throw new Error('redirect_uri is required');
       }
+
+      const clientId = requireEnv('SPOTIFY_CLIENT_ID', SPOTIFY_CLIENT_ID);
+
+      console.log('Authorize redirect_uri:', redirectUri);
 
       const scopes = [
         'playlist-read-private',
@@ -38,7 +49,7 @@ serve(async (req) => {
       ].join(' ');
 
       const authUrl = new URL('https://accounts.spotify.com/authorize');
-      authUrl.searchParams.set('client_id', SPOTIFY_CLIENT_ID!);
+      authUrl.searchParams.set('client_id', clientId);
       authUrl.searchParams.set('response_type', 'code');
       authUrl.searchParams.set('redirect_uri', redirectUri);
       authUrl.searchParams.set('scope', scopes);
@@ -57,13 +68,20 @@ serve(async (req) => {
         throw new Error('code, redirect_uri, and user_id are required');
       }
 
-      console.log('Exchanging code for tokens...');
+      const clientId = requireEnv('SPOTIFY_CLIENT_ID', SPOTIFY_CLIENT_ID);
+      const clientSecret = requireEnv('SPOTIFY_CLIENT_SECRET', SPOTIFY_CLIENT_SECRET);
+
+      console.log('Exchanging code for tokens...', {
+        redirect_uri,
+        user_id,
+        code_length: typeof code === 'string' ? code.length : 0,
+      });
 
       const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': `Basic ${btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`)}`,
+          'Authorization': `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
         },
         body: new URLSearchParams({
           grant_type: 'authorization_code',
@@ -72,11 +90,13 @@ serve(async (req) => {
         }),
       });
 
+      console.log('Spotify token exchange HTTP status:', tokenResponse.status);
+
       const tokenData = await tokenResponse.json();
 
-      if (tokenData.error) {
-        console.error('Spotify token error:', tokenData);
-        throw new Error(tokenData.error_description || tokenData.error);
+      if (!tokenResponse.ok || tokenData.error) {
+        console.error('Spotify token error:', { status: tokenResponse.status, tokenData });
+        throw new Error(tokenData.error_description || tokenData.error || `Token exchange failed (${tokenResponse.status})`);
       }
 
       console.log('Token exchange successful');
@@ -85,7 +105,10 @@ serve(async (req) => {
       const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
 
       // Store tokens in database using service role
-      const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+      const supabase = createClient(
+        requireEnv('SUPABASE_URL', SUPABASE_URL),
+        requireEnv('SUPABASE_SERVICE_ROLE_KEY', SUPABASE_SERVICE_ROLE_KEY),
+      );
 
       const { error: upsertError } = await supabase
         .from('spotify_settings')
@@ -117,8 +140,8 @@ serve(async (req) => {
       
       // Get user from JWT
       const anonSupabase = createClient(
-        SUPABASE_URL!,
-        Deno.env.get('SUPABASE_ANON_KEY')!,
+        requireEnv('SUPABASE_URL', SUPABASE_URL),
+        requireEnv('SUPABASE_ANON_KEY', SUPABASE_ANON_KEY),
         { global: { headers: { Authorization: authHeader } } }
       );
       
@@ -140,11 +163,14 @@ serve(async (req) => {
 
       console.log('Refreshing Spotify token...');
 
+      const clientId = requireEnv('SPOTIFY_CLIENT_ID', SPOTIFY_CLIENT_ID);
+      const clientSecret = requireEnv('SPOTIFY_CLIENT_SECRET', SPOTIFY_CLIENT_SECRET);
+
       const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': `Basic ${btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`)}`,
+          'Authorization': `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
         },
         body: new URLSearchParams({
           grant_type: 'refresh_token',
@@ -152,11 +178,13 @@ serve(async (req) => {
         }),
       });
 
+      console.log('Spotify token refresh HTTP status:', tokenResponse.status);
+
       const tokenData = await tokenResponse.json();
 
-      if (tokenData.error) {
-        console.error('Token refresh error:', tokenData);
-        throw new Error(tokenData.error_description || tokenData.error);
+      if (!tokenResponse.ok || tokenData.error) {
+        console.error('Token refresh error:', { status: tokenResponse.status, tokenData });
+        throw new Error(tokenData.error_description || tokenData.error || `Token refresh failed (${tokenResponse.status})`);
       }
 
       const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
@@ -194,8 +222,8 @@ serve(async (req) => {
       const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
       
       const anonSupabase = createClient(
-        SUPABASE_URL!,
-        Deno.env.get('SUPABASE_ANON_KEY')!,
+        requireEnv('SUPABASE_URL', SUPABASE_URL),
+        requireEnv('SUPABASE_ANON_KEY', SUPABASE_ANON_KEY),
         { global: { headers: { Authorization: authHeader } } }
       );
       
@@ -223,9 +251,11 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
+    const status = message.toLowerCase().includes('is not set') ? 500 : 400;
+
     console.error('Spotify auth error:', error);
     return new Response(JSON.stringify({ error: message }), {
-      status: 400,
+      status,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
