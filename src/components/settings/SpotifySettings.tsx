@@ -34,9 +34,13 @@ export function SpotifySettings() {
 
   const isConnected = !!settings?.access_token;
 
-  const getEdgeFunctionErrorDetails = async (err: any): Promise<string | null> => {
+  const getEdgeFunctionErrorDetails = async (err: any): Promise<{ message: string; reqId?: string }> => {
     const ctx = err?.context as Response | undefined;
-    if (!ctx || typeof ctx.status !== 'number') return null;
+    let reqId: string | undefined;
+    
+    if (!ctx || typeof ctx.status !== 'number') {
+      return { message: err?.message || 'Unknown error' };
+    }
 
     const status = ctx.status;
     let bodyText = '';
@@ -50,14 +54,15 @@ export function SpotifySettings() {
     if (bodyText) {
       try {
         const parsed = JSON.parse(bodyText);
+        reqId = parsed?.reqId;
         const msg = parsed?.error || parsed?.message || bodyText;
-        return `HTTP ${status}: ${msg}`;
+        return { message: `HTTP ${status}: ${msg}`, reqId };
       } catch {
-        return `HTTP ${status}: ${bodyText}`;
+        return { message: `HTTP ${status}: ${bodyText}`, reqId };
       }
     }
 
-    return `HTTP ${status}`;
+    return { message: `HTTP ${status}`, reqId };
   };
 
   useEffect(() => {
@@ -166,11 +171,11 @@ export function SpotifySettings() {
       toast({ title: "Spotify connected!" });
       await loadSettings();
     } catch (error: any) {
-      const details = await getEdgeFunctionErrorDetails(error);
-      console.error('[Spotify] OAuth callback error:', error, { details });
+      const { message: details, reqId } = await getEdgeFunctionErrorDetails(error);
+      console.error('[Spotify] OAuth callback error:', { error: error.message, details, reqId });
       toast({
         title: "Failed to connect Spotify",
-        description: details || error.message,
+        description: reqId ? `${details} (ref: ${reqId.slice(0, 8)})` : details,
         variant: "destructive",
       });
     } finally {
@@ -223,11 +228,11 @@ export function SpotifySettings() {
         window.location.href = data.url;
       }
     } catch (error: any) {
-      const details = await getEdgeFunctionErrorDetails(error);
-      console.error('[Spotify] Connect error:', error, { details });
+      const { message: details, reqId } = await getEdgeFunctionErrorDetails(error);
+      console.error('[Spotify] Connect error:', { error: error.message, details, reqId });
       toast({
         title: "Failed to connect",
-        description: details || error.message,
+        description: reqId ? `${details} (ref: ${reqId.slice(0, 8)})` : details,
         variant: "destructive",
       });
       setConnecting(false);
