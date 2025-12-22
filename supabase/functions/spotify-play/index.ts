@@ -55,6 +55,28 @@ async function handleSpotifyResponse(response: Response, context: string): Promi
 }
 
 serve(async (req) => {
+  // ========== DIAGNOSTIC LOGGING ==========
+  const reqId = crypto.randomUUID();
+  const method = req.method;
+  const contentType = req.headers.get('content-type');
+  
+  let rawBody = '';
+  if (method !== 'GET' && method !== 'OPTIONS') {
+    try {
+      rawBody = await req.text();
+    } catch (e) {
+      console.error(`[spotify-play] [${reqId}] Failed to read body:`, e);
+    }
+  }
+  
+  console.log(`[spotify-play] [${reqId}] DIAGNOSTIC:`, {
+    method,
+    contentType,
+    bodyLength: rawBody.length,
+    bodyPreview: rawBody.substring(0, 500),
+  });
+  // ========================================
+
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -62,20 +84,25 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return errorResponse('Authorization header required', { context: 'auth_check' });
+      return errorResponse('Authorization header required', { context: 'auth_check', reqId });
     }
 
-    let body: { playlist_id?: string };
-    try {
-      body = await req.json();
-    } catch {
-      return errorResponse('Invalid JSON body', { context: 'parse_body' });
+    // Parse body from rawBody (never use req.json())
+    let body: { playlist_id?: string; action?: string } = {};
+    if (rawBody && rawBody.trim()) {
+      try {
+        body = JSON.parse(rawBody);
+      } catch {
+        return errorResponse('Invalid JSON body', { context: 'parse_body', reqId, bodyPreview: rawBody.substring(0, 200) });
+      }
     }
+    
+    console.log(`[spotify-play] [${reqId}] Parsed body:`, JSON.stringify(body));
     
     const { playlist_id } = body;
     
     if (!playlist_id) {
-      return errorResponse('playlist_id is required', { providedBody: body });
+      return errorResponse('playlist_id is required', { providedBody: body, reqId });
     }
 
     // Get user from JWT

@@ -87,14 +87,30 @@ serve(async (req) => {
 
   try {
     const url = new URL(req.url);
-    const action = url.searchParams.get('action');
+    // Support action from both query params (legacy) AND JSON body (new standard)
+    let action = url.searchParams.get('action');
+    let bodyData: Record<string, unknown> = {};
+    
+    // Parse body if available
+    if (rawBody && rawBody.trim()) {
+      try {
+        bodyData = JSON.parse(rawBody);
+        // If action is in body, use it (overrides query param)
+        if (bodyData.action && typeof bodyData.action === 'string') {
+          action = bodyData.action;
+        }
+      } catch {
+        // Body parse failed - will be handled by specific action handlers
+      }
+    }
+    
     const hasAuthHeader = !!req.headers.get('authorization');
-
-    console.log(`[spotify-auth] [${reqId}] Action: ${action}`, { hasAuthHeader, method: req.method });
+    console.log(`[spotify-auth] [${reqId}] Action: ${action}`, { hasAuthHeader, method: req.method, bodyKeys: Object.keys(bodyData) });
 
     // Generate authorization URL
     if (action === 'authorize') {
-      const redirectUri = url.searchParams.get('redirect_uri');
+      // Support redirect_uri from query param (legacy) or body (new)
+      const redirectUri = url.searchParams.get('redirect_uri') || (bodyData.redirect_uri as string);
       if (!redirectUri) {
         return errorResponse('redirect_uri is required', { action, reqId });
       }
@@ -123,7 +139,8 @@ serve(async (req) => {
     }
 
     // Exchange code for tokens (called via POST with body containing code)
-    if (action === 'callback' || (req.method === 'POST' && !action)) {
+    // Match if action=callback OR POST with no action but body has code
+    if (action === 'callback' || (req.method === 'POST' && !action && bodyData.code)) {
       // Handle empty body
       if (!rawBody || rawBody.trim() === '') {
         console.error(`[spotify-auth] [${reqId}] Empty body received`);
@@ -133,33 +150,24 @@ serve(async (req) => {
         });
       }
       
-      // Parse body manually
-      let body: { code?: string; redirect_uri?: string; user_id?: string };
-      try {
-        body = JSON.parse(rawBody);
-      } catch (parseError) {
-        console.error(`[spotify-auth] [${reqId}] JSON parse failed:`, parseError);
-        return new Response(JSON.stringify({ 
-          error: 'JSON parse failed', 
-          reqId,
-          parseError: parseError instanceof Error ? parseError.message : 'Unknown parse error',
-          bodyPreview: rawBody.substring(0, 200),
-        }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      
-      const { code, redirect_uri, user_id } = body;
+      // Use already parsed bodyData
+      const code = bodyData.code as string;
+      const redirect_uri = bodyData.redirect_uri as string;
+      const user_id = bodyData.user_id as string;
       
       if (!code || !redirect_uri || !user_id) {
-        return errorResponse('code, redirect_uri, and user_id are required', { code: !!code, redirect_uri: !!redirect_uri, user_id: !!user_id });
+        return errorResponse('code, redirect_uri, and user_id are required', { 
+          code: !!code, 
+          redirect_uri: !!redirect_uri, 
+          user_id: !!user_id,
+          reqId,
+        });
       }
 
       const clientId = requireEnv('SPOTIFY_CLIENT_ID', SPOTIFY_CLIENT_ID);
       const clientSecret = requireEnv('SPOTIFY_CLIENT_SECRET', SPOTIFY_CLIENT_SECRET);
 
-      console.log('[spotify-auth] Exchanging code for tokens...', {
+      console.log(`[spotify-auth] [${reqId}] Exchanging code for tokens...`, {
         redirect_uri,
         user_id,
         code_length: code.length,
