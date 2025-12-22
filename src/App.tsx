@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import { initDeepLinking, DEEP_LINK_ROUTES } from "./lib/deep-linking";
 import { requestNotificationPermission } from "./lib/notifications";
 import { Capacitor } from "@capacitor/core";
+import { SplashScreen } from "@capacitor/splash-screen";
 import { AppContainer } from "./components/layout/AppContainer";
 
 const queryClient = new QueryClient();
@@ -54,23 +55,35 @@ function DeepLinkHandler() {
   return null;
 }
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <DeepLinkHandler />
-        <AppContainer>
-          <Routes>
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/" element={<Index />} />
-            <Route path="*" element={<Auth />} />
-          </Routes>
-        </AppContainer>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  const splashHiddenRef = useRef(false);
+
+  useEffect(() => {
+    // Hide splash screen once after React app has mounted
+    if (!splashHiddenRef.current && Capacitor.isNativePlatform()) {
+      splashHiddenRef.current = true;
+      SplashScreen.hide();
+    }
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <DeepLinkHandler />
+          <AppContainer>
+            <Routes>
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/" element={<Index />} />
+              <Route path="*" element={<Auth />} />
+            </Routes>
+          </AppContainer>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
