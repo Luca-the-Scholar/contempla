@@ -194,6 +194,14 @@ async function handleSpotifyCallback(url: string): Promise<void> {
     // This is needed because we can't directly call React component methods from here
     sessionStorage.setItem('spotify_oauth_code', code);
     sessionStorage.setItem('spotify_oauth_from_deeplink', 'true');
+
+    // Also dispatch a runtime event so the Settings screen can handle the code
+    // even if it is already mounted (common on iOS when returning from the system browser).
+    try {
+      window.dispatchEvent(new CustomEvent('spotify-oauth-code', { detail: { code } }));
+    } catch (e) {
+      console.log('[DeepLink] Could not dispatch spotify-oauth-code event:', e);
+    }
     
     // Navigate to settings page where SpotifySettings will handle the code
     if (deepLinkHandler) {

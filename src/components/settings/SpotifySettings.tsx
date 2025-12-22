@@ -34,20 +34,60 @@ export function SpotifySettings() {
 
   const isConnected = !!settings?.access_token;
 
+  const getEdgeFunctionErrorDetails = async (err: any): Promise<string | null> => {
+    const ctx = err?.context as Response | undefined;
+    if (!ctx || typeof ctx.status !== 'number') return null;
+
+    const status = ctx.status;
+    let bodyText = '';
+
+    try {
+      bodyText = await ctx.text();
+    } catch {
+      // ignore
+    }
+
+    if (bodyText) {
+      try {
+        const parsed = JSON.parse(bodyText);
+        const msg = parsed?.error || parsed?.message || bodyText;
+        return `HTTP ${status}: ${msg}`;
+      } catch {
+        return `HTTP ${status}: ${bodyText}`;
+      }
+    }
+
+    return `HTTP ${status}`;
+  };
+
   useEffect(() => {
     loadSettings();
-    
+
+    const onSpotifyOauthCode = (event: Event) => {
+      const codeFromEvent = (event as CustomEvent<{ code?: string }>).detail?.code;
+      if (!codeFromEvent) return;
+
+      console.log('[Spotify] Received code from deep link event, processing...');
+
+      sessionStorage.removeItem('spotify_oauth_code');
+      sessionStorage.removeItem('spotify_oauth_from_deeplink');
+
+      handleOAuthCallback(codeFromEvent, true);
+    };
+
+    window.addEventListener('spotify-oauth-code', onSpotifyOauthCode as EventListener);
+
     // Handle OAuth callback from web (query param) or native deep link (sessionStorage)
     const urlParams = new URLSearchParams(window.location.search);
     const spotifyCode = urlParams.get('spotify_code') || urlParams.get('code');
     const isSpotifyCallback = urlParams.get('spotify_callback') === 'true';
-    
+
     // Check for code in sessionStorage (set by deep link handler on native)
     const deepLinkCode = sessionStorage.getItem('spotify_oauth_code');
     const isFromDeepLink = sessionStorage.getItem('spotify_oauth_from_deeplink') === 'true';
-    
+
     if (deepLinkCode && isFromDeepLink) {
-      console.log('[Spotify] Found code from deep link, processing...');
+      console.log('[Spotify] Found code from deep link storage, processing...');
       // Clear the stored values
       sessionStorage.removeItem('spotify_oauth_code');
       sessionStorage.removeItem('spotify_oauth_from_deeplink');
@@ -61,6 +101,10 @@ export function SpotifySettings() {
       // Callback came but no code - might be an error or the code is coming
       console.log('[Spotify] Spotify callback detected but no code yet');
     }
+
+    return () => {
+      window.removeEventListener('spotify-oauth-code', onSpotifyOauthCode as EventListener);
+    };
   }, []);
 
   useEffect(() => {
@@ -115,10 +159,11 @@ export function SpotifySettings() {
       toast({ title: "Spotify connected!" });
       await loadSettings();
     } catch (error: any) {
-      console.error('[Spotify] OAuth callback error:', error);
+      const details = await getEdgeFunctionErrorDetails(error);
+      console.error('[Spotify] OAuth callback error:', error, { details });
       toast({
         title: "Failed to connect Spotify",
-        description: error.message,
+        description: details || error.message,
         variant: "destructive",
       });
     } finally {
@@ -162,10 +207,11 @@ export function SpotifySettings() {
         window.location.href = data.url;
       }
     } catch (error: any) {
-      console.error('[Spotify] Connect error:', error);
+      const details = await getEdgeFunctionErrorDetails(error);
+      console.error('[Spotify] Connect error:', error, { details });
       toast({
         title: "Failed to connect",
-        description: error.message,
+        description: details || error.message,
         variant: "destructive",
       });
       setConnecting(false);
