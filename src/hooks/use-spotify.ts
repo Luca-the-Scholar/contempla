@@ -37,7 +37,7 @@ export async function isSpotifyAutoplayEnabled(): Promise<boolean> {
  * - Calls the spotify-play edge function to start playback
  * - Returns success: false (without throwing) if anything fails
  */
-export async function startSpotifyPlayback(): Promise<{ success: boolean; error?: string }> {
+export async function startSpotifyPlayback(): Promise<{ success: boolean; error?: string; reqId?: string }> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false };
@@ -70,18 +70,31 @@ export async function startSpotifyPlayback(): Promise<{ success: boolean; error?
     });
 
     if (error) {
-      console.error('Spotify play error:', error);
-      return { success: false, error: error.message };
+      // Try to extract reqId from error context
+      let reqId: string | undefined;
+      try {
+        const ctx = (error as any)?.context as Response | undefined;
+        if (ctx) {
+          const text = await ctx.text();
+          const parsed = JSON.parse(text);
+          reqId = parsed?.reqId;
+        }
+      } catch {
+        // ignore
+      }
+      console.error('[Spotify] Play error:', { error: error.message, reqId });
+      return { success: false, error: error.message, reqId };
     }
 
     if (data?.error) {
-      console.error('Spotify play error:', data.error);
-      return { success: false, error: data.error };
+      const reqId = data?.reqId;
+      console.error('[Spotify] Play error:', { error: data.error, reqId });
+      return { success: false, error: data.error, reqId };
     }
 
     return { success: true };
   } catch (error: any) {
-    console.error('Spotify playback error:', error);
+    console.error('[Spotify] Playback error:', error);
     return { success: false, error: error.message };
   }
 }
