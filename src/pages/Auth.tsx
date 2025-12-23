@@ -9,6 +9,7 @@ import { Compass } from "lucide-react";
 import { z } from "zod";
 import { OAuthButtons } from "@/components/auth/OAuthButtons";
 import { HandlePromptDialog } from "@/components/auth/HandlePromptDialog";
+import { AuthDebugPanel } from "@/components/auth/AuthDebugPanel";
 import { Session, User } from "@supabase/supabase-js";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
@@ -35,6 +36,16 @@ export default function Auth() {
   const [errors, setErrors] = useState<{ email?: string; password?: string; displayName?: string }>({});
   const [showHandlePrompt, setShowHandlePrompt] = useState(false);
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
+
+  // Visual debug overlay state (kept separate from auth logic)
+  const [debugHref, setDebugHref] = useState(() => window.location.href);
+  const [debugHash, setDebugHash] = useState(() => window.location.hash);
+  const [debugHasAccessToken, setDebugHasAccessToken] = useState(() => window.location.hash.includes("access_token"));
+  const [debugSession, setDebugSession] = useState<Session | null>(null);
+  const [debugIsNative] = useState(() => Capacitor.isNativePlatform());
+  const [debugLastCheckedAt, setDebugLastCheckedAt] = useState(() => new Date().toISOString());
+  const [debugLastError, setDebugLastError] = useState<string | null>(null);
+
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -419,7 +430,18 @@ export default function Auth() {
   // Show loading state while checking session
   if (checkingSession) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6">
+      <div className="min-h-screen pt-28 flex flex-col items-center justify-center gap-6">
+        <AuthDebugPanel
+          href={debugHref}
+          hash={debugHash}
+          hasAccessToken={debugHasAccessToken}
+          isLoggedIn={!!debugSession?.user}
+          userEmail={debugSession?.user?.email ?? null}
+          isNative={debugIsNative}
+          lastCheckedAt={debugLastCheckedAt}
+          lastError={debugLastError}
+        />
+
         <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow-md animate-pulse">
           <Compass className="w-8 h-8 text-white" />
         </div>
