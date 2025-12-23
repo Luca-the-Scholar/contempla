@@ -183,7 +183,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'No active Spotify device found. Please open Spotify on a device first.',
+          error: 'Spotify app opened but device not ready yet. Please tap Play in Spotify once, then try again.',
           code: 'NO_ACTIVE_DEVICE',
           devices: [],
           reqId,
@@ -238,7 +238,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'Spotify is open but not ready for remote playback yet. Open Spotify and press Play once, then try again.',
+          error: 'Spotify app opened but device not ready yet. Please tap Play in Spotify once, then try again.',
           code: 'NO_ACTIVE_DEVICE',
           devices,
           reqId,

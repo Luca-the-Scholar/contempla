@@ -103,6 +103,19 @@ export async function startSpotifyPlayback(): Promise<{ success: boolean; error?
       return { success: false };
     }
 
+    // CRITICAL FIX: Open Spotify app first to activate the device
+    // Spotify's Web API only recognizes devices that are actively playing music,
+    // not devices that just have the app open. This workaround forces Spotify to
+    // register as a Connect device by deep-linking to it first.
+    const isNative = (await import('@capacitor/core')).Capacitor.isNativePlatform();
+    if (isNative) {
+      console.log('[Spotify] Opening Spotify app to activate device...');
+      await openSpotifyApp(settings.selected_playlist_id);
+      
+      // Give Spotify a moment to register the device (500ms is usually enough)
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
     // Standardized payload for play action
     const payload = {
       action: 'play',
