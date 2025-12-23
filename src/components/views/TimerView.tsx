@@ -17,7 +17,7 @@ import { incrementSessionAndCheckReview } from "@/lib/app-review";
 import { shareSession, canShare } from "@/lib/native-share";
 import { scheduleTimerNotification, cancelTimerNotification } from "@/lib/notifications";
 import { formatDateForStorage } from "@/lib/date-utils";
-import { startSpotifyPlayback } from "@/hooks/use-spotify";
+import { startSpotifyPlayback, stopSpotifyPlayback } from "@/hooks/use-spotify";
 
 interface Technique {
   id: string;
@@ -220,6 +220,9 @@ export function TimerView() {
     stopSound();
     noSleep.disable();
     
+    // Stop Spotify playback
+    stopSpotifyPlayback();
+    
     // Ask if they want to save
     setElapsedSeconds(elapsed);
     setShowPartialSaveDialog(true);
@@ -256,6 +259,13 @@ export function TimerView() {
       await cancelTimerNotification(notificationId);
       setNotificationId(null);
     }
+
+    // Stop Spotify playback if it was started
+    stopSpotifyPlayback().then(result => {
+      if (result.success) {
+        console.log('Spotify playback stopped');
+      }
+    });
 
     try {
       await logSession(initialDuration);
