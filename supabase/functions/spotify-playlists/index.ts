@@ -111,27 +111,43 @@ serve(async (req) => {
       return errorResponse('Token expired - refresh required', { expiresAt: settings.token_expires_at });
     }
 
-    console.log('[spotify-playlists] Fetching Spotify playlists...');
+    console.log('[spotify-playlists] Fetching ALL Spotify playlists with pagination...');
 
-    // Fetch user's playlists from Spotify
-    const playlistsResponse = await fetch('https://api.spotify.com/v1/me/playlists?limit=50', {
-      headers: {
-        'Authorization': `Bearer ${settings.access_token}`,
-      },
-    });
+    // Fetch ALL playlists with pagination
+    const allItems: any[] = [];
+    let nextUrl: string | null = 'https://api.spotify.com/v1/me/playlists?limit=50';
+    let pageCount = 0;
 
-    const { data: playlistsData, error: playlistsError } = await handleSpotifyResponse(playlistsResponse, 'Fetch Playlists');
-    if (playlistsError) return playlistsError;
+    while (nextUrl) {
+      pageCount++;
+      console.log(`[spotify-playlists] Fetching page ${pageCount}: ${nextUrl}`);
+      
+      const playlistsResponse = await fetch(nextUrl, {
+        headers: {
+          'Authorization': `Bearer ${settings.access_token}`,
+        },
+      });
 
-    const items = (playlistsData as any)?.items || [];
-    const playlists = items.map((p: any) => ({
+      const { data: playlistsData, error: playlistsError } = await handleSpotifyResponse(playlistsResponse, `Fetch Playlists Page ${pageCount}`);
+      if (playlistsError) return playlistsError;
+
+      const items = (playlistsData as any)?.items || [];
+      allItems.push(...items);
+      
+      // Get next page URL (null when no more pages)
+      nextUrl = (playlistsData as any)?.next || null;
+    }
+
+    // Map ALL playlists (owned + followed) with owner info
+    const playlists = allItems.map((p: any) => ({
       id: p.id,
       name: p.name,
       image: p.images?.[0]?.url || null,
       tracks_total: p.tracks?.total || 0,
+      owner_name: p.owner?.display_name || p.owner?.id || null,
     }));
 
-    console.log(`[spotify-playlists] Found ${playlists.length} playlists`);
+    console.log(`[spotify-playlists] Found ${playlists.length} total playlists across ${pageCount} pages`);
 
     return new Response(JSON.stringify({ playlists }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
