@@ -183,16 +183,19 @@ export function TimerView() {
 
     // Try to start Spotify playback if configured (don't await - fire and forget)
     startSpotifyPlayback().then(result => {
+      if (result.success) return;
+
+      if (result.code === 'NO_ACTIVE_DEVICE') {
+        toast({
+          title: "Spotify isn't active",
+          description: "Open Spotify on your phone once (Settings → Spotify → Open Spotify App), then press Start again.",
+          variant: "default",
+        });
+        return;
+      }
+
       if (result.error) {
         console.log('Spotify playback not started:', result.error);
-        // Show helpful toast if no Spotify device is available
-        if (result.error.includes('No active Spotify device')) {
-          toast({
-            title: "Spotify couldn't start",
-            description: "Open Spotify on a device to play music during meditation.",
-            variant: "default",
-          });
-        }
       }
     });
 

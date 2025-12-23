@@ -82,7 +82,7 @@ export async function openSpotifyApp(playlistId?: string): Promise<boolean> {
   }
 }
 
-export async function startSpotifyPlayback(): Promise<{ success: boolean; error?: string; reqId?: string; openedApp?: boolean }> {
+export async function startSpotifyPlayback(): Promise<{ success: boolean; error?: string; code?: string; reqId?: string }> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false };
@@ -104,7 +104,7 @@ export async function startSpotifyPlayback(): Promise<{ success: boolean; error?
     }
 
     // Standardized payload for play action
-    const payload = { 
+    const payload = {
       action: 'play',
       playlist_id: settings.selected_playlist_id,
     };
@@ -114,36 +114,35 @@ export async function startSpotifyPlayback(): Promise<{ success: boolean; error?
       body: payload,
     });
 
+    // If the function returned a non-2xx, try to parse the JSON body from the Response
     if (error) {
-      // Try to extract reqId from error context
-      let reqId: string | undefined;
+      let parsed: any = null;
       try {
         const ctx = (error as any)?.context as Response | undefined;
         if (ctx) {
           const text = await ctx.text();
-          const parsed = JSON.parse(text);
-          reqId = parsed?.reqId;
+          parsed = text ? JSON.parse(text) : null;
         }
       } catch {
         // ignore
       }
-      console.error('[Spotify] Play error:', { error: error.message, reqId });
-      return { success: false, error: error.message, reqId };
+
+      const errorMsg = parsed?.error || error.message;
+      const code = parsed?.code;
+      const reqId = parsed?.reqId;
+
+      console.error('[Spotify] Play error:', { error: errorMsg, code, reqId });
+      return { success: false, error: errorMsg, code, reqId };
     }
 
-    if (data?.error) {
-      const reqId = data?.reqId;
-      const errorMsg = data.error?.toLowerCase() || '';
-      
-      // Check if error is due to no active device
-      if (errorMsg.includes('no active device') || errorMsg.includes('no device') || data.code === 'NO_ACTIVE_DEVICE') {
-        console.log('[Spotify] No active device, opening Spotify app');
-        await openSpotifyApp(settings.selected_playlist_id);
-        return { success: false, error: 'Opening Spotify app...', openedApp: true };
-      }
-      
-      console.error('[Spotify] Play error:', { error: data.error, reqId });
-      return { success: false, error: data.error, reqId };
+    // The function may return { success: false, error, code } with 200 status for recoverable states
+    if (data?.success === false || data?.error) {
+      const errorMsg = data?.error || 'Spotify playback could not be started.';
+      const code = data?.code as string | undefined;
+      const reqId = data?.reqId as string | undefined;
+
+      console.error('[Spotify] Play not started:', { error: errorMsg, code, reqId });
+      return { success: false, error: errorMsg, code, reqId };
     }
 
     return { success: true };
