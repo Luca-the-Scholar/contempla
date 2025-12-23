@@ -174,7 +174,21 @@ serve(async (req) => {
     const { data: devicesData, error: devicesError } = await handleSpotifyResponse(devicesResponse, 'Get Devices');
     if (devicesError) return devicesError;
 
+    const devices = (devicesData as any)?.devices || [];
     console.log('[spotify-play] Available devices:', JSON.stringify(devicesData));
+
+    // If no devices available at all, return early with NO_ACTIVE_DEVICE
+    if (devices.length === 0) {
+      console.log('[spotify-play] No devices available');
+      return new Response(JSON.stringify({ 
+        error: 'No active Spotify device found. Please open Spotify on a device first.', 
+        code: 'NO_ACTIVE_DEVICE',
+        devices: [] 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Try to start playback
     const playResponse = await fetch('https://api.spotify.com/v1/me/player/play', {
