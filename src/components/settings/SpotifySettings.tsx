@@ -448,7 +448,7 @@ export function SpotifySettings() {
                 Make sure Spotify is open and playing before starting meditation.
               </p>
               <Button 
-                onClick={() => openSpotifyApp(settings.selected_playlist_id || undefined)}
+                onClick={() => openSpotifyApp()}
                 className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-white"
               >
                 <ExternalLink className="w-4 h-4 mr-2" />
