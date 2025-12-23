@@ -78,14 +78,13 @@ export function OAuthButtons() {
     
     try {
       const isNative = Capacitor.isNativePlatform();
+      const redirectTo = getRedirectUrl();
 
       console.log('[OAuth] Starting Google OAuth flow', { 
         isNative, 
-        redirectTo: SUPABASE_CALLBACK_URL,
+        redirectTo,
         platform: Capacitor.getPlatform()
       });
-
-      const redirectTo = getRedirectUrl();
       
       // Get the OAuth URL from Supabase
       const { data, error } = await supabase.auth.signInWithOAuth({
