@@ -359,6 +359,49 @@ export default function Auth() {
     };
   }, [handleAuthenticatedUser, toast]);
 
+  // Real-time debug panel updates - refresh every second
+  useEffect(() => {
+    const updateDebugInfo = async () => {
+      setDebugHref(window.location.href);
+      setDebugHash(window.location.hash);
+      setDebugHasAccessToken(window.location.hash.includes("access_token"));
+      setDebugLastCheckedAt(new Date().toISOString());
+      
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        setDebugSession(session);
+        if (error) {
+          setDebugLastError(`getSession error: ${error.message}`);
+        }
+      } catch (err: any) {
+        setDebugLastError(`Exception: ${err?.message || String(err)}`);
+      }
+    };
+
+    // Initial update
+    updateDebugInfo();
+
+    // Update every second
+    const interval = setInterval(updateDebugInfo, 1000);
+
+    // Also capture global errors
+    const errorHandler = (event: ErrorEvent) => {
+      setDebugLastError(`Error: ${event.message}`);
+    };
+    const rejectionHandler = (event: PromiseRejectionEvent) => {
+      setDebugLastError(`Unhandled rejection: ${event.reason}`);
+    };
+
+    window.addEventListener('error', errorHandler);
+    window.addEventListener('unhandledrejection', rejectionHandler);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('error', errorHandler);
+      window.removeEventListener('unhandledrejection', rejectionHandler);
+    };
+  }, []);
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
@@ -505,6 +548,18 @@ export default function Auth() {
             </Button>
           </div>
         )}
+
+        {/* Debug panel - always visible at the top */}
+        <AuthDebugPanel
+          href={debugHref}
+          hash={debugHash}
+          hasAccessToken={debugHasAccessToken}
+          isLoggedIn={!!debugSession?.user}
+          userEmail={debugSession?.user?.email ?? null}
+          isNative={debugIsNative}
+          lastCheckedAt={debugLastCheckedAt}
+          lastError={debugLastError}
+        />
 
         <form onSubmit={handleAuth} className="space-y-4">
           {!isLogin && (
