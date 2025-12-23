@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Play, Pause, Square, Check, AlertTriangle, Volume2, ChevronDown } from "lucide-react";
+import { Play, Pause, Square, Check, AlertTriangle, Volume2 } from "lucide-react";
+import { IOSPickerWheel } from "@/components/ui/ios-picker-wheel";
 import { useToast } from "@/hooks/use-toast";
 import { useNoSleep } from "@/hooks/use-nosleep";
 import { triggerVibrationPattern } from "@/lib/haptics";
@@ -49,10 +49,12 @@ export function TimerView() {
   const [notificationId, setNotificationId] = useState<number | null>(null);
   const [showPartialSaveDialog, setShowPartialSaveDialog] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [showDurationPicker, setShowDurationPicker] = useState(false);
   
-  // Duration options for iOS-style picker
-  const durationOptions = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60];
+  // Duration options for iOS-style picker wheel
+  const durationOptions = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60].map(mins => ({
+    value: mins,
+    label: `${mins} minutes`
+  }));
   
   // Guard to prevent multiple completion triggers
   const hasCompletedRef = useRef(false);
@@ -562,7 +564,10 @@ export function TimerView() {
 
           {/* Duration Selection */}
           <div>
-            <div className="flex gap-2 mb-3">
+            <h2 className="text-sm font-medium text-muted-foreground mb-3">
+              Duration
+            </h2>
+            <div className="flex gap-2 mb-4">
               {presetDurations.map(preset => (
                 <Button 
                   key={preset}
@@ -575,19 +580,12 @@ export function TimerView() {
               ))}
             </div>
 
-            <Button
-              variant="outline"
-              className="w-full justify-between text-left font-normal"
-              onClick={() => setShowDurationPicker(true)}
-            >
-              <span>
-                {presetDurations.includes(duration) 
-                  ? "Tap to select custom duration"
-                  : `Custom: ${duration} minutes`
-                }
-              </span>
-              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-            </Button>
+            <IOSPickerWheel
+              options={durationOptions}
+              value={duration}
+              onChange={setDuration}
+              className="w-full"
+            />
           </div>
 
           {/* Sound Selection */}
@@ -687,32 +685,6 @@ export function TimerView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* iOS-style Duration Picker */}
-      <Drawer open={showDurationPicker} onOpenChange={setShowDurationPicker}>
-        <DrawerContent>
-          <DrawerHeader className="text-center">
-            <DrawerTitle>Select Duration</DrawerTitle>
-          </DrawerHeader>
-          <div className="px-4 pb-8">
-            <div className="grid grid-cols-3 gap-2">
-              {durationOptions.map((mins) => (
-                <Button
-                  key={mins}
-                  variant={duration === mins ? "default" : "outline"}
-                  className="h-14 text-base"
-                  onClick={() => {
-                    setDuration(mins);
-                    setShowDurationPicker(false);
-                  }}
-                >
-                  {mins} minutes
-                </Button>
-              ))}
-            </div>
-          </div>
-        </DrawerContent>
-      </Drawer>
     </div>
   );
 }
