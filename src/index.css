@@ -318,3 +318,13 @@
 .animate-glow-pulse {
   animation: glow-pulse 2.5s ease-in-out infinite;
 }
+
+/* Hide scrollbar for iOS picker wheel */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
