@@ -49,7 +49,7 @@ export function TimerView() {
   const [showCompletionFlash, setShowCompletionFlash] = useState(false);
   const [notificationId, setNotificationId] = useState<number | null>(null);
   const [showPartialSaveDialog, setShowPartialSaveDialog] = useState(false);
-  const [elapsedMinutes, setElapsedMinutes] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   
   // Guard to prevent multiple completion triggers
   const hasCompletedRef = useRef(false);
@@ -205,22 +205,13 @@ export function TimerView() {
   };
 
   const handleStop = () => {
-    // Calculate elapsed time
+    // Calculate elapsed time in seconds
     const totalSeconds = initialDuration * 60;
     const elapsedSeconds = totalSeconds - secondsLeft;
-    const elapsed = Math.floor(elapsedSeconds / 60);
     
-    // Pause the timer immediately
-    setTimerState('paused');
-    
-    // If at least 1 minute elapsed, offer to save
-    if (elapsed >= 1) {
-      setElapsedMinutes(elapsed);
-      setShowPartialSaveDialog(true);
-    } else {
-      // Less than a minute, just discard
-      handleReset();
-    }
+    // Always ask if they want to save (store seconds for precision)
+    setElapsedSeconds(elapsedSeconds);
+    setShowPartialSaveDialog(true);
   };
 
   const handleSavePartialSession = async () => {
@@ -236,8 +227,13 @@ export function TimerView() {
     stopSound();
     noSleep.disable();
     
-    // Log the partial session
-    await logSession(elapsedMinutes);
+    // Log the partial session (convert seconds to minutes, minimum 1 minute for valid session)
+    const minutesToSave = Math.max(1, Math.round(elapsedSeconds / 60));
+    await logSession(minutesToSave);
+    
+    // Reset to setup state
+    setTimerState('setup');
+    setSecondsLeft(0);
   };
 
   const handleDiscardPartialSession = () => {
@@ -670,8 +666,10 @@ export function TimerView() {
           <DialogHeader>
             <DialogTitle>Save your session?</DialogTitle>
             <DialogDescription>
-              You've meditated for {elapsedMinutes} {elapsedMinutes === 1 ? 'minute' : 'minutes'}. 
-              Would you like to save this session?
+              {elapsedSeconds >= 60 
+                ? `You've meditated for ${Math.floor(elapsedSeconds / 60)} ${Math.floor(elapsedSeconds / 60) === 1 ? 'minute' : 'minutes'}. Would you like to save this session?`
+                : `You've meditated for ${elapsedSeconds} ${elapsedSeconds === 1 ? 'second' : 'seconds'}. Would you like to save this session?`
+              }
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col sm:flex-row gap-2">
