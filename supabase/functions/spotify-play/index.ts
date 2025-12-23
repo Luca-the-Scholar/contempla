@@ -177,17 +177,22 @@ serve(async (req) => {
     const devices = (devicesData as any)?.devices || [];
     console.log('[spotify-play] Available devices:', JSON.stringify(devicesData));
 
-    // If no devices available at all, return early with NO_ACTIVE_DEVICE
+    // If no devices available at all, return a recoverable NO_ACTIVE_DEVICE response (200 so the client can read it)
     if (devices.length === 0) {
       console.log('[spotify-play] No devices available');
-      return new Response(JSON.stringify({ 
-        error: 'No active Spotify device found. Please open Spotify on a device first.', 
-        code: 'NO_ACTIVE_DEVICE',
-        devices: [] 
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'No active Spotify device found. Please open Spotify on a device first.',
+          code: 'NO_ACTIVE_DEVICE',
+          devices: [],
+          reqId,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     // Try to start playback
@@ -205,61 +210,27 @@ serve(async (req) => {
     // 204 = success
     if (playResponse.status === 204) {
       console.log('[spotify-play] Playback started successfully');
-      return new Response(JSON.stringify({ success: true }), {
+      return new Response(JSON.stringify({ success: true, reqId }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     // 404 = no active device
     if (playResponse.status === 404) {
-      const devices = (devicesData as any)?.devices;
-      if (devices && devices.length > 0) {
-        const device = devices[0];
-        console.log(`[spotify-play] Activating device: ${device.name} (${device.id})`);
-        
-        const transferResponse = await fetch('https://api.spotify.com/v1/me/player', {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${settings.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            device_ids: [device.id],
-            play: true,
-          }),
-        });
-
-        const { error: transferError } = await handleSpotifyResponse(transferResponse, 'Transfer Playback');
-        if (transferError) return transferError;
-
-        // Now try to play again
-        const retryPlayResponse = await fetch('https://api.spotify.com/v1/me/player/play', {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${settings.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            context_uri: `spotify:playlist:${playlist_id}`,
-          }),
-        });
-
-        const { error: retryError } = await handleSpotifyResponse(retryPlayResponse, 'Retry Play');
-        if (retryError) return retryError;
-        
-        return new Response(JSON.stringify({ success: true }), {
+      console.log('[spotify-play] No active device found (Spotify returned 404)');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'No active Spotify device found. Please open Spotify on a device first.',
+          code: 'NO_ACTIVE_DEVICE',
+          devices,
+          reqId,
+        }),
+        {
+          status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      
-      return new Response(JSON.stringify({ 
-        error: 'No active Spotify device found. Please open Spotify on a device first.', 
-        code: 'NO_ACTIVE_DEVICE',
-        devices 
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+        }
+      );
     }
 
     // Handle other non-2xx responses
