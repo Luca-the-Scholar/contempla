@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Compass } from "lucide-react";
 import { z } from "zod";
 import { OAuthButtons } from "@/components/auth/OAuthButtons";
+import { Capacitor } from "@capacitor/core";
 import { HandlePromptDialog } from "@/components/auth/HandlePromptDialog";
 import { Session, User } from "@supabase/supabase-js";
 
@@ -489,18 +490,20 @@ export default function Auth() {
           </div>
         )}
 
-        {/* Divider */}
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-muted-foreground/20" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground">or</span>
-          </div>
-        </div>
-
-        {/* OAuth buttons - hidden on native iOS */}
-        <OAuthButtons />
+        {/* OAuth buttons - only show on web */}
+        {!Capacitor.isNativePlatform() && (
+          <>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-muted-foreground/20" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">or</span>
+              </div>
+            </div>
+            <OAuthButtons />
+          </>
+        )}
 
         <div className="text-center">
           <button
