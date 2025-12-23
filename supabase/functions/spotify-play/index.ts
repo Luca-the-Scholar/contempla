@@ -164,56 +164,12 @@ serve(async (req) => {
 
     console.log(`[spotify-play] Starting playback for playlist: ${playlist_id}`);
 
-    // First, try to get user's available devices
-    const devicesResponse = await fetch('https://api.spotify.com/v1/me/player/devices', {
-      headers: {
-        'Authorization': `Bearer ${settings.access_token}`,
-      },
-    });
-
-    const { data: devicesData, error: devicesError } = await handleSpotifyResponse(devicesResponse, 'Get Devices');
-    if (devicesError) return devicesError;
-
-    const devices = (devicesData as any)?.devices || [];
-    console.log('[spotify-play] Available devices:', JSON.stringify(devicesData));
-
-    // If no devices available at all, return a recoverable NO_ACTIVE_DEVICE response (200 so the client can read it)
-    if (devices.length === 0) {
-      console.log('[spotify-play] No devices available');
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Spotify app opened but device not ready yet. Please tap Play in Spotify once, then try again.',
-          code: 'NO_ACTIVE_DEVICE',
-          devices: [],
-          reqId,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    // Prefer an active device if present; otherwise target the first available device explicitly.
-    const activeDevice = devices.find((d: any) => d?.is_active);
-    const targetDevice = activeDevice ?? devices[0];
-    const targetDeviceId = targetDevice?.id as string | undefined;
-
+    // NEW APPROACH: Try to start playback FIRST without checking devices
+    // This works in more scenarios and gives us better error information
     const basePlayUrl = 'https://api.spotify.com/v1/me/player/play';
-    const playUrl = !activeDevice && targetDeviceId
-      ? `${basePlayUrl}?device_id=${encodeURIComponent(targetDeviceId)}`
-      : basePlayUrl;
 
-    console.log('[spotify-play] Play target device:', JSON.stringify({
-      hasActiveDevice: !!activeDevice,
-      targetDeviceId,
-      targetDeviceName: targetDevice?.name,
-      playUrl: playUrl.replace(/device_id=[^&]+/, 'device_id=***'),
-    }));
-
-    // Try to start playback
-    const playResponse = await fetch(playUrl, {
+    console.log('[spotify-play] Attempting playback (no device_id - let Spotify choose)');
+    let playResponse = await fetch(basePlayUrl, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${settings.access_token}`,
@@ -224,21 +180,127 @@ serve(async (req) => {
       }),
     });
 
-    // 204 = success
+    // 204 = success - playback started!
     if (playResponse.status === 204) {
-      console.log('[spotify-play] Playback started successfully');
+      console.log('[spotify-play] Playback started successfully (no device targeting needed)');
       return new Response(JSON.stringify({ success: true, reqId }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // 404 = no active device / not ready for remote control
-    if (playResponse.status === 404) {
-      console.log('[spotify-play] Playback start returned 404 (device not ready)');
+    // 403 = Forbidden - Premium required or restricted account
+    if (playResponse.status === 403) {
+      const forbiddenBody = await playResponse.text();
+      console.log('[spotify-play] 403 Forbidden:', forbiddenBody);
+
+      let reason = 'PREMIUM_REQUIRED';
+      let message = 'Spotify Premium is required for remote playback control.';
+
+      try {
+        const parsed = JSON.parse(forbiddenBody);
+        if (parsed.error?.reason === 'PREMIUM_REQUIRED') {
+          message = 'Spotify Premium is required for remote playback control.';
+        }
+      } catch {
+        // Use default message
+      }
+
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'Spotify app opened but device not ready yet. Please tap Play in Spotify once, then try again.',
+          error: message,
+          code: reason,
+          reqId,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    // 401 = Unauthorized - Token expired or invalid
+    if (playResponse.status === 401) {
+      console.log('[spotify-play] 401 Unauthorized - token may be expired');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Spotify authentication expired. Please reconnect your Spotify account in Settings.',
+          code: 'TOKEN_EXPIRED',
+          reqId,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    // 404 = No active device OR device not ready for remote control
+    // NOW we check devices to give better diagnostics
+    if (playResponse.status === 404) {
+      console.log('[spotify-play] 404 - fetching devices for diagnostics');
+
+      const devicesResponse = await fetch('https://api.spotify.com/v1/me/player/devices', {
+        headers: {
+          'Authorization': `Bearer ${settings.access_token}`,
+        },
+      });
+
+      const { data: devicesData } = await handleSpotifyResponse(devicesResponse, 'Get Devices (after 404)');
+      const devices = (devicesData as any)?.devices || [];
+      const deviceNames = devices.map((d: any) => d.name).join(', ');
+
+      console.log('[spotify-play] Devices found:', deviceNames || 'none');
+
+      if (devices.length === 0) {
+        // No devices at all - Spotify app didn't activate in time
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Spotify app opened but device not ready yet. Please tap Play in Spotify once, then try again.',
+            code: 'NO_ACTIVE_DEVICE',
+            devices: [],
+            reqId,
+          }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      // Devices exist but none are "ready" for playback
+      // Try targeting the first device explicitly
+      const targetDevice = devices[0];
+      const targetDeviceId = targetDevice?.id;
+
+      console.log('[spotify-play] Retrying with explicit device_id:', targetDeviceId);
+
+      playResponse = await fetch(`${basePlayUrl}?device_id=${encodeURIComponent(targetDeviceId)}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${settings.access_token}`,
+          'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          context_uri: `spotify:playlist:${playlist_id}`,
+        }),
+      });
+
+      // Retry succeeded
+      if (playResponse.status === 204) {
+        console.log('[spotify-play] Playback started successfully after device targeting');
+        return new Response(JSON.stringify({ success: true, reqId }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Still 404 after targeting - device not ready
+      console.log('[spotify-play] Still 404 after device targeting - device not ready');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Spotify is open on "${targetDevice.name}" but it's not ready for remote playback yet. Open Spotify and press Play once, then try Start Meditation again.`,
           code: 'NO_ACTIVE_DEVICE',
           devices,
           reqId,
@@ -250,11 +312,28 @@ serve(async (req) => {
       );
     }
 
+    // 429 = Rate limited
+    if (playResponse.status === 429) {
+      console.log('[spotify-play] 429 Rate Limited');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Spotify API rate limit exceeded. Please wait a moment and try again.',
+          code: 'RATE_LIMITED',
+          reqId,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
     // Handle other non-2xx responses
-    const { error: playError } = await handleSpotifyResponse(playResponse, 'Start Playback');
+    const { error: playError } = await handleSpotifyResponse(playResponse, 'Start Playback (unexpected status)');
     if (playError) return playError;
 
-    return new Response(JSON.stringify({ success: true }), {
+    return new Response(JSON.stringify({ success: true, reqId }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 

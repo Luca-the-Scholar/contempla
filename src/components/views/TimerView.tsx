@@ -159,7 +159,7 @@ export function TimerView() {
     // Read start sound setting directly from localStorage (SettingsView is source of truth)
     const startSoundStored = localStorage.getItem('startSoundEnabled');
     const isStartSoundEnabled = startSoundStored === null ? true : startSoundStored === 'true';
-    
+
     // Play start sound exactly once if enabled
     if (isStartSoundEnabled && !hasPlayedStartSoundRef.current) {
       hasPlayedStartSoundRef.current = true;
@@ -181,23 +181,60 @@ export function TimerView() {
       setNotificationId(notifId);
     }
 
-    // Try to start Spotify playback if configured (don't await - fire and forget)
-    startSpotifyPlayback().then(result => {
+    // CRITICAL: Start Spotify AFTER the meditation sound finishes playing
+    // This prevents iOS audio session from deactivating Spotify device
+    // Delay by 2 seconds to ensure start sound completes and audio session stabilizes
+    setTimeout(() => {
+      startSpotifyPlayback().then(result => {
       if (result.success) return;
 
+      // Show user-friendly error messages based on error code
       if (result.code === 'NO_ACTIVE_DEVICE') {
         toast({
-          title: "Spotify isn't ready",
-          description: "Spotify is open, but it needs to be the active playback device. Press Play in Spotify once, then try Start again.",
+          title: "No Spotify device detected",
+          description: result.error || "Open Spotify on any device (phone, computer, etc.) and ensure you're signed into the same account that's connected in Settings.",
           variant: "default",
+          duration: 8000, // Longer duration for important message
         });
         return;
       }
 
+      if (result.code === 'PREMIUM_REQUIRED') {
+        toast({
+          title: "Spotify Premium required",
+          description: "Remote playback control requires Spotify Premium. Meditation will start without music.",
+          variant: "default",
+          duration: 6000,
+        });
+        return;
+      }
+
+      if (result.code === 'TOKEN_EXPIRED') {
+        toast({
+          title: "Spotify connection expired",
+          description: "Please reconnect your Spotify account in Settings to enable music during meditation.",
+          variant: "destructive",
+          duration: 6000,
+        });
+        return;
+      }
+
+      if (result.code === 'RATE_LIMITED') {
+        toast({
+          title: "Spotify API limit reached",
+          description: "Please wait a moment before starting another meditation session.",
+          variant: "default",
+          duration: 5000,
+        });
+        return;
+      }
+
+      // Generic error - log but don't show toast (meditation still starts)
       if (result.error) {
-        console.log('Spotify playback not started:', result.error);
+        console.log('Spotify playback not started:', result.error, result.code);
       }
     });
+    }, 2000); // 2 second delay to let meditation sound complete and audio session stabilize
 
     setInitialDuration(duration);
     setSecondsLeft(duration * 60);

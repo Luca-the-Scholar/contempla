@@ -87,10 +87,10 @@ export async function startSpotifyPlayback(): Promise<{ success: boolean; error?
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false };
 
-    // Get user's Spotify settings
+    // Get user's Spotify settings INCLUDING token_expires_at
     const { data: settings, error: settingsError } = await supabase
       .from('spotify_settings')
-      .select('selected_playlist_id, play_on_meditation_start, access_token')
+      .select('selected_playlist_id, play_on_meditation_start, access_token, token_expires_at')
       .eq('user_id', user.id)
       .maybeSingle();
 
@@ -103,25 +103,44 @@ export async function startSpotifyPlayback(): Promise<{ success: boolean; error?
       return { success: false };
     }
 
-    // CRITICAL FIX: Open Spotify app first to activate the device
-    // Spotify's Web API only recognizes devices that are actively playing music,
-    // not devices that just have the app open. This workaround forces Spotify to
-    // register as a Connect device by deep-linking to it first.
-    const isNative = (await import('@capacitor/core')).Capacitor.isNativePlatform();
-    if (isNative) {
-      console.log('[Spotify] Opening Spotify app to activate device...');
-      await openSpotifyApp(settings.selected_playlist_id);
-      
-      // Give Spotify a moment to register the device (500ms is usually enough)
-      await new Promise(resolve => setTimeout(resolve, 500));
+    // Check if token is expired or expiring soon (within 5 minutes)
+    const now = new Date();
+    const expiresAt = new Date(settings.token_expires_at);
+    const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
+
+    if (expiresAt < fiveMinutesFromNow) {
+      console.log('[Spotify] Token expired or expiring soon, refreshing...');
+
+      // Call spotify-auth to refresh the token
+      const { data: refreshData, error: refreshError } = await supabase.functions.invoke('spotify-auth', {
+        body: { action: 'refresh' },
+      });
+
+      if (refreshError || refreshData?.error) {
+        console.error('[Spotify] Token refresh failed:', refreshError?.message || refreshData?.error);
+        return {
+          success: false,
+          error: 'Spotify authentication expired. Please reconnect Spotify in Settings.',
+          code: 'TOKEN_EXPIRED'
+        };
+      }
+
+      console.log('[Spotify] Token refreshed successfully');
     }
+
+    // CRITICAL FIX: Open Spotify app first to activate the device
+    // This works around Spotify's API limitation where devices only appear when actively playing
+    console.log('[Spotify] Opening Spotify app to activate device...');
+    await openSpotifyApp(settings.selected_playlist_id);
+
+    // Give Spotify time to register the device and start playing (1.5s to handle audio session handoff)
+    await new Promise(resolve => setTimeout(resolve, 1500));
 
     // Standardized payload for play action
     const payload = {
       action: 'play',
       playlist_id: settings.selected_playlist_id,
     };
-    console.log('[Spotify] Play payload:', JSON.stringify(payload));
 
     const { data, error } = await supabase.functions.invoke('spotify-play', {
       body: payload,
@@ -144,7 +163,6 @@ export async function startSpotifyPlayback(): Promise<{ success: boolean; error?
       const code = parsed?.code;
       const reqId = parsed?.reqId;
 
-      console.error('[Spotify] Play error:', { error: errorMsg, code, reqId });
       return { success: false, error: errorMsg, code, reqId };
     }
 
@@ -154,7 +172,6 @@ export async function startSpotifyPlayback(): Promise<{ success: boolean; error?
       const code = data?.code as string | undefined;
       const reqId = data?.reqId as string | undefined;
 
-      console.error('[Spotify] Play not started:', { error: errorMsg, code, reqId });
       return { success: false, error: errorMsg, code, reqId };
     }
 

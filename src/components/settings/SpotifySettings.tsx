@@ -8,7 +8,7 @@ import { Music, Loader2, ExternalLink, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
-import { openSpotifyApp } from "@/hooks/use-spotify";
+import { openSpotifyApp, startSpotifyPlayback } from "@/hooks/use-spotify";
 
 interface SpotifyPlaylist {
   id: string;
@@ -33,6 +33,8 @@ export function SpotifySettings() {
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
   const [settings, setSettings] = useState<SpotifySettingsData | null>(null);
   const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
+  const [testingAutoplay, setTestingAutoplay] = useState(false);
+  const [testResult, setTestResult] = useState<{code?: string; devices?: any[]; reqId?: string} | null>(null);
 
   const isConnected = !!settings?.access_token;
 
@@ -350,6 +352,58 @@ export function SpotifySettings() {
     }
   };
 
+  const handleTestAutoplay = async () => {
+    setTestingAutoplay(true);
+    setTestResult(null);
+
+    try {
+      const result = await startSpotifyPlayback();
+
+      if (result.success) {
+        setTestResult({ code: 'SUCCESS' });
+        toast({
+          title: "Autoplay test successful!",
+          description: "Spotify playback started. You should hear music playing now.",
+          variant: "default",
+        });
+      } else {
+        setTestResult({
+          code: result.code,
+          reqId: result.reqId,
+        });
+
+        // Show specific error message
+        let title = "Autoplay test failed";
+        let description = result.error || "Could not start playback";
+
+        if (result.code === 'NO_ACTIVE_DEVICE') {
+          title = "No Spotify device detected";
+          description = "Open Spotify on any device and ensure you're signed into the same account.";
+        } else if (result.code === 'PREMIUM_REQUIRED') {
+          title = "Spotify Premium required";
+          description = "Remote playback control requires Spotify Premium.";
+        } else if (result.code === 'TOKEN_EXPIRED') {
+          title = "Connection expired";
+          description = "Please disconnect and reconnect your Spotify account.";
+        }
+
+        toast({
+          title,
+          description,
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Test failed",
+        description: error.message || "Unknown error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setTestingAutoplay(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -445,15 +499,58 @@ export function SpotifySettings() {
           {settings?.play_on_meditation_start && settings?.selected_playlist_id && (
             <div className="space-y-3 pt-2">
               <p className="text-xs text-muted-foreground">
-                If autoplay doesn’t start, open Spotify and press Play once so your phone becomes the active playback device.
+                If autoplay doesn't start, open Spotify and press Play once so your phone becomes the active playback device.
               </p>
-              <Button 
-                onClick={() => openSpotifyApp()}
-                className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-white"
-              >
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Open Spotify App
-              </Button>
+
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleTestAutoplay}
+                  variant="outline"
+                  className="flex-1"
+                  disabled={testingAutoplay}
+                >
+                  {testingAutoplay ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Testing...
+                    </>
+                  ) : (
+                    'Test Autoplay'
+                  )}
+                </Button>
+
+                <Button
+                  onClick={() => openSpotifyApp()}
+                  variant="default"
+                  className="flex-1 bg-[#1DB954] hover:bg-[#1ed760] text-white"
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Open Spotify
+                </Button>
+              </div>
+
+              {testResult && (
+                <div className="rounded-md bg-muted p-3 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <div className="text-xs space-y-1">
+                      <div className="font-medium">Test Result:</div>
+                      <div className="text-muted-foreground">
+                        Code: <span className="font-mono">{testResult.code || 'SUCCESS'}</span>
+                      </div>
+                      {testResult.devices && testResult.devices.length > 0 && (
+                        <div className="text-muted-foreground">
+                          Devices: {testResult.devices.map((d: any) => d.name).join(', ')}
+                        </div>
+                      )}
+                      {testResult.reqId && (
+                        <div className="text-muted-foreground">
+                          Request ID: <span className="font-mono text-xs">{testResult.reqId}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </>

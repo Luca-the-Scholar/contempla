@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx supabase functions logs:*)",
+      "Bash(npx supabase:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}
