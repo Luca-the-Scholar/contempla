@@ -195,10 +195,20 @@ export default function Auth() {
       // === SAFARI BOUNCE LOGIC ===
       // If we're NOT in Capacitor WebView (i.e., running in Safari after OAuth redirect),
       // we need to show a "Return to App" button that deep-links back with tokens.
-      // We detect this by checking if Capacitor is NOT native (web context) but
-      // the URL contains our preview domain (not localhost).
-      const isSafariBounce =
-        !isNative && window.location.hostname.includes("lovableproject.com");
+      // We detect this by checking if Capacitor is NOT native (web context) AND
+      // we're on the published app domain (lovable.app) or preview domain (lovableproject.com).
+      const hostname = window.location.hostname;
+      const isPublishedDomain = hostname.includes("lovable.app");
+      const isPreviewDomain = hostname.includes("lovableproject.com");
+      const isSafariBounce = !isNative && (isPublishedDomain || isPreviewDomain);
+
+      console.log("[Auth][OAuth] Safari bounce check", {
+        hostname,
+        isNative,
+        isPublishedDomain,
+        isPreviewDomain,
+        isSafariBounce,
+      });
 
       if (isSafariBounce) {
         console.log("[Auth][OAuth] Safari bounce detected - showing Return to App button");
@@ -206,6 +216,7 @@ export default function Auth() {
         const deepLink = `contempla://auth/callback#access_token=${encodeURIComponent(
           accessToken
         )}&refresh_token=${encodeURIComponent(refreshToken)}`;
+        console.log("[Auth][OAuth] Built deep link (length):", deepLink.length);
         if (mounted) {
           setBounceDeepLink(deepLink);
           setShowReturnToApp(true);
@@ -515,6 +526,8 @@ export default function Auth() {
           isNative={debugIsNative}
           lastCheckedAt={debugLastCheckedAt}
           lastError={debugLastError}
+          showReturnToApp={showReturnToApp}
+          bounceDeepLink={bounceDeepLink}
         />
 
         <div className="max-w-md w-full text-center space-y-6">
@@ -554,6 +567,8 @@ export default function Auth() {
           isNative={debugIsNative}
           lastCheckedAt={debugLastCheckedAt}
           lastError={debugLastError}
+          showReturnToApp={showReturnToApp}
+          bounceDeepLink={bounceDeepLink}
         />
 
         <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow-md animate-pulse">
@@ -619,6 +634,8 @@ export default function Auth() {
           isNative={debugIsNative}
           lastCheckedAt={debugLastCheckedAt}
           lastError={debugLastError}
+          showReturnToApp={showReturnToApp}
+          bounceDeepLink={bounceDeepLink}
         />
 
         <form onSubmit={handleAuth} className="space-y-4">
