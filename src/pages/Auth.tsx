@@ -106,6 +106,57 @@ export default function Auth() {
   useEffect(() => {
     let mounted = true;
 
+    // Check if this is an OAuth callback with tokens in the URL hash
+    // This handles the case where user returns from OAuth in browser
+    const handleOAuthCallback = async () => {
+      const hash = window.location.hash;
+      if (hash && (hash.includes('access_token') || hash.includes('error'))) {
+        console.log('[Auth] OAuth callback detected in URL hash');
+        
+        // Parse the hash to extract tokens
+        const params = new URLSearchParams(hash.substring(1));
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+        const error = params.get('error');
+        const errorDescription = params.get('error_description');
+        
+        if (error) {
+          console.error('[Auth] OAuth error:', error, errorDescription);
+          toast({
+            title: "Sign in failed",
+            description: errorDescription || error,
+            variant: "destructive",
+          });
+          // Clean up the URL
+          window.history.replaceState(null, '', window.location.pathname);
+          return;
+        }
+        
+        if (accessToken && refreshToken) {
+          console.log('[Auth] Setting session from OAuth callback...');
+          const { data, error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          
+          if (sessionError) {
+            console.error('[Auth] Error setting session:', sessionError);
+            toast({
+              title: "Sign in failed",
+              description: sessionError.message,
+              variant: "destructive",
+            });
+          } else if (data.user) {
+            console.log('[Auth] Session set successfully:', data.user.id);
+            // The onAuthStateChange listener will handle navigation
+          }
+        }
+        
+        // Clean up the URL hash
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    };
+
     // Set up auth state listener FIRST (synchronous callback - no async!)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -133,6 +184,9 @@ export default function Auth() {
         }
       }
     );
+
+    // Handle OAuth callback first (if present in URL)
+    handleOAuthCallback();
 
     // THEN check for existing session
     const checkInitialSession = async () => {
@@ -167,7 +221,7 @@ export default function Auth() {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [handleAuthenticatedUser]);
+  }, [handleAuthenticatedUser, toast]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();

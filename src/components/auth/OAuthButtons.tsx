@@ -6,8 +6,17 @@ import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
 import { App } from "@capacitor/app";
 
-// Production URL for OAuth redirects - this is the deployed app URL
-const PRODUCTION_URL = "https://contempla.app";
+// For iOS: Use the Lovable preview URL which actually exists and can handle the redirect
+// The Auth page will detect OAuth tokens and redirect back to the app via deep link
+const getRedirectUrl = () => {
+  if (Capacitor.isNativePlatform()) {
+    // Use the Lovable preview URL - it exists and will handle the OAuth callback
+    // The Auth page there will redirect to the app via deep link
+    return `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/callback`;
+  }
+  // For web, use current origin
+  return `${window.location.origin}/auth`;
+};
 
 export function OAuthButtons() {
   const [loading, setLoading] = useState(false);
@@ -64,8 +73,18 @@ export function OAuthButtons() {
       }
     };
 
+    // Listen for deep link OAuth callback
+    const handleUrlOpen = async (event: { url: string }) => {
+      console.log('[OAuth] URL opened:', event.url);
+      if (event.url.includes('auth/callback') || event.url.includes('access_token')) {
+        console.log('[OAuth] OAuth callback detected, checking session...');
+        setTimeout(checkSessionOnResume, 100);
+      }
+    };
+
     Browser.addListener('browserFinished', handleBrowserFinished);
     App.addListener('appStateChange', handleAppStateChange);
+    App.addListener('appUrlOpen', handleUrlOpen);
 
     return () => {
       Browser.removeAllListeners();
@@ -78,14 +97,7 @@ export function OAuthButtons() {
     
     try {
       const isNative = Capacitor.isNativePlatform();
-      
-      // For native iOS/Android: Use production HTTPS URL as redirect
-      // Google OAuth requires HTTPS - custom schemes won't work directly
-      // The production URL must be configured in Supabase Auth settings
-      // For web: use current origin
-      const redirectTo = isNative 
-        ? `${PRODUCTION_URL}/auth`  // Production HTTPS URL for native
-        : `${window.location.origin}/auth`;  // Current origin for web
+      const redirectTo = getRedirectUrl();
 
       console.log('[OAuth] Starting Google OAuth flow', { 
         isNative, 
@@ -120,7 +132,7 @@ export function OAuthButtons() {
 
       if (isNative) {
         // On iOS/Android, open in system browser
-        // After OAuth completes, user will be redirected to production URL
+        // After OAuth completes, Supabase will redirect back
         // We'll detect session on app resume
         console.log('[OAuth] Opening in system browser for native platform');
         await Browser.open({ 
