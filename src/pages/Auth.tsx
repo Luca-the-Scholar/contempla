@@ -10,6 +10,8 @@ import { z } from "zod";
 import { OAuthButtons } from "@/components/auth/OAuthButtons";
 import { HandlePromptDialog } from "@/components/auth/HandlePromptDialog";
 import { Session, User } from "@supabase/supabase-js";
+import { Capacitor } from "@capacitor/core";
+import { Browser } from "@capacitor/browser";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -29,6 +31,7 @@ export default function Auth() {
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [showReturnToApp, setShowReturnToApp] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; displayName?: string }>({});
   const [showHandlePrompt, setShowHandlePrompt] = useState(false);
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
@@ -124,24 +127,39 @@ export default function Auth() {
     // This is critical for iOS native OAuth where cookies don't transfer to the app
     const handleOAuthCallback = async () => {
       const hash = window.location.hash;
-      if (!hash || (!hash.includes('access_token') && !hash.includes('error'))) {
+
+      if (!hash || (!hash.includes("access_token") && !hash.includes("error"))) {
+        console.log("[Auth][OAuth] No OAuth hash detected on load");
         return false;
       }
-      
-      console.log('[Auth] OAuth callback detected in URL hash');
-      
+
+      console.log("[Auth][OAuth] OAuth hash detected on load", {
+        hashLength: hash.length,
+        hasAccessToken: hash.includes("access_token"),
+        hasRefreshToken: hash.includes("refresh_token"),
+        hasError: hash.includes("error"),
+      });
+
       // Parse the hash to extract tokens
       const params = new URLSearchParams(hash.substring(1));
-      const accessToken = params.get('access_token');
-      const refreshToken = params.get('refresh_token');
-      const error = params.get('error');
-      const errorDescription = params.get('error_description');
-      
-      // Clean up the URL hash immediately
-      window.history.replaceState(null, '', window.location.pathname);
-      
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
+      const error = params.get("error");
+      const errorDescription = params.get("error_description");
+
+      console.log("[Auth][OAuth] Parsed hash params", {
+        keys: Array.from(params.keys()),
+        accessTokenPresent: !!accessToken,
+        accessTokenLength: accessToken?.length ?? 0,
+        refreshTokenPresent: !!refreshToken,
+        refreshTokenLength: refreshToken?.length ?? 0,
+      });
+
+      // Clean up the URL hash (don't log tokens into the URL bar/history)
+      window.history.replaceState(null, "", window.location.pathname);
+
       if (error) {
-        console.error('[Auth] OAuth error:', error, errorDescription);
+        console.error("[Auth][OAuth] OAuth error in hash:", { error, errorDescription });
         toast({
           title: "Sign in failed",
           description: errorDescription || error,
@@ -150,39 +168,112 @@ export default function Auth() {
         if (mounted) setCheckingSession(false);
         return true;
       }
-      
-      if (accessToken && refreshToken) {
-        console.log('[Auth] Setting session from OAuth tokens...');
-        try {
-          const { data, error: sessionError } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
+
+      if (!accessToken || !refreshToken) {
+        console.error("[Auth][OAuth] Missing tokens in hash - cannot set session", {
+          accessTokenPresent: !!accessToken,
+          refreshTokenPresent: !!refreshToken,
+        });
+        if (mounted) setCheckingSession(false);
+        return true;
+      }
+
+      console.log("[Auth][OAuth] Calling supabase.auth.setSession(...)");
+
+      try {
+        const { data, error: sessionError } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+
+        console.log("[Auth][OAuth] setSession result", {
+          hasError: !!sessionError,
+          userId: data?.user?.id,
+          hasSession: !!data?.session,
+        });
+
+        if (sessionError) {
+          console.error("[Auth][OAuth] setSession error:", sessionError);
+          toast({
+            title: "Sign in failed",
+            description: sessionError.message,
+            variant: "destructive",
           });
-          
-          if (sessionError) {
-            console.error('[Auth] Error setting session:', sessionError);
-            toast({
-              title: "Sign in failed",
-              description: sessionError.message,
-              variant: "destructive",
-            });
-            if (mounted) setCheckingSession(false);
-            return true;
-          }
-          
-          if (data.user && mounted) {
-            console.log('[Auth] Session set successfully:', data.user.id);
-            await handleAuthenticatedUser(data.user);
-            return true;
-          }
-        } catch (err) {
-          console.error('[Auth] Exception setting session:', err);
           if (mounted) setCheckingSession(false);
           return true;
         }
+
+        // Confirm the session is now stored
+        let confirmedSession: Session | null = data.session ?? null;
+        for (let i = 0; i < 5; i++) {
+          const { data: getSessionData, error: getSessionError } = await supabase.auth.getSession();
+          console.log("[Auth][OAuth] getSession confirm attempt", {
+            attempt: i + 1,
+            hasError: !!getSessionError,
+            userId: getSessionData.session?.user?.id,
+          });
+
+          if (getSessionError) {
+            console.error("[Auth][OAuth] getSession confirm error:", getSessionError);
+          }
+
+          if (getSessionData.session?.user) {
+            confirmedSession = getSessionData.session;
+            break;
+          }
+
+          await new Promise((r) => setTimeout(r, 250));
+        }
+
+        if (!confirmedSession?.user) {
+          console.error("[Auth][OAuth] Session not confirmed after setSession");
+          if (mounted) setCheckingSession(false);
+          return true;
+        }
+
+        console.log("[Auth][OAuth] Session confirmed for user", {
+          userId: confirmedSession.user.id,
+          email: confirmedSession.user.email,
+        });
+
+        // Try to close the native in-app browser (SFSafariViewController)
+        const isNative = Capacitor.isNativePlatform();
+        console.log("[Auth][OAuth] Attempting Browser.close()", {
+          isNative,
+          platform: Capacitor.getPlatform?.(),
+        });
+
+        if (isNative) {
+          // If close doesn't happen (or isn't supported), reveal a deep-link fallback.
+          const fallbackTimer = window.setTimeout(() => {
+            console.log("[Auth][OAuth] Browser may not have closed - showing Return to App fallback");
+            if (mounted) setShowReturnToApp(true);
+          }, 3000);
+
+          try {
+            await Browser.close();
+            console.log("[Auth][OAuth] Browser.close() succeeded");
+          } catch (e) {
+            console.warn("[Auth][OAuth] Browser.close() failed", e);
+            if (mounted) setShowReturnToApp(true);
+          } finally {
+            // If the page remains open, the fallback will still be shown after 3s.
+            // If it did close, none of this matters.
+            window.clearTimeout(fallbackTimer);
+          }
+        }
+
+        // Navigate to the main app
+        if (mounted) {
+          await handleAuthenticatedUser(confirmedSession.user);
+        }
+
+        return true;
+      } catch (err) {
+        console.error("[Auth][OAuth] Exception during setSession:", err);
+        if (mounted) setCheckingSession(false);
+        return true;
       }
-      
-      return false;
     };
 
     // Set up auth state listener (synchronous callback - no async!)
@@ -328,10 +419,21 @@ export default function Auth() {
   // Show loading state while checking session
   if (checkingSession) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6">
         <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow-md animate-pulse">
           <Compass className="w-8 h-8 text-white" />
         </div>
+
+        {showReturnToApp && (
+          <div className="text-center space-y-2">
+            <p className="text-sm text-muted-foreground">
+              If this screen didn’t close, tap below to return to the app.
+            </p>
+            <Button asChild variant="accent">
+              <a href="contempla://">Return to App</a>
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -368,10 +470,19 @@ export default function Auth() {
           <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
             Contempla
           </h1>
-          <p className="text-muted-foreground">
-            Contemplative Practice with Friends
-          </p>
+          <p className="text-muted-foreground">Contemplative Practice with Friends</p>
         </div>
+
+        {showReturnToApp && (
+          <div className="rounded-lg border border-border/60 bg-muted/40 p-4 text-center space-y-2">
+            <p className="text-sm text-muted-foreground">
+              If you’re stuck in the browser, tap below to return to the app.
+            </p>
+            <Button asChild variant="accent" className="w-full">
+              <a href="contempla://">Return to App</a>
+            </Button>
+          </div>
+        )}
 
         <form onSubmit={handleAuth} className="space-y-4">
           {!isLogin && (
