@@ -211,13 +211,14 @@ export default function Auth() {
       });
 
       if (isSafariBounce) {
-        console.log("[Auth][OAuth] Safari bounce detected - redirecting to native app with tokens");
+        console.log("[Auth][OAuth] Safari bounce detected - showing bounce screen with countdown");
         
         // Build deep link with tokens as QUERY PARAMS (not hash - hash doesn't transfer reliably)
         const deepLink = `contempla://auth/callback?access_token=${encodeURIComponent(
           accessToken
         )}&refresh_token=${encodeURIComponent(refreshToken)}`;
         console.log("[Auth][OAuth] Built deep link (length):", deepLink.length);
+        console.log("[Auth][OAuth] Access token preview:", accessToken.substring(0, 20) + "...");
         
         if (mounted) {
           setBounceDeepLink(deepLink);
@@ -225,12 +226,11 @@ export default function Auth() {
           setCheckingSession(false);
         }
         
-        // Auto-redirect to native app after a brief moment
-        // This gives Safari a chance to render before the redirect
+        // Auto-redirect after 2 seconds - gives time to see the bounce screen
         setTimeout(() => {
-          console.log("[Auth][OAuth] Auto-redirecting to native app...");
+          console.log("[Auth][OAuth] Auto-redirecting to native app NOW...");
           window.location.href = deepLink;
-        }, 500);
+        }, 2000);
         
         return true;
       }
@@ -522,10 +522,15 @@ export default function Auth() {
   };
 
   // === SAFARI BOUNCE SCREEN ===
-  // When OAuth redirects to Safari with tokens, show a clear "Return to App" button
+  // When OAuth redirects to Safari with tokens, show a VERY OBVIOUS full-screen bounce page
   if (showReturnToApp && bounceDeepLink) {
+    // Extract token preview for debugging
+    const tokenMatch = bounceDeepLink.match(/access_token=([^&]+)/);
+    const tokenPreview = tokenMatch ? decodeURIComponent(tokenMatch[1]).substring(0, 20) + "..." : "N/A";
+    
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background">
+      <div className="min-h-screen flex flex-col bg-green-900 text-white">
+        {/* Debug panel at top */}
         <AuthDebugPanel
           href={debugHref}
           hash={debugHash}
@@ -539,24 +544,42 @@ export default function Auth() {
           bounceDeepLink={bounceDeepLink}
         />
 
-        <div className="max-w-md w-full text-center space-y-6">
-          <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow-md">
-            <Compass className="w-10 h-10 text-white" />
+        {/* Main bounce content - VERY OBVIOUS */}
+        <div className="flex-1 flex flex-col items-center justify-center p-6 pt-48">
+          {/* Big success checkmark */}
+          <div className="w-24 h-24 rounded-full bg-green-500 flex items-center justify-center mb-6 animate-pulse">
+            <svg className="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+            </svg>
           </div>
 
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-foreground">Sign in successful!</h1>
-            <p className="text-muted-foreground">
-              Tap the button below to return to the Contempla app.
+          <h1 className="text-3xl font-bold mb-2">✅ Login Successful!</h1>
+          <p className="text-xl text-green-200 mb-4">Returning to Contempla in 2 seconds...</p>
+          
+          {/* Token info */}
+          <div className="bg-black/30 rounded-lg p-4 mb-6 max-w-sm w-full">
+            <p className="text-sm font-mono text-green-300 mb-2">Token found:</p>
+            <p className="text-xs font-mono text-white break-all">{tokenPreview}</p>
+          </div>
+
+          {/* Big manual button */}
+          <a 
+            href={bounceDeepLink}
+            className="bg-white text-green-900 font-bold text-xl px-8 py-4 rounded-xl shadow-lg hover:bg-green-100 transition-colors"
+          >
+            🚀 Open App Now
+          </a>
+
+          {/* Deep link preview */}
+          <div className="mt-6 bg-black/30 rounded-lg p-3 max-w-sm w-full">
+            <p className="text-xs font-mono text-green-300 mb-1">Deep link:</p>
+            <p className="text-[10px] font-mono text-white break-all">
+              {bounceDeepLink.substring(0, 80)}...
             </p>
           </div>
 
-          <Button asChild size="lg" className="w-full text-lg py-6">
-            <a href={bounceDeepLink}>Return to Contempla</a>
-          </Button>
-
-          <p className="text-xs text-muted-foreground">
-            If the button doesn't work, open the Contempla app manually.
+          <p className="text-sm text-green-300 mt-6">
+            If nothing happens, tap the button above.
           </p>
         </div>
       </div>
