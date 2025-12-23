@@ -195,8 +195,25 @@ serve(async (req) => {
       );
     }
 
+    // Prefer an active device if present; otherwise target the first available device explicitly.
+    const activeDevice = devices.find((d: any) => d?.is_active);
+    const targetDevice = activeDevice ?? devices[0];
+    const targetDeviceId = targetDevice?.id as string | undefined;
+
+    const basePlayUrl = 'https://api.spotify.com/v1/me/player/play';
+    const playUrl = !activeDevice && targetDeviceId
+      ? `${basePlayUrl}?device_id=${encodeURIComponent(targetDeviceId)}`
+      : basePlayUrl;
+
+    console.log('[spotify-play] Play target device:', JSON.stringify({
+      hasActiveDevice: !!activeDevice,
+      targetDeviceId,
+      targetDeviceName: targetDevice?.name,
+      playUrl: playUrl.replace(/device_id=[^&]+/, 'device_id=***'),
+    }));
+
     // Try to start playback
-    const playResponse = await fetch('https://api.spotify.com/v1/me/player/play', {
+    const playResponse = await fetch(playUrl, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${settings.access_token}`,
@@ -215,13 +232,13 @@ serve(async (req) => {
       });
     }
 
-    // 404 = no active device
+    // 404 = no active device / not ready for remote control
     if (playResponse.status === 404) {
-      console.log('[spotify-play] No active device found (Spotify returned 404)');
+      console.log('[spotify-play] Playback start returned 404 (device not ready)');
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'No active Spotify device found. Please open Spotify on a device first.',
+          error: 'Spotify is open but not ready for remote playback yet. Open Spotify and press Play once, then try again.',
           code: 'NO_ACTIVE_DEVICE',
           devices,
           reqId,

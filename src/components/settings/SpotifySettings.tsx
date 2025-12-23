@@ -445,7 +445,7 @@ export function SpotifySettings() {
           {settings?.play_on_meditation_start && settings?.selected_playlist_id && (
             <div className="space-y-3 pt-2">
               <p className="text-xs text-muted-foreground">
-                Make sure Spotify is open and playing before starting meditation.
+                If autoplay doesn’t start, open Spotify and press Play once so your phone becomes the active playback device.
               </p>
               <Button 
                 onClick={() => openSpotifyApp()}
