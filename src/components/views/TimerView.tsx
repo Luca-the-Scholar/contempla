@@ -180,6 +180,14 @@ export function TimerView() {
     startSpotifyPlayback().then(result => {
       if (result.error) {
         console.log('Spotify playback not started:', result.error);
+        // Show helpful toast if no Spotify device is available
+        if (result.error.includes('No active Spotify device')) {
+          toast({
+            title: "Spotify couldn't start",
+            description: "Open Spotify on a device to play music during meditation.",
+            variant: "default",
+          });
+        }
       }
     });
 
