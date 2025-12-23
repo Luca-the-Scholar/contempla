@@ -207,38 +207,34 @@ export function TimerView() {
   const handleStop = () => {
     // Calculate elapsed time in seconds
     const totalSeconds = initialDuration * 60;
-    const elapsedSeconds = totalSeconds - secondsLeft;
+    const elapsed = totalSeconds - secondsLeft;
     
-    // Always ask if they want to save (store seconds for precision)
-    setElapsedSeconds(elapsedSeconds);
+    // Stop the timer immediately
+    setTimerState('setup');
+    
+    // Cancel notification and stop sounds
+    if (notificationId) {
+      cancelTimerNotification(notificationId);
+      setNotificationId(null);
+    }
+    stopSound();
+    noSleep.disable();
+    
+    // Ask if they want to save
+    setElapsedSeconds(elapsed);
     setShowPartialSaveDialog(true);
   };
 
   const handleSavePartialSession = async () => {
     setShowPartialSaveDialog(false);
     
-    // Cancel any scheduled notification
-    if (notificationId) {
-      await cancelTimerNotification(notificationId);
-      setNotificationId(null);
-    }
-    
-    // Stop any playing sound
-    stopSound();
-    noSleep.disable();
-    
     // Log the partial session (convert seconds to minutes, minimum 1 minute for valid session)
     const minutesToSave = Math.max(1, Math.round(elapsedSeconds / 60));
     await logSession(minutesToSave);
-    
-    // Reset to setup state
-    setTimerState('setup');
-    setSecondsLeft(0);
   };
 
   const handleDiscardPartialSession = () => {
     setShowPartialSaveDialog(false);
-    handleReset();
   };
 
   const handleTimerComplete = async () => {
