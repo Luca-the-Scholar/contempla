@@ -6,21 +6,8 @@ import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
 import { App } from "@capacitor/app";
 
-// Build redirect URLs for OAuth
-// On native: Use Supabase callback with ?next= to bounce back to app via deep link
-// On web: Just redirect to the auth page
-const getRedirectUrl = () => {
-  const isNative = Capacitor.isNativePlatform();
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  
-  if (isNative) {
-    // After OAuth, Supabase will redirect to /auth?native_oauth=1#tokens
-    // Auth.tsx will detect this and bounce to contempla://auth/callback#tokens
-    return `${supabaseUrl}/auth/v1/callback?next=/auth?native_oauth=1`;
-  }
-  
-  return `${window.location.origin}/auth`;
-};
+// Simple redirect URL - always go to auth page
+const getRedirectUrl = () => `${window.location.origin}/auth`;
 
 export function OAuthButtons() {
   const [loading, setLoading] = useState(false);
