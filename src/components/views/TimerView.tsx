@@ -187,8 +187,8 @@ export function TimerView() {
 
       if (result.code === 'NO_ACTIVE_DEVICE') {
         toast({
-          title: "Spotify isn't active",
-          description: "Open Spotify on your phone once (Settings → Spotify → Open Spotify App), then press Start again.",
+          title: "Spotify isn't ready",
+          description: "Spotify is open, but it needs to be the active playback device. Press Play in Spotify once, then try Start again.",
           variant: "default",
         });
         return;
