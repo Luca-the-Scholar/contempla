@@ -91,7 +91,7 @@ export function TimerView() {
 
   useEffect(() => {
     if (timerState !== 'running') return;
-    
+
     const interval = setInterval(() => {
       setSecondsLeft(prev => {
         if (prev <= 1) {
@@ -105,7 +105,7 @@ export function TimerView() {
         return prev - 1;
       });
     }, 1000);
-    
+
     return () => clearInterval(interval);
   }, [timerState]);
 
@@ -436,7 +436,31 @@ export function TimerView() {
   // Full-screen Timer Display
   if (timerState === 'running' || timerState === 'paused') {
     return (
-      <div className="fixed inset-0 bg-gradient-to-b from-background via-background to-primary/5 z-50 flex flex-col items-center justify-center px-4">
+      <>
+        {/* Partial Session Save Dialog */}
+        <Dialog open={showPartialSaveDialog} onOpenChange={setShowPartialSaveDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Save your session?</DialogTitle>
+              <DialogDescription>
+                {elapsedSeconds >= 60 
+                  ? `You've meditated for ${Math.floor(elapsedSeconds / 60)} ${Math.floor(elapsedSeconds / 60) === 1 ? 'minute' : 'minutes'}. Would you like to save this session?`
+                  : `You've meditated for ${elapsedSeconds} ${elapsedSeconds === 1 ? 'second' : 'seconds'}. Would you like to save this session?`
+                }
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={handleDiscardPartialSession} className="w-full sm:w-auto">
+                Discard
+              </Button>
+              <Button onClick={handleSavePartialSession} className="w-full sm:w-auto">
+                Save Session
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <div className="fixed inset-0 bg-gradient-to-b from-background via-background to-primary/5 z-50 flex flex-col items-center justify-center px-4">
         <div className="max-w-md w-full space-y-8">
           {showWakeLockWarning && (
             <Alert className="bg-accent/20 border-accent/50">
@@ -514,15 +538,39 @@ export function TimerView() {
             )}
           </div>
         </div>
-      </div>
+        </div>
+      </>
     );
   }
 
   // Setup Screen
   return (
-    <div className="min-h-screen bg-background pb-32">
+    <>
+      {/* Partial Session Save Dialog - needs to be outside setup screen to show during running state */}
+      <Dialog open={showPartialSaveDialog} onOpenChange={setShowPartialSaveDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save your session?</DialogTitle>
+            <DialogDescription>
+              {elapsedSeconds >= 60 
+                ? `You've meditated for ${Math.floor(elapsedSeconds / 60)} ${Math.floor(elapsedSeconds / 60) === 1 ? 'minute' : 'minutes'}. Would you like to save this session?`
+                : `You've meditated for ${elapsedSeconds} ${elapsedSeconds === 1 ? 'second' : 'seconds'}. Would you like to save this session?`
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={handleDiscardPartialSession} className="w-full sm:w-auto">
+              Discard
+            </Button>
+            <Button onClick={handleSavePartialSession} className="w-full sm:w-auto">
+              Save Session
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      <div className="max-w-2xl mx-auto px-4 py-6">
+      <div className="min-h-screen bg-background pb-32">
+        <div className="max-w-2xl mx-auto px-4 py-6">
         <Card className="p-6 space-y-6">
           {/* Technique Selection */}
           <div>
@@ -647,7 +695,6 @@ export function TimerView() {
         </Card>
       </div>
 
-
       {/* Instructions Modal */}
       <Dialog open={instructionsModalOpen} onOpenChange={setInstructionsModalOpen}>
         <DialogContent>
@@ -662,29 +709,7 @@ export function TimerView() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Partial Session Save Dialog */}
-      <Dialog open={showPartialSaveDialog} onOpenChange={setShowPartialSaveDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Save your session?</DialogTitle>
-            <DialogDescription>
-              {elapsedSeconds >= 60 
-                ? `You've meditated for ${Math.floor(elapsedSeconds / 60)} ${Math.floor(elapsedSeconds / 60) === 1 ? 'minute' : 'minutes'}. Would you like to save this session?`
-                : `You've meditated for ${elapsedSeconds} ${elapsedSeconds === 1 ? 'second' : 'seconds'}. Would you like to save this session?`
-              }
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={handleDiscardPartialSession} className="w-full sm:w-auto">
-              Discard
-            </Button>
-            <Button onClick={handleSavePartialSession} className="w-full sm:w-auto">
-              Save Session
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
+    </>
   );
 }

@@ -19,7 +19,6 @@ export function initDeepLinking(handler: DeepLinkHandler): void {
   deepLinkHandler = handler;
 
   App.addListener('appUrlOpen', (event: URLOpenListenerEvent) => {
-    console.log('[DeepLink] Received URL:', event.url);
     handleDeepLink(event.url);
   });
 }
@@ -29,20 +28,16 @@ export function initDeepLinking(handler: DeepLinkHandler): void {
  */
 async function handleDeepLink(url: string): Promise<void> {
   try {
-    console.log('[DeepLink] Processing URL:', url);
-    
     // Check if this is a Spotify OAuth callback
     // Format: contempla://spotify/callback?code=xxx
     if (url.includes('spotify/callback') || url.includes('spotify_code')) {
-      console.log('[DeepLink] Detected Spotify OAuth callback');
       await handleSpotifyCallback(url);
       return;
     }
-    
+
     // Check if this is a Google/Supabase OAuth callback
     // Format: contempla://auth/callback#access_token=xxx
     if (url.includes('auth/callback') || url.includes('access_token') || url.includes('refresh_token')) {
-      console.log('[DeepLink] Detected Google OAuth callback');
       await handleOAuthCallback(url);
       return;
     }
@@ -80,15 +75,11 @@ async function handleDeepLink(url: string): Promise<void> {
  */
 async function handleOAuthCallback(url: string): Promise<void> {
   try {
-    console.log('[DeepLink] Processing OAuth callback URL');
-    
     // Close the browser window that was opened for OAuth
     try {
       await Browser.close();
-      console.log('[DeepLink] Closed browser window');
     } catch (e) {
       // Browser might already be closed, ignore
-      console.log('[DeepLink] Browser already closed or error closing:', e);
     }
 
     // Extract the fragment/query which may contain either tokens (implicit flow)
@@ -113,11 +104,8 @@ async function handleOAuthCallback(url: string): Promise<void> {
       paramString = url.split('#')[1] ?? '';
     }
 
-    console.log('[DeepLink] Extracted param string:', paramString ? `${paramString.substring(0, 50)}...` : '(empty)');
-
     if (!paramString) {
-      console.error('[DeepLink] No fragment/query found in OAuth callback');
-      // Navigate to auth page to let it handle the session check
+      console.error('No fragment/query found in OAuth callback');
       if (deepLinkHandler) deepLinkHandler('/auth/callback', new URLSearchParams());
       return;
     }
@@ -129,46 +117,32 @@ async function handleOAuthCallback(url: string): Promise<void> {
     const error = params.get('error');
     const errorDescription = params.get('error_description');
 
-    console.log('[DeepLink] OAuth callback params detected', {
-      hasAccessToken: !!accessToken,
-      hasRefreshToken: !!refreshToken,
-      hasCode: !!code,
-      hasError: !!error,
-      keys: Array.from(params.keys()),
-    });
-
     if (error) {
-      console.error('[DeepLink] OAuth error:', error, errorDescription);
+      console.error('OAuth error:', error, errorDescription);
       if (deepLinkHandler) deepLinkHandler('/auth/callback', new URLSearchParams());
       return;
     }
 
     // 1) Implicit flow: tokens are present
     if (accessToken && refreshToken) {
-      console.log('[DeepLink] Setting session from access/refresh token...');
-      const { data, error: setSessionError } = await supabase.auth.setSession({
+      const { error: setSessionError } = await supabase.auth.setSession({
         access_token: accessToken,
         refresh_token: refreshToken,
       });
 
       if (setSessionError) {
-        console.error('[DeepLink] Error setting session:', setSessionError);
-      } else {
-        console.log('[DeepLink] Session set successfully:', data.user?.id);
+        console.error('Error setting session from OAuth callback:', setSessionError);
       }
     }
     // 2) PKCE flow: code must be exchanged for a session
     else if (code) {
-      console.log('[DeepLink] Exchanging PKCE code for session...');
-      const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+      const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
 
       if (exchangeError) {
-        console.error('[DeepLink] Error exchanging code for session:', exchangeError);
-      } else {
-        console.log('[DeepLink] Code exchanged successfully:', data.user?.id);
+        console.error('Error exchanging code for session:', exchangeError);
       }
     } else {
-      console.error('[DeepLink] No tokens or code found in OAuth callback');
+      console.error('No tokens or code found in OAuth callback');
     }
 
     // Navigate to auth page to complete the flow
@@ -177,7 +151,7 @@ async function handleOAuthCallback(url: string): Promise<void> {
       deepLinkHandler('/auth/callback', new URLSearchParams());
     }
   } catch (err) {
-    console.error('[DeepLink] Error handling OAuth callback:', err);
+    console.error('Error handling OAuth callback:', err);
   }
 }
 
@@ -187,20 +161,17 @@ async function handleOAuthCallback(url: string): Promise<void> {
  */
 async function handleSpotifyCallback(url: string): Promise<void> {
   try {
-    console.log('[DeepLink] Processing Spotify callback URL');
-    
     // Close the browser window that was opened for OAuth
     try {
       await Browser.close();
-      console.log('[DeepLink] Closed browser window');
     } catch (e) {
-      console.log('[DeepLink] Browser already closed or error closing:', e);
+      // Browser might already be closed, ignore
     }
 
     // Extract the code from URL
     // Format: contempla://spotify/callback?code=xxx
     let code = '';
-    
+
     if (url.includes('?')) {
       const queryPart = url.split('?')[1];
       const params = new URLSearchParams(queryPart);
@@ -208,11 +179,10 @@ async function handleSpotifyCallback(url: string): Promise<void> {
     }
 
     if (!code) {
-      console.error('[DeepLink] No code found in Spotify callback');
       // Check for error
       const errorMatch = url.match(/error=([^&]+)/);
       if (errorMatch) {
-        console.error('[DeepLink] Spotify OAuth error:', decodeURIComponent(errorMatch[1]));
+        console.error('Spotify OAuth error:', decodeURIComponent(errorMatch[1]));
       }
       // Navigate to settings anyway
       if (deepLinkHandler) {
@@ -221,27 +191,23 @@ async function handleSpotifyCallback(url: string): Promise<void> {
       return;
     }
 
-    console.log('[DeepLink] Found Spotify code, storing for callback handling');
-    
     // Store the code in sessionStorage for the SpotifySettings component to pick up
-    // This is needed because we can't directly call React component methods from here
     sessionStorage.setItem('spotify_oauth_code', code);
     sessionStorage.setItem('spotify_oauth_from_deeplink', 'true');
 
-    // Also dispatch a runtime event so the Settings screen can handle the code
-    // even if it is already mounted (common on iOS when returning from the system browser).
+    // Dispatch event so Settings screen can handle the code if already mounted
     try {
       window.dispatchEvent(new CustomEvent('spotify-oauth-code', { detail: { code } }));
     } catch (e) {
-      console.log('[DeepLink] Could not dispatch spotify-oauth-code event:', e);
+      // Ignore dispatch errors
     }
-    
+
     // Navigate to settings page where SpotifySettings will handle the code
     if (deepLinkHandler) {
       deepLinkHandler('/settings', new URLSearchParams({ spotify_callback: 'true' }));
     }
   } catch (err) {
-    console.error('[DeepLink] Error handling Spotify callback:', err);
+    console.error('Error handling Spotify callback:', err);
   }
 }
 

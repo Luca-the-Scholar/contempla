@@ -33,8 +33,8 @@ interface Technique {
   id: string;
   name: string;
   description?: string | null;
-  instructions: string;
-  tradition: string;
+  instructions: string | null;
+  tradition: string | null;
   is_favorite: boolean;
   source_global_technique_id?: string | null;
   original_author_name?: string | null;
@@ -369,9 +369,11 @@ export function LibraryView() {
                             {technique.original_author_name && (
                               <p className="text-xs text-accent mt-0.5">by {technique.original_author_name}</p>
                             )}
-                            <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-                              {technique.instructions}
-                            </p>
+                            {(technique.description || technique.instructions) && (
+                              <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                                {technique.description || technique.instructions}
+                              </p>
+                            )}
                           </div>
                           <Button
                             variant="ghost"

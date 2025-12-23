@@ -73,8 +73,6 @@ export function SpotifySettings() {
       const codeFromEvent = (event as CustomEvent<{ code?: string }>).detail?.code;
       if (!codeFromEvent) return;
 
-      console.log('[Spotify] Received code from deep link event, processing...');
-
       sessionStorage.removeItem('spotify_oauth_code');
       sessionStorage.removeItem('spotify_oauth_from_deeplink');
 
@@ -93,19 +91,14 @@ export function SpotifySettings() {
     const isFromDeepLink = sessionStorage.getItem('spotify_oauth_from_deeplink') === 'true';
 
     if (deepLinkCode && isFromDeepLink) {
-      console.log('[Spotify] Found code from deep link storage, processing...');
       // Clear the stored values
       sessionStorage.removeItem('spotify_oauth_code');
       sessionStorage.removeItem('spotify_oauth_from_deeplink');
       handleOAuthCallback(deepLinkCode, true);
     } else if (spotifyCode) {
-      console.log('[Spotify] Found code in URL params, processing...');
       handleOAuthCallback(spotifyCode, false);
       // Clean up URL
       window.history.replaceState({}, '', window.location.pathname);
-    } else if (isSpotifyCallback) {
-      // Callback came but no code - might be an error or the code is coming
-      console.log('[Spotify] Spotify callback detected but no code yet');
     }
 
     return () => {
@@ -159,9 +152,6 @@ export function SpotifySettings() {
         user_id: user.id,
       };
 
-      console.log('[Spotify] OAuth callback payload:', JSON.stringify(payload));
-      console.log('[Spotify] Processing OAuth callback', { isNative, isFromDeepLink, redirectUri });
-
       const { data, error } = await supabase.functions.invoke('spotify-auth', {
         body: payload,
       });
@@ -173,7 +163,6 @@ export function SpotifySettings() {
       await loadSettings();
     } catch (error: any) {
       const { message: details, reqId } = await getEdgeFunctionErrorDetails(error);
-      console.error('[Spotify] OAuth callback error:', { error: error.message, details, reqId });
       toast({
         title: "Failed to connect Spotify",
         description: reqId ? `${details} (ref: ${reqId.slice(0, 8)})` : details,
@@ -200,10 +189,6 @@ export function SpotifySettings() {
         redirect_uri: redirectUri,
       };
 
-      console.log('[Spotify] Connect payload:', JSON.stringify(payload));
-      console.log('[Spotify] Starting OAuth flow', { isNative, redirectUri });
-
-      // Use POST request (GET with body is problematic on iOS)
       const { data, error } = await supabase.functions.invoke('spotify-auth', {
         body: payload,
       });
@@ -211,21 +196,16 @@ export function SpotifySettings() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      console.log('[Spotify] Got OAuth URL:', data.url);
-
       if (isNative) {
-        console.log('[Spotify] Opening in system browser for native platform');
-        await Browser.open({ 
+        await Browser.open({
           url: data.url,
           presentationStyle: 'popover',
         });
       } else {
-        console.log('[Spotify] Redirecting in browser');
         window.location.href = data.url;
       }
     } catch (error: any) {
       const { message: details, reqId } = await getEdgeFunctionErrorDetails(error);
-      console.error('[Spotify] Connect error:', { error: error.message, details, reqId });
       toast({
         title: "Failed to connect",
         description: reqId ? `${details} (ref: ${reqId.slice(0, 8)})` : details,
@@ -237,9 +217,7 @@ export function SpotifySettings() {
 
   const handleDisconnect = async () => {
     try {
-      // Standardized payload for disconnect action
       const payload = { action: 'disconnect' };
-      console.log('[Spotify] Disconnect payload:', JSON.stringify(payload));
 
       const { data, error } = await supabase.functions.invoke('spotify-auth', {
         body: payload,
@@ -268,23 +246,19 @@ export function SpotifySettings() {
         await refreshToken();
       }
 
-      // Standardized payload for playlists
       const payload = { action: 'list' };
-      console.log('[Spotify] Load playlists payload:', JSON.stringify(payload));
 
       const { data, error } = await supabase.functions.invoke('spotify-playlists', {
         body: payload,
       });
-      
+
       if (error) throw error;
       if (data?.error) {
         if (data.error.includes('expired')) {
           await refreshToken();
-          // Retry with same standardized format
-          const retryPayload = { action: 'list' };
-          console.log('[Spotify] Retry playlists payload:', JSON.stringify(retryPayload));
+          // Retry after token refresh
           const retryData = await supabase.functions.invoke('spotify-playlists', {
-            body: retryPayload,
+            body: payload,
           });
           if (retryData.data?.playlists) {
             setPlaylists(retryData.data.playlists);
@@ -308,9 +282,7 @@ export function SpotifySettings() {
   };
 
   const refreshToken = async () => {
-    // Standardized payload for refresh action
     const payload = { action: 'refresh' };
-    console.log('[Spotify] Refresh token payload:', JSON.stringify(payload));
 
     const { data, error } = await supabase.functions.invoke('spotify-auth', {
       body: payload,
