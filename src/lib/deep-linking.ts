@@ -91,51 +91,73 @@ async function handleOAuthCallback(url: string): Promise<void> {
       console.log('[DeepLink] Browser already closed or error closing:', e);
     }
 
-    // Extract the hash fragment which contains the tokens
-    // URL format: contempla://auth/callback#access_token=xxx&refresh_token=xxx&...
-    let hashFragment = '';
-    
+    // Extract the fragment/query which may contain either tokens (implicit flow)
+    // or a code (PKCE flow).
+    // Examples:
+    // - contempla://auth/callback#access_token=...&refresh_token=...
+    // - contempla://auth/callback?code=...
+    let paramString = '';
+
     if (url.includes('#')) {
-      hashFragment = url.split('#')[1];
+      paramString = url.split('#')[1] ?? '';
     } else if (url.includes('?')) {
-      // Sometimes tokens come as query params
-      hashFragment = url.split('?')[1];
+      paramString = url.split('?')[1] ?? '';
     }
 
-    if (!hashFragment) {
-      console.error('[DeepLink] No hash fragment found in OAuth callback');
+    if (!paramString) {
+      console.error('[DeepLink] No fragment/query found in OAuth callback');
       // Navigate to auth page to let it handle the session check
-      if (deepLinkHandler) {
-        deepLinkHandler('/auth/callback', new URLSearchParams());
-      }
+      if (deepLinkHandler) deepLinkHandler('/auth/callback', new URLSearchParams());
       return;
     }
 
-    console.log('[DeepLink] Found hash fragment, setting session...');
-    
-    // Parse the hash fragment to get tokens
-    const params = new URLSearchParams(hashFragment);
+    const params = new URLSearchParams(paramString);
     const accessToken = params.get('access_token');
     const refreshToken = params.get('refresh_token');
+    const code = params.get('code');
+    const error = params.get('error');
+    const errorDescription = params.get('error_description');
 
+    console.log('[DeepLink] OAuth callback params detected', {
+      hasAccessToken: !!accessToken,
+      hasRefreshToken: !!refreshToken,
+      hasCode: !!code,
+      hasError: !!error,
+      keys: Array.from(params.keys()),
+    });
+
+    if (error) {
+      console.error('[DeepLink] OAuth error:', error, errorDescription);
+      if (deepLinkHandler) deepLinkHandler('/auth/callback', new URLSearchParams());
+      return;
+    }
+
+    // 1) Implicit flow: tokens are present
     if (accessToken && refreshToken) {
-      // Set the session using the tokens from the callback
-      const { data, error } = await supabase.auth.setSession({
+      console.log('[DeepLink] Setting session from access/refresh token...');
+      const { data, error: setSessionError } = await supabase.auth.setSession({
         access_token: accessToken,
         refresh_token: refreshToken,
       });
 
-      if (error) {
-        console.error('[DeepLink] Error setting session:', error);
+      if (setSessionError) {
+        console.error('[DeepLink] Error setting session:', setSessionError);
       } else {
         console.log('[DeepLink] Session set successfully:', data.user?.id);
       }
-    } else {
-      console.log('[DeepLink] No tokens in callback, checking for error');
-      const errorDescription = params.get('error_description');
-      if (errorDescription) {
-        console.error('[DeepLink] OAuth error:', errorDescription);
+    }
+    // 2) PKCE flow: code must be exchanged for a session
+    else if (code) {
+      console.log('[DeepLink] Exchanging PKCE code for session...');
+      const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+
+      if (exchangeError) {
+        console.error('[DeepLink] Error exchanging code for session:', exchangeError);
+      } else {
+        console.log('[DeepLink] Code exchanged successfully:', data.user?.id);
       }
+    } else {
+      console.error('[DeepLink] No tokens or code found in OAuth callback');
     }
 
     // Navigate to auth page to complete the flow
