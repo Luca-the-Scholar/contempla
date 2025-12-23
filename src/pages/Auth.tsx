@@ -211,18 +211,27 @@ export default function Auth() {
       });
 
       if (isSafariBounce) {
-        console.log("[Auth][OAuth] Safari bounce detected - showing Return to App button");
-        // Build deep link with tokens
-        const deepLink = `contempla://auth/callback#access_token=${encodeURIComponent(
+        console.log("[Auth][OAuth] Safari bounce detected - redirecting to native app with tokens");
+        
+        // Build deep link with tokens as QUERY PARAMS (not hash - hash doesn't transfer reliably)
+        const deepLink = `contempla://auth/callback?access_token=${encodeURIComponent(
           accessToken
         )}&refresh_token=${encodeURIComponent(refreshToken)}`;
         console.log("[Auth][OAuth] Built deep link (length):", deepLink.length);
+        
         if (mounted) {
           setBounceDeepLink(deepLink);
           setShowReturnToApp(true);
           setCheckingSession(false);
         }
-        // Don't clean up hash yet - user might need to copy it for debugging
+        
+        // Auto-redirect to native app after a brief moment
+        // This gives Safari a chance to render before the redirect
+        setTimeout(() => {
+          console.log("[Auth][OAuth] Auto-redirecting to native app...");
+          window.location.href = deepLink;
+        }, 500);
+        
         return true;
       }
 
