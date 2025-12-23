@@ -102,6 +102,20 @@ export default function Auth() {
     }
   }, [ensureProfileExists, navigate]);
 
+  // Force re-check session (called by OAuthButtons when session is detected)
+  const handleOAuthSessionDetected = useCallback(async () => {
+    console.log('[Auth] OAuth session detected callback triggered');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        console.log('[Auth] Handling OAuth session for user:', session.user.id);
+        await handleAuthenticatedUser(session.user);
+      }
+    } catch (err) {
+      console.error('[Auth] Error handling OAuth session:', err);
+    }
+  }, [handleAuthenticatedUser]);
+
   // Check for existing session and set up auth listener
   useEffect(() => {
     let mounted = true;
@@ -127,13 +141,13 @@ export default function Auth() {
             description: errorDescription || error,
             variant: "destructive",
           });
-          // Clean up the URL
           window.history.replaceState(null, '', window.location.pathname);
+          if (mounted) setCheckingSession(false);
           return;
         }
         
         if (accessToken && refreshToken) {
-          console.log('[Auth] Setting session from OAuth callback...');
+          console.log('[Auth] Setting session from OAuth callback tokens...');
           const { data, error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
@@ -146,9 +160,10 @@ export default function Auth() {
               description: sessionError.message,
               variant: "destructive",
             });
-          } else if (data.user) {
-            console.log('[Auth] Session set successfully:', data.user.id);
-            // The onAuthStateChange listener will handle navigation
+          } else if (data.user && mounted) {
+            console.log('[Auth] Session set successfully from tokens:', data.user.id);
+            // Handle the authenticated user directly - don't rely on event
+            await handleAuthenticatedUser(data.user);
           }
         }
         
@@ -157,15 +172,14 @@ export default function Auth() {
       }
     };
 
-    // Set up auth state listener FIRST (synchronous callback - no async!)
+    // Set up auth state listener (synchronous callback - no async!)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('[Auth] Auth state changed:', event, session?.user?.id);
+        console.log('[Auth] Auth state changed:', event, 'user:', session?.user?.id);
         
         // Handle sign in events - defer async work with setTimeout to avoid deadlock
-        if (event === "SIGNED_IN" && session?.user && mounted) {
-          console.log('[Auth] SIGNED_IN event detected');
-          // Use setTimeout to break out of the callback and avoid Supabase deadlock
+        if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session?.user && mounted) {
+          console.log('[Auth] Auth event with session, handling user...');
           setTimeout(() => {
             if (mounted) {
               handleAuthenticatedUser(session.user);
@@ -188,7 +202,7 @@ export default function Auth() {
     // Handle OAuth callback first (if present in URL)
     handleOAuthCallback();
 
-    // THEN check for existing session
+    // Check for existing session
     const checkInitialSession = async () => {
       console.log('[Auth] Checking initial session...');
       try {
@@ -196,7 +210,7 @@ export default function Auth() {
         
         if (error) {
           console.error('[Auth] Error getting session:', error);
-          setCheckingSession(false);
+          if (mounted) setCheckingSession(false);
           return;
         }
 
@@ -204,7 +218,7 @@ export default function Auth() {
           console.log('[Auth] Found existing session for user:', session.user.id);
           await handleAuthenticatedUser(session.user);
         } else {
-          console.log('[Auth] No existing session');
+          console.log('[Auth] No existing session found');
         }
       } catch (err) {
         console.error('[Auth] Exception checking session:', err);
@@ -402,7 +416,7 @@ export default function Auth() {
         </div>
 
         {/* OAuth buttons */}
-        <OAuthButtons />
+        <OAuthButtons onSessionDetected={handleOAuthSessionDetected} />
 
         <div className="text-center">
           <button
