@@ -53,7 +53,7 @@ export function LibraryView() {
   const [editFormData, setEditFormData] = useState({
     name: "",
     description: "",
-    instructions: "",
+    instructionSteps: [""],
     tradition: "",
   });
   const [formData, setFormData] = useState({
@@ -157,6 +157,42 @@ export function LibraryView() {
     }));
   };
 
+  // Edit form instruction step helpers
+  const addEditInstructionStep = () => {
+    setEditFormData(prev => ({
+      ...prev,
+      instructionSteps: [...prev.instructionSteps, ""]
+    }));
+  };
+
+  const removeEditInstructionStep = (index: number) => {
+    setEditFormData(prev => ({
+      ...prev,
+      instructionSteps: prev.instructionSteps.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateEditInstructionStep = (index: number, value: string) => {
+    setEditFormData(prev => ({
+      ...prev,
+      instructionSteps: prev.instructionSteps.map((step, i) => i === index ? value : step)
+    }));
+  };
+
+  // Parse numbered instructions into steps
+  const parseInstructionsToSteps = (instructions: string | null | undefined): string[] => {
+    if (!instructions) return [""];
+    
+    // Try to parse numbered steps like "1. Step one\n2. Step two"
+    const lines = instructions.split('\n').filter(line => line.trim());
+    const steps = lines.map(line => {
+      // Remove leading number and period/dot (e.g., "1. ", "2) ", "1: ")
+      return line.replace(/^\d+[\.\)\:]\s*/, '').trim();
+    }).filter(step => step);
+    
+    return steps.length > 0 ? steps : [""];
+  };
+
   const handleDeleteTechnique = async () => {
     if (!techniqueToDelete) return;
 
@@ -190,7 +226,7 @@ export function LibraryView() {
     setEditFormData({
       name: technique.name,
       description: technique.description || "",
-      instructions: technique.instructions || "",
+      instructionSteps: parseInstructionsToSteps(technique.instructions),
       tradition: technique.tradition || "",
     });
     setIsEditing(true);
@@ -208,12 +244,18 @@ export function LibraryView() {
     }
 
     try {
+      // Format instructions as numbered list (only if there are filled steps)
+      const filledSteps = editFormData.instructionSteps.filter(s => s.trim());
+      const formattedInstructions = filledSteps.length > 0
+        ? filledSteps.map((step, idx) => `${idx + 1}. ${step}`).join("\n")
+        : null;
+
       const { error } = await supabase
         .from("techniques")
         .update({
           name: editFormData.name.trim(),
           description: editFormData.description.trim() || null,
-          instructions: editFormData.instructions.trim() || null,
+          instructions: formattedInstructions,
           tradition: editFormData.tradition.trim() || null,
         })
         .eq("id", detailTechnique.id);
@@ -547,14 +589,44 @@ export function LibraryView() {
                   onChange={(e) => setEditFormData(prev => ({ ...prev, tradition: e.target.value }))}
                 />
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Instructions</Label>
-                <Textarea
-                  placeholder="Step-by-step instructions..."
-                  value={editFormData.instructions}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, instructions: e.target.value }))}
-                  rows={6}
-                />
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Instructions (Step by Step)</Label>
+                <div className="space-y-2">
+                  {editFormData.instructionSteps.map((step, idx) => (
+                    <div key={idx} className="flex gap-2 items-start">
+                      <div className="flex items-center gap-1 pt-2.5 text-muted-foreground">
+                        <GripVertical className="h-4 w-4 opacity-50" />
+                        <span className="text-sm font-medium w-5">{idx + 1}.</span>
+                      </div>
+                      <Textarea
+                        value={step}
+                        onChange={(e) => updateEditInstructionStep(idx, e.target.value)}
+                        placeholder={idx === 0 ? "e.g., Sit comfortably with eyes closed." : "Next step..."}
+                        rows={2}
+                        className="flex-1"
+                      />
+                      {editFormData.instructionSteps.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeEditInstructionStep(idx)}
+                          className="mt-1"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addEditInstructionStep}
+                  className="mt-2"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add Step
+                </Button>
               </div>
               <div className="flex gap-2">
                 <Button onClick={handleUpdateTechnique} className="flex-1">
