@@ -581,40 +581,43 @@ export type Database = {
       techniques: {
         Row: {
           created_at: string | null
+          description: string | null
           id: string
-          instructions: string
+          instructions: string | null
           is_favorite: boolean | null
           name: string
           original_author_name: string | null
           source_global_technique_id: string | null
           tags: string[] | null
-          tradition: string
+          tradition: string | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
           created_at?: string | null
+          description?: string | null
           id?: string
-          instructions: string
+          instructions?: string | null
           is_favorite?: boolean | null
           name: string
           original_author_name?: string | null
           source_global_technique_id?: string | null
           tags?: string[] | null
-          tradition: string
+          tradition?: string | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
           created_at?: string | null
+          description?: string | null
           id?: string
-          instructions?: string
+          instructions?: string | null
           is_favorite?: boolean | null
           name?: string
           original_author_name?: string | null
           source_global_technique_id?: string | null
           tags?: string[] | null
-          tradition?: string
+          tradition?: string | null
           updated_at?: string | null
           user_id?: string
         }
