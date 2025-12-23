@@ -210,6 +210,9 @@ export function TimerView() {
     const elapsedSeconds = totalSeconds - secondsLeft;
     const elapsed = Math.floor(elapsedSeconds / 60);
     
+    // Pause the timer immediately
+    setTimerState('paused');
+    
     // If at least 1 minute elapsed, offer to save
     if (elapsed >= 1) {
       setElapsedMinutes(elapsed);
