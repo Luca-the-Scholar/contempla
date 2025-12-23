@@ -98,3 +98,44 @@ export async function startSpotifyPlayback(): Promise<{ success: boolean; error?
     return { success: false, error: error.message };
   }
 }
+
+/**
+ * Stop/pause Spotify playback when meditation ends.
+ * Fails gracefully if Spotify is not configured or unavailable.
+ */
+export async function stopSpotifyPlayback(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false };
+
+    // Get user's Spotify settings to check if connected
+    const { data: settings, error: settingsError } = await supabase
+      .from('spotify_settings')
+      .select('access_token, play_on_meditation_start')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (settingsError || !settings?.access_token) {
+      return { success: false };
+    }
+
+    // Only stop if autoplay was enabled (user started music via the app)
+    if (!settings.play_on_meditation_start) {
+      return { success: false };
+    }
+
+    const { data, error } = await supabase.functions.invoke('spotify-play', {
+      body: { action: 'pause' },
+    });
+
+    if (error || data?.error) {
+      console.log('[Spotify] Pause failed (may be expected):', error?.message || data?.error);
+      return { success: false, error: error?.message || data?.error };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('[Spotify] Stop playback error:', error);
+    return { success: false, error: error.message };
+  }
+}

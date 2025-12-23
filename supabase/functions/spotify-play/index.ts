@@ -99,11 +99,7 @@ serve(async (req) => {
     
     console.log(`[spotify-play] [${reqId}] Parsed body:`, JSON.stringify(body));
     
-    const { playlist_id } = body;
-    
-    if (!playlist_id) {
-      return errorResponse('playlist_id is required', { providedBody: body, reqId });
-    }
+    const { playlist_id, action } = body;
 
     // Get user from JWT
     const anonSupabase = createClient(
@@ -133,6 +129,37 @@ serve(async (req) => {
     // Check if token is expired
     if (new Date(settings.token_expires_at) < new Date()) {
       return errorResponse('Token expired - refresh required', { expiresAt: settings.token_expires_at });
+    }
+
+    // Handle pause action
+    if (action === 'pause') {
+      console.log('[spotify-play] Pausing playback');
+      const pauseResponse = await fetch('https://api.spotify.com/v1/me/player/pause', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${settings.access_token}`,
+        },
+      });
+
+      // 204 = success, 404 = no active device (also ok - nothing to pause)
+      if (pauseResponse.status === 204 || pauseResponse.status === 404) {
+        console.log('[spotify-play] Playback paused successfully');
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { error: pauseError } = await handleSpotifyResponse(pauseResponse, 'Pause Playback');
+      if (pauseError) return pauseError;
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // For play action, playlist_id is required
+    if (!playlist_id) {
+      return errorResponse('playlist_id is required for play action', { providedBody: body, reqId });
     }
 
     console.log(`[spotify-play] Starting playback for playlist: ${playlist_id}`);
