@@ -70,24 +70,32 @@ export function OAuthButtons() {
       const isNative = Capacitor.isNativePlatform();
       const redirectTo = OAUTH_REDIRECT_URL;
 
-      console.log('[OAuth] Starting Google OAuth flow', { 
-        isNative, 
+      // Detailed debug logging
+      console.log('=== OAuth Debug Start ===');
+      console.log('[OAuth] OAUTH_REDIRECT_URL constant:', OAUTH_REDIRECT_URL);
+      console.log('[OAuth] redirectTo variable:', redirectTo);
+      console.log('[OAuth] isNative:', isNative);
+      console.log('[OAuth] platform:', Capacitor.getPlatform());
+      
+      const oauthOptions = {
         redirectTo,
-        platform: Capacitor.getPlatform()
-      });
+        skipBrowserRedirect: true,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      };
+      
+      console.log('[OAuth] Full options object:', JSON.stringify(oauthOptions, null, 2));
       
       // Get the OAuth URL from Supabase
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: {
-          redirectTo,
-          skipBrowserRedirect: true,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        },
+        options: oauthOptions,
       });
+
+      console.log('[OAuth] Supabase response - data:', JSON.stringify(data, null, 2));
+      console.log('[OAuth] Supabase response - error:', error);
 
       if (error) {
         console.error('[OAuth] signInWithOAuth error:', error);
@@ -99,7 +107,25 @@ export function OAuthButtons() {
         throw new Error('Failed to get OAuth URL');
       }
 
-      console.log('[OAuth] Got OAuth URL:', data.url);
+      // Parse and log the OAuth URL components
+      try {
+        const oauthUrl = new URL(data.url);
+        console.log('[OAuth] OAuth URL origin:', oauthUrl.origin);
+        console.log('[OAuth] OAuth URL pathname:', oauthUrl.pathname);
+        console.log('[OAuth] OAuth URL params:');
+        oauthUrl.searchParams.forEach((value, key) => {
+          console.log(`  ${key}: ${key === 'redirect_uri' ? value : value.substring(0, 50) + '...'}`);
+        });
+        
+        // Specifically highlight the redirect_uri
+        const redirectUri = oauthUrl.searchParams.get('redirect_uri');
+        console.log('[OAuth] *** REDIRECT_URI in OAuth URL:', redirectUri);
+      } catch (e) {
+        console.log('[OAuth] Could not parse URL:', e);
+      }
+      
+      console.log('[OAuth] Full OAuth URL:', data.url);
+      console.log('=== OAuth Debug End ===');
 
       if (isNative) {
         // On iOS/Android, open in system browser
