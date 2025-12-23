@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -7,78 +7,93 @@ import { Browser } from "@capacitor/browser";
 import { App } from "@capacitor/app";
 
 // For iOS: Use the Lovable preview URL which actually exists and can handle the redirect
-// The Auth page will detect OAuth tokens and redirect back to the app via deep link
 const getRedirectUrl = () => {
   if (Capacitor.isNativePlatform()) {
-    // Use the Lovable preview URL - it exists and will handle the OAuth callback
-    // The Auth page there will redirect to the app via deep link
     return `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/callback`;
   }
-  // For web, use current origin
   return `${window.location.origin}/auth`;
 };
 
-export function OAuthButtons() {
+interface OAuthButtonsProps {
+  onSessionDetected?: () => void;
+}
+
+export function OAuthButtons({ onSessionDetected }: OAuthButtonsProps) {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  // Poll for session after OAuth - needed because native browser doesn't always trigger events properly
+  const pollForSession = useCallback(async (maxAttempts = 10, intervalMs = 500): Promise<boolean> => {
+    console.log('[OAuth] Starting session polling...');
+    
+    for (let i = 0; i < maxAttempts; i++) {
+      console.log(`[OAuth] Poll attempt ${i + 1}/${maxAttempts}`);
+      
+      try {
+        // Try to refresh the session from the server
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('[OAuth] Poll error:', error);
+        } else if (session?.user) {
+          console.log('[OAuth] Session found via polling:', session.user.id, session.user.email);
+          setLoading(false);
+          onSessionDetected?.();
+          return true;
+        }
+      } catch (err) {
+        console.error('[OAuth] Poll exception:', err);
+      }
+      
+      // Wait before next attempt
+      await new Promise(resolve => setTimeout(resolve, intervalMs));
+    }
+    
+    console.log('[OAuth] Session polling exhausted, no session found');
+    setLoading(false);
+    return false;
+  }, [onSessionDetected]);
 
   // Listen for app returning from browser OAuth on native
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
-    let checkingSession = false;
+    let isPolling = false;
 
-    // Check session and trigger auth state update
-    const checkSessionOnResume = async () => {
-      if (checkingSession) return;
-      checkingSession = true;
-      
-      console.log('[OAuth] Checking session on app resume...');
-      try {
-        // Force refresh session from server to pick up OAuth tokens
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('[OAuth] Error getting session:', error);
-        } else if (session) {
-          console.log('[OAuth] Session found after OAuth:', session.user?.id);
-          setLoading(false);
-          // Session exists - the Auth page's onAuthStateChange will handle navigation
-          // But we also need to trigger a refresh to ensure the state updates
-          await supabase.auth.refreshSession();
-        } else {
-          console.log('[OAuth] No session found after resume');
-        }
-      } catch (err) {
-        console.error('[OAuth] Exception checking session:', err);
-      } finally {
-        checkingSession = false;
-        setLoading(false);
+    // Start polling when we detect OAuth might have completed
+    const startPolling = async () => {
+      if (isPolling) {
+        console.log('[OAuth] Already polling, skipping');
+        return;
       }
+      isPolling = true;
+      
+      console.log('[OAuth] Starting session check after browser event...');
+      await pollForSession();
+      isPolling = false;
     };
 
     // Listen for browser closed event (iOS returns control to app)
     const handleBrowserFinished = () => {
-      console.log('[OAuth] Browser finished event');
-      // Delay slightly to allow any pending auth to complete
-      setTimeout(checkSessionOnResume, 500);
+      console.log('[OAuth] Browser finished event received');
+      startPolling();
     };
 
     // Also listen for app resume (covers more cases)
     const handleAppStateChange = (state: { isActive: boolean }) => {
-      console.log('[OAuth] App state changed:', state);
+      console.log('[OAuth] App state changed:', state.isActive ? 'active' : 'inactive');
       if (state.isActive && loading) {
-        // App became active while we were waiting for OAuth
-        setTimeout(checkSessionOnResume, 500);
+        console.log('[OAuth] App became active while loading, checking session...');
+        startPolling();
       }
     };
 
     // Listen for deep link OAuth callback
     const handleUrlOpen = async (event: { url: string }) => {
-      console.log('[OAuth] URL opened:', event.url);
-      if (event.url.includes('auth/callback') || event.url.includes('access_token')) {
-        console.log('[OAuth] OAuth callback detected, checking session...');
-        setTimeout(checkSessionOnResume, 100);
+      console.log('[OAuth] Deep link received:', event.url);
+      if (event.url.includes('auth') || event.url.includes('callback') || event.url.includes('access_token')) {
+        console.log('[OAuth] OAuth-related deep link detected');
+        startPolling();
       }
     };
 
@@ -90,7 +105,7 @@ export function OAuthButtons() {
       Browser.removeAllListeners();
       App.removeAllListeners();
     };
-  }, [loading]);
+  }, [loading, pollForSession]);
 
   const handleGoogleOAuth = async () => {
     setLoading(true);
