@@ -1,147 +1,40 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Capacitor } from "@capacitor/core";
-import { Browser } from "@capacitor/browser";
-import { App } from "@capacitor/app";
-
-// Redirect URL strategy:
-// - Web: return to the published app /auth where tokens are in the URL hash
-// - Native: ALSO use the web URL - Safari will load it, detect tokens, and show
-//   a "Return to App" button that deep-links back to the native app with tokens
-const OAUTH_REDIRECT_URL = "https://contempla.lovable.app/auth";
 
 export function OAuthButtons() {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  // On native: Listen for app resume after OAuth and check session
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
-
-    const checkSessionOnResume = async () => {
-      if (!loading) return;
-      
-      console.log('[OAuth] Browser closed or app resumed, checking session...');
-      
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.error('[OAuth] Session check error:', error);
-        setLoading(false);
-        return;
-      }
-      
-      if (session?.user) {
-        console.log('[OAuth] Session detected after OAuth:', session.user.email);
-        setLoading(false);
-        // Session exists - auth state listener in Auth.tsx will handle navigation
-      } else {
-        console.log('[OAuth] No session found after browser closed');
-        setLoading(false);
-      }
-    };
-
-    // Listen for browser finished (user closed or OAuth completed)
-    const browserListener = Browser.addListener('browserFinished', () => {
-      console.log('[OAuth] Browser finished event');
-      checkSessionOnResume();
-    });
-
-    // Also listen for app state changes as backup
-    const appListener = App.addListener('appStateChange', ({ isActive }) => {
-      if (isActive && loading) {
-        console.log('[OAuth] App became active while loading');
-        checkSessionOnResume();
-      }
-    });
-
-    return () => {
-      browserListener.then(l => l.remove());
-      appListener.then(l => l.remove());
-    };
-  }, [loading]);
+  // Hide Google OAuth on native iOS - not yet supported
+  if (Capacitor.isNativePlatform()) {
+    return null;
+  }
 
   const handleGoogleOAuth = async () => {
     setLoading(true);
     
     try {
-      const isNative = Capacitor.isNativePlatform();
-      const redirectTo = OAUTH_REDIRECT_URL;
-
-      // Detailed debug logging
-      console.log('=== OAuth Debug Start ===');
-      console.log('[OAuth] OAUTH_REDIRECT_URL constant:', OAUTH_REDIRECT_URL);
-      console.log('[OAuth] redirectTo variable:', redirectTo);
-      console.log('[OAuth] isNative:', isNative);
-      console.log('[OAuth] platform:', Capacitor.getPlatform());
-      
-      const oauthOptions = {
-        redirectTo,
-        skipBrowserRedirect: true,
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
-        },
-      };
-      
-      console.log('[OAuth] Full options object:', JSON.stringify(oauthOptions, null, 2));
-      
-      // Get the OAuth URL from Supabase
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: oauthOptions,
+        options: {
+          redirectTo: `${window.location.origin}/auth`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
       });
 
-      console.log('[OAuth] Supabase response - data:', JSON.stringify(data, null, 2));
-      console.log('[OAuth] Supabase response - error:', error);
+      if (error) throw error;
 
-      if (error) {
-        console.error('[OAuth] signInWithOAuth error:', error);
-        throw error;
-      }
-
-      if (!data?.url) {
-        console.error('[OAuth] No OAuth URL returned');
-        throw new Error('Failed to get OAuth URL');
-      }
-
-      // Parse and log the OAuth URL components
-      try {
-        const oauthUrl = new URL(data.url);
-        console.log('[OAuth] OAuth URL origin:', oauthUrl.origin);
-        console.log('[OAuth] OAuth URL pathname:', oauthUrl.pathname);
-        console.log('[OAuth] OAuth URL params:');
-        oauthUrl.searchParams.forEach((value, key) => {
-          console.log(`  ${key}: ${key === 'redirect_uri' ? value : value.substring(0, 50) + '...'}`);
-        });
-        
-        // Specifically highlight the redirect_uri
-        const redirectUri = oauthUrl.searchParams.get('redirect_uri');
-        console.log('[OAuth] *** REDIRECT_URI in OAuth URL:', redirectUri);
-      } catch (e) {
-        console.log('[OAuth] Could not parse URL:', e);
-      }
-      
-      console.log('[OAuth] Full OAuth URL:', data.url);
-      console.log('=== OAuth Debug End ===');
-
-      if (isNative) {
-        // On iOS/Android, open in system browser
-        console.log('[OAuth] Opening in system browser for native platform');
-        await Browser.open({ 
-          url: data.url,
-          presentationStyle: 'popover',
-        });
-        // Don't set loading to false here - wait for browser close event
-      } else {
-        // On web, just redirect normally
-        console.log('[OAuth] Redirecting in browser');
+      if (data?.url) {
         window.location.href = data.url;
       }
     } catch (error: any) {
-      console.error('[OAuth] Exception during OAuth:', error);
+      console.error('OAuth error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to sign in with Google",
