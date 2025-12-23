@@ -8,3 +8,6 @@ verify_jwt = true
 
 [functions.spotify-play]
 verify_jwt = true
+
+[functions.ping]
+verify_jwt = false
