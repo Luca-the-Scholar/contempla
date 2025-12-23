@@ -1,33 +1,75 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
+import { App } from "@capacitor/app";
 
-// For iOS: Use deep link scheme like Spotify does
-// For web: Use the current origin
-const getRedirectUrl = () => {
-  if (Capacitor.isNativePlatform()) {
-    return "contempla://auth/callback";
-  }
-  return `${window.location.origin}/auth`;
-};
+// Use Supabase callback URL for both web and native
+// Google Cloud Console only allows HTTPS URLs, not custom schemes
+const SUPABASE_CALLBACK_URL = `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/callback`;
 
 export function OAuthButtons() {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  // On native: Listen for app resume after OAuth and check session
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const checkSessionOnResume = async () => {
+      if (!loading) return;
+      
+      console.log('[OAuth] Browser closed or app resumed, checking session...');
+      
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('[OAuth] Session check error:', error);
+        setLoading(false);
+        return;
+      }
+      
+      if (session?.user) {
+        console.log('[OAuth] Session detected after OAuth:', session.user.email);
+        setLoading(false);
+        // Session exists - auth state listener in Auth.tsx will handle navigation
+      } else {
+        console.log('[OAuth] No session found after browser closed');
+        setLoading(false);
+      }
+    };
+
+    // Listen for browser finished (user closed or OAuth completed)
+    const browserListener = Browser.addListener('browserFinished', () => {
+      console.log('[OAuth] Browser finished event');
+      checkSessionOnResume();
+    });
+
+    // Also listen for app state changes as backup
+    const appListener = App.addListener('appStateChange', ({ isActive }) => {
+      if (isActive && loading) {
+        console.log('[OAuth] App became active while loading');
+        checkSessionOnResume();
+      }
+    });
+
+    return () => {
+      browserListener.then(l => l.remove());
+      appListener.then(l => l.remove());
+    };
+  }, [loading]);
 
   const handleGoogleOAuth = async () => {
     setLoading(true);
     
     try {
       const isNative = Capacitor.isNativePlatform();
-      const redirectTo = getRedirectUrl();
 
       console.log('[OAuth] Starting Google OAuth flow', { 
         isNative, 
-        redirectTo,
+        redirectTo: SUPABASE_CALLBACK_URL,
         platform: Capacitor.getPlatform()
       });
 
@@ -35,7 +77,7 @@ export function OAuthButtons() {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo,
+          redirectTo: SUPABASE_CALLBACK_URL,
           skipBrowserRedirect: true,
           queryParams: {
             access_type: 'offline',
@@ -58,13 +100,12 @@ export function OAuthButtons() {
 
       if (isNative) {
         // On iOS/Android, open in system browser
-        // After OAuth completes, Supabase will redirect back
-        // We'll detect session on app resume
         console.log('[OAuth] Opening in system browser for native platform');
         await Browser.open({ 
           url: data.url,
           presentationStyle: 'popover',
         });
+        // Don't set loading to false here - wait for browser close event
       } else {
         // On web, just redirect normally
         console.log('[OAuth] Redirecting in browser');
