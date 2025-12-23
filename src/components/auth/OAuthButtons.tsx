@@ -1,111 +1,22 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
-import { App } from "@capacitor/app";
 
-// For iOS: Use the Lovable preview URL which actually exists and can handle the redirect
+// For iOS: Use deep link scheme like Spotify does
+// For web: Use the current origin
 const getRedirectUrl = () => {
   if (Capacitor.isNativePlatform()) {
-    return `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/callback`;
+    return "contempla://auth/callback";
   }
   return `${window.location.origin}/auth`;
 };
 
-interface OAuthButtonsProps {
-  onSessionDetected?: () => void;
-}
-
-export function OAuthButtons({ onSessionDetected }: OAuthButtonsProps) {
+export function OAuthButtons() {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-
-  // Poll for session after OAuth - needed because native browser doesn't always trigger events properly
-  const pollForSession = useCallback(async (maxAttempts = 10, intervalMs = 500): Promise<boolean> => {
-    console.log('[OAuth] Starting session polling...');
-    
-    for (let i = 0; i < maxAttempts; i++) {
-      console.log(`[OAuth] Poll attempt ${i + 1}/${maxAttempts}`);
-      
-      try {
-        // Try to refresh the session from the server
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('[OAuth] Poll error:', error);
-        } else if (session?.user) {
-          console.log('[OAuth] Session found via polling:', session.user.id, session.user.email);
-          setLoading(false);
-          onSessionDetected?.();
-          return true;
-        }
-      } catch (err) {
-        console.error('[OAuth] Poll exception:', err);
-      }
-      
-      // Wait before next attempt
-      await new Promise(resolve => setTimeout(resolve, intervalMs));
-    }
-    
-    console.log('[OAuth] Session polling exhausted, no session found');
-    setLoading(false);
-    return false;
-  }, [onSessionDetected]);
-
-  // Listen for app returning from browser OAuth on native
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
-
-    let isPolling = false;
-
-    // Start polling when we detect OAuth might have completed
-    const startPolling = async () => {
-      if (isPolling) {
-        console.log('[OAuth] Already polling, skipping');
-        return;
-      }
-      isPolling = true;
-      
-      console.log('[OAuth] Starting session check after browser event...');
-      await pollForSession();
-      isPolling = false;
-    };
-
-    // Listen for browser closed event (iOS returns control to app)
-    const handleBrowserFinished = () => {
-      console.log('[OAuth] Browser finished event received');
-      startPolling();
-    };
-
-    // Also listen for app resume (covers more cases)
-    const handleAppStateChange = (state: { isActive: boolean }) => {
-      console.log('[OAuth] App state changed:', state.isActive ? 'active' : 'inactive');
-      if (state.isActive && loading) {
-        console.log('[OAuth] App became active while loading, checking session...');
-        startPolling();
-      }
-    };
-
-    // Listen for deep link OAuth callback
-    const handleUrlOpen = async (event: { url: string }) => {
-      console.log('[OAuth] Deep link received:', event.url);
-      if (event.url.includes('auth') || event.url.includes('callback') || event.url.includes('access_token')) {
-        console.log('[OAuth] OAuth-related deep link detected');
-        startPolling();
-      }
-    };
-
-    Browser.addListener('browserFinished', handleBrowserFinished);
-    App.addListener('appStateChange', handleAppStateChange);
-    App.addListener('appUrlOpen', handleUrlOpen);
-
-    return () => {
-      Browser.removeAllListeners();
-      App.removeAllListeners();
-    };
-  }, [loading, pollForSession]);
 
   const handleGoogleOAuth = async () => {
     setLoading(true);

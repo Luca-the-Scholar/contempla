@@ -416,7 +416,7 @@ export default function Auth() {
         </div>
 
         {/* OAuth buttons */}
-        <OAuthButtons onSessionDetected={handleOAuthSessionDetected} />
+        <OAuthButtons />
 
         <div className="text-center">
           <button
