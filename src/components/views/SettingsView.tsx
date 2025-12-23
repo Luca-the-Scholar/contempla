@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Bell, LogOut, User, Shield, Vibrate, Sparkles, Check, Heart, Pencil, Mail, Lock, Crown, Trash2, Music } from "lucide-react";
+import { Bell, LogOut, User, Shield, Vibrate, Sparkles, Check, Heart, Pencil, Mail, Lock, Crown, Trash2, Music, Wifi } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +25,7 @@ import { ProfileEditDialog } from "@/components/settings/ProfileEditDialog";
 import { AdminPanel } from "@/components/settings/AdminPanel";
 import { PremiumModal } from "@/components/settings/PremiumModal";
 import { SpotifySettings } from "@/components/settings/SpotifySettings";
+import { EdgeFunctionTest } from "@/components/diagnostics/EdgeFunctionTest";
 import { trackEvent } from "@/hooks/use-analytics";
 
 export function SettingsView() {
@@ -555,6 +556,15 @@ export function SettingsView() {
             </Card>}
 
           <AdminPanel open={adminPanelOpen} onOpenChange={setAdminPanelOpen} />
+
+          {/* Diagnostics */}
+          <Card className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Wifi className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold">Diagnostics</h2>
+            </div>
+            <EdgeFunctionTest />
+          </Card>
 
           {/* Data Management */}
           <Card className="p-6 border-destructive/20">
