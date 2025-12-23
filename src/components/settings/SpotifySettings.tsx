@@ -14,6 +14,7 @@ interface SpotifyPlaylist {
   name: string;
   image: string | null;
   tracks_total: number;
+  owner_name: string | null;
 }
 
 interface SpotifySettingsData {
@@ -438,7 +439,14 @@ export function SpotifySettings() {
                 <SelectContent>
                   {playlists.map(playlist => (
                     <SelectItem key={playlist.id} value={playlist.id}>
-                      {playlist.name} ({playlist.tracks_total} tracks)
+                      <div className="flex flex-col items-start">
+                        <span>{playlist.name}</span>
+                        {playlist.owner_name && (
+                          <span className="text-xs text-muted-foreground">
+                            by {playlist.owner_name} • {playlist.tracks_total} tracks
+                          </span>
+                        )}
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
