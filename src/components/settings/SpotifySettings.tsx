@@ -202,14 +202,9 @@ export function SpotifySettings() {
       console.log('[Spotify] Connect payload:', JSON.stringify(payload));
       console.log('[Spotify] Starting OAuth flow', { isNative, redirectUri });
 
-      // Use query params for GET-style action (authorize returns a URL)
+      // Use POST request (GET with body is problematic on iOS)
       const { data, error } = await supabase.functions.invoke('spotify-auth', {
-        method: 'GET',
         body: payload,
-        headers: {
-          'x-spotify-action': 'authorize',
-          'x-spotify-redirect-uri': redirectUri,
-        },
       });
 
       if (error) throw error;
