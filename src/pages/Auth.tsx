@@ -120,58 +120,40 @@ export default function Auth() {
   useEffect(() => {
     let mounted = true;
 
-    // Check if this is a native OAuth bounce - redirect to deep link
-    // This runs when Safari loads /auth?native_oauth=1#access_token=...
-    const checkNativeOAuthBounce = () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const isNativeOAuth = urlParams.get('native_oauth') === '1';
-      const hash = window.location.hash;
-      
-      if (isNativeOAuth && hash && hash.includes('access_token')) {
-        console.log('[Auth] Native OAuth bounce detected, redirecting to deep link...');
-        // Bounce to the app via deep link - this will close Safari and set the session
-        const deepLinkUrl = `contempla://auth/callback${hash}`;
-        console.log('[Auth] Redirecting to:', deepLinkUrl);
-        window.location.href = deepLinkUrl;
-        return true; // Signal that we're bouncing
-      }
-      return false;
-    };
-
-    // Check for native OAuth bounce first
-    if (checkNativeOAuthBounce()) {
-      // Don't do anything else - we're redirecting to the app
-      return;
-    }
-
-    // Check if this is an OAuth callback with tokens in the URL hash (web flow)
-    // This handles the case where user returns from OAuth in browser on web
+    // Handle OAuth callback - extract tokens from URL hash and set session manually
+    // This is critical for iOS native OAuth where cookies don't transfer to the app
     const handleOAuthCallback = async () => {
       const hash = window.location.hash;
-      if (hash && (hash.includes('access_token') || hash.includes('error'))) {
-        console.log('[Auth] OAuth callback detected in URL hash');
-        
-        // Parse the hash to extract tokens
-        const params = new URLSearchParams(hash.substring(1));
-        const accessToken = params.get('access_token');
-        const refreshToken = params.get('refresh_token');
-        const error = params.get('error');
-        const errorDescription = params.get('error_description');
-        
-        if (error) {
-          console.error('[Auth] OAuth error:', error, errorDescription);
-          toast({
-            title: "Sign in failed",
-            description: errorDescription || error,
-            variant: "destructive",
-          });
-          window.history.replaceState(null, '', window.location.pathname);
-          if (mounted) setCheckingSession(false);
-          return;
-        }
-        
-        if (accessToken && refreshToken) {
-          console.log('[Auth] Setting session from OAuth callback tokens...');
+      if (!hash || (!hash.includes('access_token') && !hash.includes('error'))) {
+        return false;
+      }
+      
+      console.log('[Auth] OAuth callback detected in URL hash');
+      
+      // Parse the hash to extract tokens
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      const error = params.get('error');
+      const errorDescription = params.get('error_description');
+      
+      // Clean up the URL hash immediately
+      window.history.replaceState(null, '', window.location.pathname);
+      
+      if (error) {
+        console.error('[Auth] OAuth error:', error, errorDescription);
+        toast({
+          title: "Sign in failed",
+          description: errorDescription || error,
+          variant: "destructive",
+        });
+        if (mounted) setCheckingSession(false);
+        return true;
+      }
+      
+      if (accessToken && refreshToken) {
+        console.log('[Auth] Setting session from OAuth tokens...');
+        try {
           const { data, error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
@@ -184,16 +166,23 @@ export default function Auth() {
               description: sessionError.message,
               variant: "destructive",
             });
-          } else if (data.user && mounted) {
-            console.log('[Auth] Session set successfully from tokens:', data.user.id);
-            // Handle the authenticated user directly - don't rely on event
-            await handleAuthenticatedUser(data.user);
+            if (mounted) setCheckingSession(false);
+            return true;
           }
+          
+          if (data.user && mounted) {
+            console.log('[Auth] Session set successfully:', data.user.id);
+            await handleAuthenticatedUser(data.user);
+            return true;
+          }
+        } catch (err) {
+          console.error('[Auth] Exception setting session:', err);
+          if (mounted) setCheckingSession(false);
+          return true;
         }
-        
-        // Clean up the URL hash
-        window.history.replaceState(null, '', window.location.pathname);
       }
+      
+      return false;
     };
 
     // Set up auth state listener (synchronous callback - no async!)
@@ -223,9 +212,6 @@ export default function Auth() {
       }
     );
 
-    // Handle OAuth callback first (if present in URL)
-    handleOAuthCallback();
-
     // Check for existing session
     const checkInitialSession = async () => {
       console.log('[Auth] Checking initial session...');
@@ -253,7 +239,17 @@ export default function Auth() {
       }
     };
 
-    checkInitialSession();
+    // Handle OAuth callback first (if present in URL) - this returns early if handled
+    const initAuth = async () => {
+      const wasOAuthCallback = await handleOAuthCallback();
+      if (wasOAuthCallback) {
+        // OAuth was handled, don't check for existing session
+        return;
+      }
+      await checkInitialSession();
+    };
+    
+    initAuth();
 
     return () => {
       mounted = false;
