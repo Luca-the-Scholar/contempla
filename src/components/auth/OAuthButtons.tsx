@@ -6,9 +6,21 @@ import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
 import { App } from "@capacitor/app";
 
-// Use Supabase callback URL for both web and native
-// Google Cloud Console only allows HTTPS URLs, not custom schemes
-const SUPABASE_CALLBACK_URL = `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/callback`;
+// Build redirect URLs for OAuth
+// On native: Use Supabase callback with ?next= to bounce back to app via deep link
+// On web: Just redirect to the auth page
+const getRedirectUrl = () => {
+  const isNative = Capacitor.isNativePlatform();
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  
+  if (isNative) {
+    // After OAuth, Supabase will redirect to /auth?native_oauth=1#tokens
+    // Auth.tsx will detect this and bounce to contempla://auth/callback#tokens
+    return `${supabaseUrl}/auth/v1/callback?next=/auth?native_oauth=1`;
+  }
+  
+  return `${window.location.origin}/auth`;
+};
 
 export function OAuthButtons() {
   const [loading, setLoading] = useState(false);
@@ -73,11 +85,13 @@ export function OAuthButtons() {
         platform: Capacitor.getPlatform()
       });
 
+      const redirectTo = getRedirectUrl();
+      
       // Get the OAuth URL from Supabase
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: SUPABASE_CALLBACK_URL,
+          redirectTo,
           skipBrowserRedirect: true,
           queryParams: {
             access_type: 'offline',
