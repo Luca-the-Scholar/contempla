@@ -98,11 +98,22 @@ async function handleOAuthCallback(url: string): Promise<void> {
     // - contempla://auth/callback?code=...
     let paramString = '';
 
-    if (url.includes('#')) {
+    // Check query params FIRST (preferred - more reliable), then hash
+    if (url.includes('?')) {
+      // Extract query string, handling case where there might also be a hash
+      const urlWithoutScheme = url.split('://')[1] || url;
+      const queryStart = urlWithoutScheme.indexOf('?');
+      const hashStart = urlWithoutScheme.indexOf('#');
+      
+      if (queryStart !== -1) {
+        const queryEnd = hashStart !== -1 && hashStart > queryStart ? hashStart : urlWithoutScheme.length;
+        paramString = urlWithoutScheme.substring(queryStart + 1, queryEnd);
+      }
+    } else if (url.includes('#')) {
       paramString = url.split('#')[1] ?? '';
-    } else if (url.includes('?')) {
-      paramString = url.split('?')[1] ?? '';
     }
+
+    console.log('[DeepLink] Extracted param string:', paramString ? `${paramString.substring(0, 50)}...` : '(empty)');
 
     if (!paramString) {
       console.error('[DeepLink] No fragment/query found in OAuth callback');
