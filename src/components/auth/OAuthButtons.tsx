@@ -7,10 +7,10 @@ import { Browser } from "@capacitor/browser";
 import { App } from "@capacitor/app";
 
 // Redirect URL strategy:
-// - Web: return to the current site /auth where tokens are in the URL hash
+// - Web: return to the published app /auth where tokens are in the URL hash
 // - Native: ALSO use the web URL - Safari will load it, detect tokens, and show
 //   a "Return to App" button that deep-links back to the native app with tokens
-const OAUTH_REDIRECT_URL = "https://c0338147-c332-4b2c-b5d7-a5ad61c0e9ec.lovableproject.com/auth";
+const OAUTH_REDIRECT_URL = "https://contempla.lovable.app/auth";
 
 export function OAuthButtons() {
   const [loading, setLoading] = useState(false);
