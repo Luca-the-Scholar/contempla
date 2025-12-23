@@ -1,4 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
+import { Capacitor } from "@capacitor/core";
+import { Browser } from "@capacitor/browser";
 
 /**
  * Check if Spotify autoplay is enabled for the current user.
@@ -37,7 +39,39 @@ export async function isSpotifyAutoplayEnabled(): Promise<boolean> {
  * - Calls the spotify-play edge function to start playback
  * - Returns success: false (without throwing) if anything fails
  */
-export async function startSpotifyPlayback(): Promise<{ success: boolean; error?: string; reqId?: string }> {
+/**
+ * Open the Spotify app on native iOS/Android devices.
+ * Falls back to opening Spotify web on other platforms.
+ */
+async function openSpotifyApp(playlistId?: string): Promise<void> {
+  const isNative = Capacitor.isNativePlatform();
+  
+  // Use Spotify URI scheme to open the app
+  const spotifyUri = playlistId 
+    ? `spotify:playlist:${playlistId}`
+    : 'spotify://';
+  
+  const spotifyWebUrl = playlistId
+    ? `https://open.spotify.com/playlist/${playlistId}`
+    : 'https://open.spotify.com';
+
+  if (isNative) {
+    try {
+      // Try to open Spotify app directly
+      await Browser.open({ url: spotifyUri });
+      console.log('[Spotify] Opened Spotify app');
+    } catch {
+      // Fallback to web URL if app isn't installed
+      console.log('[Spotify] App not installed, opening web');
+      await Browser.open({ url: spotifyWebUrl });
+    }
+  } else {
+    // On web, open in new tab
+    window.open(spotifyWebUrl, '_blank');
+  }
+}
+
+export async function startSpotifyPlayback(): Promise<{ success: boolean; error?: string; reqId?: string; openedApp?: boolean }> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false };
@@ -88,6 +122,15 @@ export async function startSpotifyPlayback(): Promise<{ success: boolean; error?
 
     if (data?.error) {
       const reqId = data?.reqId;
+      const errorMsg = data.error?.toLowerCase() || '';
+      
+      // Check if error is due to no active device
+      if (errorMsg.includes('no active device') || errorMsg.includes('no device') || data.code === 'NO_ACTIVE_DEVICE') {
+        console.log('[Spotify] No active device, opening Spotify app');
+        await openSpotifyApp(settings.selected_playlist_id);
+        return { success: false, error: 'Opening Spotify app...', openedApp: true };
+      }
+      
       console.error('[Spotify] Play error:', { error: data.error, reqId });
       return { success: false, error: data.error, reqId };
     }

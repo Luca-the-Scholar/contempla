@@ -238,7 +238,14 @@ serve(async (req) => {
         });
       }
       
-      return errorResponse('No active Spotify device found. Please open Spotify on a device first.', { devices });
+      return new Response(JSON.stringify({ 
+        error: 'No active Spotify device found. Please open Spotify on a device first.', 
+        code: 'NO_ACTIVE_DEVICE',
+        devices 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Handle other non-2xx responses
