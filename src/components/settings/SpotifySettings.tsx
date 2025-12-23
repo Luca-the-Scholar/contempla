@@ -8,6 +8,7 @@ import { Music, Loader2, ExternalLink, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
+import { openSpotifyApp } from "@/hooks/use-spotify";
 
 interface SpotifyPlaylist {
   id: string;
@@ -441,11 +442,19 @@ export function SpotifySettings() {
             />
           </div>
 
-          {settings?.play_on_meditation_start && (
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <ExternalLink className="w-3 h-3" />
-              Make sure Spotify is open on a device for playback to work
-            </p>
+          {settings?.play_on_meditation_start && settings?.selected_playlist_id && (
+            <div className="space-y-3 pt-2">
+              <p className="text-xs text-muted-foreground">
+                Make sure Spotify is open and playing before starting meditation.
+              </p>
+              <Button 
+                onClick={() => openSpotifyApp(settings.selected_playlist_id || undefined)}
+                className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-white"
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Open Spotify App
+              </Button>
+            </div>
           )}
         </>
       )}

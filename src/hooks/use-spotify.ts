@@ -39,17 +39,19 @@ export async function isSpotifyAutoplayEnabled(): Promise<boolean> {
  * - Calls the spotify-play edge function to start playback
  * - Returns success: false (without throwing) if anything fails
  */
+
 /**
  * Open the Spotify app on native iOS/Android devices.
+ * Uses window.location.href for deep linking on iOS which triggers the native app.
  * Falls back to opening Spotify web on other platforms.
  */
-async function openSpotifyApp(playlistId?: string): Promise<void> {
+export async function openSpotifyApp(playlistId?: string): Promise<boolean> {
   const isNative = Capacitor.isNativePlatform();
   
   // Use Spotify URI scheme to open the app
   const spotifyUri = playlistId 
     ? `spotify:playlist:${playlistId}`
-    : 'spotify://';
+    : 'spotify:';
   
   const spotifyWebUrl = playlistId
     ? `https://open.spotify.com/playlist/${playlistId}`
@@ -57,17 +59,26 @@ async function openSpotifyApp(playlistId?: string): Promise<void> {
 
   if (isNative) {
     try {
-      // Try to open Spotify app directly
-      await Browser.open({ url: spotifyUri });
-      console.log('[Spotify] Opened Spotify app');
-    } catch {
-      // Fallback to web URL if app isn't installed
-      console.log('[Spotify] App not installed, opening web');
-      await Browser.open({ url: spotifyWebUrl });
+      // On iOS, assign to window.location.href to trigger the deep link
+      // This is the most reliable way to open another app via URI scheme
+      console.log('[Spotify] Attempting deep link:', spotifyUri);
+      window.location.href = spotifyUri;
+      return true;
+    } catch (error) {
+      console.log('[Spotify] Deep link failed, trying browser:', error);
+      try {
+        // Fallback to web URL if app isn't installed
+        await Browser.open({ url: spotifyWebUrl });
+        return true;
+      } catch {
+        console.log('[Spotify] Browser fallback also failed');
+        return false;
+      }
     }
   } else {
     // On web, open in new tab
     window.open(spotifyWebUrl, '_blank');
+    return true;
   }
 }
 
