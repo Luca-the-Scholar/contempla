@@ -32,6 +32,7 @@ import { trackEvent } from "@/hooks/use-analytics";
 interface Technique {
   id: string;
   name: string;
+  description?: string | null;
   instructions: string;
   tradition: string;
   is_favorite: boolean;
@@ -51,11 +52,13 @@ export function LibraryView() {
   const [isEditing, setIsEditing] = useState(false);
   const [editFormData, setEditFormData] = useState({
     name: "",
+    description: "",
     instructions: "",
     tradition: "",
   });
   const [formData, setFormData] = useState({
     name: "",
+    description: "",
     instructionSteps: [""],
     tradition: "",
     relevantText: "",
@@ -72,7 +75,7 @@ export function LibraryView() {
     try {
       const { data: techniquesData, error: techError } = await supabase
         .from("techniques")
-        .select("id, name, instructions, tradition, is_favorite, source_global_technique_id, original_author_name, tags")
+        .select("id, name, description, instructions, tradition, is_favorite, source_global_technique_id, original_author_name, tags")
         .order("name", { ascending: true });
 
       if (techError) throw techError;
@@ -89,12 +92,11 @@ export function LibraryView() {
   };
 
   const handleAddTechnique = async () => {
-    const filledSteps = formData.instructionSteps.filter(s => s.trim());
-    
-    if (!formData.name || filledSteps.length === 0 || !formData.tradition) {
+    // Only name is required
+    if (!formData.name.trim()) {
       toast({
-        title: "Missing fields",
-        description: "Please fill in technique name, tradition, and at least one instruction step.",
+        title: "Missing field",
+        description: "Please provide a technique name.",
         variant: "destructive",
       });
       return;
@@ -104,16 +106,18 @@ export function LibraryView() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Format instructions as numbered list
-      const formattedInstructions = filledSteps
-        .map((step, idx) => `${idx + 1}. ${step}`)
-        .join("\n");
+      // Format instructions as numbered list (only if there are filled steps)
+      const filledSteps = formData.instructionSteps.filter(s => s.trim());
+      const formattedInstructions = filledSteps.length > 0
+        ? filledSteps.map((step, idx) => `${idx + 1}. ${step}`).join("\n")
+        : null;
 
       const { error } = await supabase.from("techniques").insert({
         user_id: user.id,
-        name: formData.name,
+        name: formData.name.trim(),
+        description: formData.description.trim() || null,
         instructions: formattedInstructions,
-        tradition: formData.tradition,
+        tradition: formData.tradition.trim() || null,
         original_author_name: formData.relevantText.trim() || null,
       });
 
@@ -121,7 +125,7 @@ export function LibraryView() {
 
       toast({ title: "Technique added!" });
       setAddModalOpen(false);
-      setFormData({ name: "", instructionSteps: [""], tradition: "", relevantText: "" });
+      setFormData({ name: "", description: "", instructionSteps: [""], tradition: "", relevantText: "" });
       fetchTechniques();
     } catch (error: any) {
       toast({
@@ -185,17 +189,19 @@ export function LibraryView() {
   const openEditMode = (technique: Technique) => {
     setEditFormData({
       name: technique.name,
-      instructions: technique.instructions,
-      tradition: technique.tradition,
+      description: technique.description || "",
+      instructions: technique.instructions || "",
+      tradition: technique.tradition || "",
     });
     setIsEditing(true);
   };
 
   const handleUpdateTechnique = async () => {
-    if (!detailTechnique || !editFormData.name || !editFormData.instructions || !editFormData.tradition) {
+    // Only name is required
+    if (!detailTechnique || !editFormData.name.trim()) {
       toast({
-        title: "Missing fields",
-        description: "Please fill in all required fields.",
+        title: "Missing field",
+        description: "Please provide a technique name.",
         variant: "destructive",
       });
       return;
@@ -205,9 +211,10 @@ export function LibraryView() {
       const { error } = await supabase
         .from("techniques")
         .update({
-          name: editFormData.name,
-          instructions: editFormData.instructions,
-          tradition: editFormData.tradition,
+          name: editFormData.name.trim(),
+          description: editFormData.description.trim() || null,
+          instructions: editFormData.instructions.trim() || null,
+          tradition: editFormData.tradition.trim() || null,
         })
         .eq("id", detailTechnique.id);
 
@@ -234,6 +241,7 @@ export function LibraryView() {
       const { error } = await supabase.from("techniques").insert({
         user_id: user.id,
         name: `${technique.name} (Copy)`,
+        description: technique.description,
         instructions: technique.instructions,
         tradition: technique.tradition,
       });
@@ -388,7 +396,20 @@ export function LibraryView() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="add-tradition">Tradition/Category Name *</Label>
+              <Label htmlFor="add-description">Description</Label>
+              <Textarea
+                id="add-description"
+                placeholder="A brief summary of what this technique is about..."
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, description: e.target.value }))
+                }
+                rows={2}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="add-tradition">Tradition/Category</Label>
               <Input
                 id="add-tradition"
                 placeholder="e.g., Zen Buddhism, Vipassana, Breathwork, Secular Mindfulness"
@@ -398,7 +419,7 @@ export function LibraryView() {
                 }
               />
               <p className="text-xs text-muted-foreground">
-                Please use a name for the community, tradition, lineage, or category that you see this practice fitting within.
+                The community, tradition, lineage, or category this practice fits within.
               </p>
             </div>
 
@@ -418,7 +439,7 @@ export function LibraryView() {
             </div>
 
             <div className="space-y-2">
-              <Label>Instructions (Step by Step) *</Label>
+              <Label>Instructions (Step by Step)</Label>
               <p className="text-xs text-muted-foreground mb-3">
                 Add each step separately. They will be displayed as a numbered list.
               </p>
@@ -501,22 +522,40 @@ export function LibraryView() {
 
           {isEditing ? (
             <div className="space-y-4">
-              <Input
-                placeholder="Technique Name"
-                value={editFormData.name}
-                onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
-              />
-              <Input
-                placeholder="Teacher or Source"
-                value={editFormData.tradition}
-                onChange={(e) => setEditFormData(prev => ({ ...prev, tradition: e.target.value }))}
-              />
-              <Textarea
-                placeholder="Instructions"
-                value={editFormData.instructions}
-                onChange={(e) => setEditFormData(prev => ({ ...prev, instructions: e.target.value }))}
-                rows={6}
-              />
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Technique Name *</Label>
+                <Input
+                  placeholder="Technique Name"
+                  value={editFormData.name}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Description</Label>
+                <Textarea
+                  placeholder="A brief summary of what this technique is about..."
+                  value={editFormData.description}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, description: e.target.value }))}
+                  rows={2}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Tradition/Category</Label>
+                <Input
+                  placeholder="e.g., Zen Buddhism, Vipassana, Breathwork"
+                  value={editFormData.tradition}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, tradition: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Instructions</Label>
+                <Textarea
+                  placeholder="Step-by-step instructions..."
+                  value={editFormData.instructions}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, instructions: e.target.value }))}
+                  rows={6}
+                />
+              </div>
               <div className="flex gap-2">
                 <Button onClick={handleUpdateTechnique} className="flex-1">
                   Save Changes
@@ -528,17 +567,29 @@ export function LibraryView() {
             </div>
           ) : (
             <div className="space-y-4">
+              {/* Description */}
+              {detailTechnique?.description && (
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground mb-1">Description</h4>
+                  <p>{detailTechnique.description}</p>
+                </div>
+              )}
+
               {/* Tradition */}
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground mb-1">Tradition/Category</h4>
-                <p>{detailTechnique?.tradition}</p>
-              </div>
+              {detailTechnique?.tradition && (
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground mb-1">Tradition/Category</h4>
+                  <p>{detailTechnique.tradition}</p>
+                </div>
+              )}
 
               {/* Instructions */}
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground mb-1">Instructions</h4>
-                <p className="whitespace-pre-wrap">{detailTechnique?.instructions}</p>
-              </div>
+              {detailTechnique?.instructions && (
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground mb-1">Instructions</h4>
+                  <p className="whitespace-pre-wrap">{detailTechnique.instructions}</p>
+                </div>
+              )}
 
               {/* Tags */}
               {detailTechnique?.tags && detailTechnique.tags.length > 0 && (
