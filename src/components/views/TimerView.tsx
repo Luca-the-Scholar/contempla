@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Play, Pause, Square, Check, AlertTriangle, Volume2, Share2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -48,6 +48,8 @@ export function TimerView() {
   const [screenWakeLockEnabled, setScreenWakeLockEnabled] = useState(true);
   const [showCompletionFlash, setShowCompletionFlash] = useState(false);
   const [notificationId, setNotificationId] = useState<number | null>(null);
+  const [showPartialSaveDialog, setShowPartialSaveDialog] = useState(false);
+  const [elapsedMinutes, setElapsedMinutes] = useState(0);
   
   // Guard to prevent multiple completion triggers
   const hasCompletedRef = useRef(false);
@@ -195,6 +197,40 @@ export function TimerView() {
   };
 
   const handleStop = () => {
+    // Calculate elapsed time
+    const totalSeconds = initialDuration * 60;
+    const elapsedSeconds = totalSeconds - secondsLeft;
+    const elapsed = Math.floor(elapsedSeconds / 60);
+    
+    // If at least 1 minute elapsed, offer to save
+    if (elapsed >= 1) {
+      setElapsedMinutes(elapsed);
+      setShowPartialSaveDialog(true);
+    } else {
+      // Less than a minute, just discard
+      handleReset();
+    }
+  };
+
+  const handleSavePartialSession = async () => {
+    setShowPartialSaveDialog(false);
+    
+    // Cancel any scheduled notification
+    if (notificationId) {
+      await cancelTimerNotification(notificationId);
+      setNotificationId(null);
+    }
+    
+    // Stop any playing sound
+    stopSound();
+    noSleep.disable();
+    
+    // Log the partial session
+    await logSession(elapsedMinutes);
+  };
+
+  const handleDiscardPartialSession = () => {
+    setShowPartialSaveDialog(false);
     handleReset();
   };
 
@@ -614,6 +650,27 @@ export function TimerView() {
           <div className="prose prose-sm dark:prose-invert max-w-none">
             <p className="whitespace-pre-wrap">{selectedTechnique?.instructions}</p>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Partial Session Save Dialog */}
+      <Dialog open={showPartialSaveDialog} onOpenChange={setShowPartialSaveDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save your session?</DialogTitle>
+            <DialogDescription>
+              You've meditated for {elapsedMinutes} {elapsedMinutes === 1 ? 'minute' : 'minutes'}. 
+              Would you like to save this session?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={handleDiscardPartialSession} className="w-full sm:w-auto">
+              Discard
+            </Button>
+            <Button onClick={handleSavePartialSession} className="w-full sm:w-auto">
+              Save Session
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
