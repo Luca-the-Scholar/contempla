@@ -64,6 +64,21 @@ export function AuthDebugPanel({
         </div>
 
         <div className="grid gap-1.5 text-[11px] leading-snug">
+          {/* BIG BOUNCE READY INDICATOR */}
+          <div className={`rounded p-3 border-2 ${
+            bounceInfo.shouldBounce && !isNative 
+              ? "bg-green-900 border-green-400" 
+              : "bg-red-900 border-red-400"
+          }`}>
+            <div className={`text-center text-lg font-bold ${
+              bounceInfo.shouldBounce && !isNative ? "text-green-400" : "text-red-400"
+            }`}>
+              {bounceInfo.shouldBounce && !isNative 
+                ? "🟢 READY TO BOUNCE: YES" 
+                : "🔴 READY TO BOUNCE: NO"}
+            </div>
+          </div>
+
           {/* Bounce Detection Section */}
           <div className="bg-yellow-900/30 rounded p-2 border border-yellow-600/50">
             <div className="font-bold text-yellow-400 mb-1">Safari Bounce Detection</div>
@@ -114,6 +129,15 @@ export function AuthDebugPanel({
                   {bounceDeepLink ? `YES (${bounceDeepLink.length} chars)` : "no"}
                 </span>
               </div>
+              {/* Show deep link preview */}
+              {bounceDeepLink && (
+                <div className="border-t border-yellow-600/50 pt-1 mt-1">
+                  <span className="text-yellow-200">Deep link preview:</span>
+                  <div className="font-mono text-[9px] text-white break-all mt-1">
+                    {bounceDeepLink.substring(0, 60)}...
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
