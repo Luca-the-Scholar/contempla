@@ -8,9 +8,9 @@ import { App } from "@capacitor/app";
 
 // Redirect URL strategy:
 // - Web: return to the current site /auth where tokens are in the URL hash
-// - Native: use a custom scheme deep link so iOS can hand tokens back to the app
-const getRedirectUrl = (isNative: boolean) =>
-  isNative ? "contempla://auth/callback" : `${window.location.origin}/auth`;
+// - Native: ALSO use the web URL - Safari will load it, detect tokens, and show
+//   a "Return to App" button that deep-links back to the native app with tokens
+const OAUTH_REDIRECT_URL = "https://c0338147-c332-4b2c-b5d7-a5ad61c0e9ec.lovableproject.com/auth";
 
 export function OAuthButtons() {
   const [loading, setLoading] = useState(false);
@@ -68,7 +68,7 @@ export function OAuthButtons() {
     
     try {
       const isNative = Capacitor.isNativePlatform();
-      const redirectTo = getRedirectUrl(isNative);
+      const redirectTo = OAUTH_REDIRECT_URL;
 
       console.log('[OAuth] Starting Google OAuth flow', { 
         isNative, 

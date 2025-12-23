@@ -33,6 +33,7 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const [showReturnToApp, setShowReturnToApp] = useState(false);
+  const [bounceDeepLink, setBounceDeepLink] = useState<string | null>(null); // Deep link with tokens for Safari bounce
   const [errors, setErrors] = useState<{ email?: string; password?: string; displayName?: string }>({});
   const [showHandlePrompt, setShowHandlePrompt] = useState(false);
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
@@ -138,6 +139,7 @@ export default function Auth() {
     // This is critical for iOS native OAuth where cookies don't transfer to the app
     const handleOAuthCallback = async () => {
       const hash = window.location.hash;
+      const isNative = Capacitor.isNativePlatform();
 
       if (!hash || (!hash.includes("access_token") && !hash.includes("error"))) {
         console.log("[Auth][OAuth] No OAuth hash detected on load");
@@ -149,6 +151,7 @@ export default function Auth() {
         hasAccessToken: hash.includes("access_token"),
         hasRefreshToken: hash.includes("refresh_token"),
         hasError: hash.includes("error"),
+        isNative,
       });
 
       // Parse the hash to extract tokens
@@ -166,9 +169,6 @@ export default function Auth() {
         refreshTokenLength: refreshToken?.length ?? 0,
       });
 
-      // Clean up the URL hash (don't log tokens into the URL bar/history)
-      window.history.replaceState(null, "", window.location.pathname);
-
       if (error) {
         console.error("[Auth][OAuth] OAuth error in hash:", { error, errorDescription });
         toast({
@@ -176,6 +176,8 @@ export default function Auth() {
           description: errorDescription || error,
           variant: "destructive",
         });
+        // Clean up hash
+        window.history.replaceState(null, "", window.location.pathname);
         if (mounted) setCheckingSession(false);
         return true;
       }
@@ -185,9 +187,38 @@ export default function Auth() {
           accessTokenPresent: !!accessToken,
           refreshTokenPresent: !!refreshToken,
         });
+        window.history.replaceState(null, "", window.location.pathname);
         if (mounted) setCheckingSession(false);
         return true;
       }
+
+      // === SAFARI BOUNCE LOGIC ===
+      // If we're NOT in Capacitor WebView (i.e., running in Safari after OAuth redirect),
+      // we need to show a "Return to App" button that deep-links back with tokens.
+      // We detect this by checking if Capacitor is NOT native (web context) but
+      // the URL contains our preview domain (not localhost).
+      const isSafariBounce =
+        !isNative && window.location.hostname.includes("lovableproject.com");
+
+      if (isSafariBounce) {
+        console.log("[Auth][OAuth] Safari bounce detected - showing Return to App button");
+        // Build deep link with tokens
+        const deepLink = `contempla://auth/callback#access_token=${encodeURIComponent(
+          accessToken
+        )}&refresh_token=${encodeURIComponent(refreshToken)}`;
+        if (mounted) {
+          setBounceDeepLink(deepLink);
+          setShowReturnToApp(true);
+          setCheckingSession(false);
+        }
+        // Don't clean up hash yet - user might need to copy it for debugging
+        return true;
+      }
+
+      // === NATIVE APP FLOW ===
+      // We're in the Capacitor WebView - set the session directly
+      // Clean up the URL hash (don't log tokens into the URL bar/history)
+      window.history.replaceState(null, "", window.location.pathname);
 
       console.log("[Auth][OAuth] Calling supabase.auth.setSession(...)");
 
@@ -470,6 +501,46 @@ export default function Auth() {
     }
   };
 
+  // === SAFARI BOUNCE SCREEN ===
+  // When OAuth redirects to Safari with tokens, show a clear "Return to App" button
+  if (showReturnToApp && bounceDeepLink) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background">
+        <AuthDebugPanel
+          href={debugHref}
+          hash={debugHash}
+          hasAccessToken={debugHasAccessToken}
+          isLoggedIn={!!debugSession?.user}
+          userEmail={debugSession?.user?.email ?? null}
+          isNative={debugIsNative}
+          lastCheckedAt={debugLastCheckedAt}
+          lastError={debugLastError}
+        />
+
+        <div className="max-w-md w-full text-center space-y-6">
+          <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow-md">
+            <Compass className="w-10 h-10 text-white" />
+          </div>
+
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold text-foreground">Sign in successful!</h1>
+            <p className="text-muted-foreground">
+              Tap the button below to return to the Contempla app.
+            </p>
+          </div>
+
+          <Button asChild size="lg" className="w-full text-lg py-6">
+            <a href={bounceDeepLink}>Return to Contempla</a>
+          </Button>
+
+          <p className="text-xs text-muted-foreground">
+            If the button doesn't work, open the Contempla app manually.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Show loading state while checking session
   if (checkingSession) {
     return (
@@ -488,17 +559,6 @@ export default function Auth() {
         <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow-md animate-pulse">
           <Compass className="w-8 h-8 text-white" />
         </div>
-
-        {showReturnToApp && (
-          <div className="text-center space-y-2">
-            <p className="text-sm text-muted-foreground">
-              If this screen didn’t close, tap below to return to the app.
-            </p>
-            <Button asChild variant="accent">
-              <a href="contempla://">Return to App</a>
-            </Button>
-          </div>
-        )}
       </div>
     );
   }
