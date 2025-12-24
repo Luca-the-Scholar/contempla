@@ -1,16 +1,36 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Build allowed origins list from environment or use production defaults
+const ALLOWED_ORIGINS = (() => {
+  const envOrigins = Deno.env.get('ALLOWED_ORIGINS');
+  if (envOrigins) {
+    return envOrigins.split(',').map(o => o.trim());
+  }
+  // Default production origins
+  return [
+    'https://contempla.lovable.app',
+    'https://c0338147-c332-4b2c-b5d7-a5ad61c0e9ec.lovableproject.com'
+  ];
+})();
+
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  const allowedOrigin = origin && ALLOWED_ORIGINS.some(o => 
+    origin === o || origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app')
+  ) ? origin : ALLOWED_ORIGINS[0];
+  
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Credentials': 'true',
+  };
+}
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
 // Helper to create consistent error responses
-function errorResponse(error: string, details?: unknown, spotifyError?: unknown, status = 400): Response {
+function errorResponse(error: string, corsHeaders: Record<string, string>, details?: unknown, spotifyError?: unknown, status = 400): Response {
   const body = {
     error,
     details: details ?? null,
@@ -25,7 +45,7 @@ function errorResponse(error: string, details?: unknown, spotifyError?: unknown,
 }
 
 // Helper to handle Spotify API responses
-async function handleSpotifyResponse(response: Response, context: string): Promise<{ data: unknown; error: Response | null }> {
+async function handleSpotifyResponse(response: Response, context: string, corsHeaders: Record<string, string>): Promise<{ data: unknown; error: Response | null }> {
   const rawText = await response.text();
   console.log(`[spotify-playlists] ${context} - Status: ${response.status}, Body: ${rawText.substring(0, 500)}${rawText.length > 500 ? '...' : ''}`);
   
@@ -41,7 +61,7 @@ async function handleSpotifyResponse(response: Response, context: string): Promi
     const errorMessage = (parsed as any)?.error?.message || (parsed as any)?.error || `Spotify API error (${response.status})`;
     return {
       data: null,
-      error: errorResponse(errorMessage, { context, httpStatus: response.status }, spotifyError, response.status >= 500 ? 502 : 400),
+      error: errorResponse(errorMessage, corsHeaders, { context, httpStatus: response.status }, spotifyError, response.status >= 500 ? 502 : 400),
     };
   }
   
@@ -49,6 +69,10 @@ async function handleSpotifyResponse(response: Response, context: string): Promi
 }
 
 serve(async (req) => {
+  // Get origin for CORS
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+  
   // ========== DIAGNOSTIC LOGGING ==========
   const reqId = crypto.randomUUID();
   const method = req.method;
@@ -78,7 +102,7 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return errorResponse('Authorization header required', { context: 'auth_check', reqId });
+      return errorResponse('Authorization header required', corsHeaders, { context: 'auth_check', reqId });
     }
 
     // Get user from JWT
@@ -90,7 +114,7 @@ serve(async (req) => {
     
     const { data: { user }, error: userError } = await anonSupabase.auth.getUser();
     if (userError || !user) {
-      return errorResponse('Unauthorized', { userError: userError?.message }, null, 401);
+      return errorResponse('Unauthorized', corsHeaders, { userError: userError?.message }, null, 401);
     }
 
     // Get access token from database
@@ -103,12 +127,12 @@ serve(async (req) => {
       .maybeSingle();
 
     if (settingsError || !settings?.access_token) {
-      return errorResponse('Spotify not connected', { settingsError: settingsError?.message, userId: user.id });
+      return errorResponse('Spotify not connected', corsHeaders, { settingsError: settingsError?.message, userId: user.id });
     }
 
     // Check if token is expired
     if (new Date(settings.token_expires_at) < new Date()) {
-      return errorResponse('Token expired - refresh required', { expiresAt: settings.token_expires_at });
+      return errorResponse('Token expired - refresh required', corsHeaders, { expiresAt: settings.token_expires_at });
     }
 
     console.log('[spotify-playlists] Fetching ALL Spotify playlists with pagination...');
@@ -128,7 +152,7 @@ serve(async (req) => {
         },
       });
 
-      const { data: playlistsData, error: playlistsError } = await handleSpotifyResponse(playlistsResponse, `Fetch Playlists Page ${pageCount}`);
+      const { data: playlistsData, error: playlistsError } = await handleSpotifyResponse(playlistsResponse, `Fetch Playlists Page ${pageCount}`, corsHeaders);
       if (playlistsError) return playlistsError;
 
       const items = (playlistsData as any)?.items || [];
@@ -158,6 +182,6 @@ serve(async (req) => {
     const stack = error instanceof Error ? error.stack : undefined;
     
     console.error('[spotify-playlists] Unhandled error:', { message, stack });
-    return errorResponse(message, { stack }, null, 500);
+    return errorResponse(message, corsHeaders, { stack }, null, 500);
   }
 });
