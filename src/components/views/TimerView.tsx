@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Play, Pause, Square, Check, AlertTriangle, Volume2 } from "lucide-react";
-import { IOSPickerWheel } from "@/components/ui/ios-picker-wheel";
+import { DurationInput } from "@/components/ui/duration-input";
 import { useToast } from "@/hooks/use-toast";
 import { useNoSleep } from "@/hooks/use-nosleep";
 import { triggerVibrationPattern } from "@/lib/haptics";
@@ -50,11 +50,8 @@ export function TimerView() {
   const [showPartialSaveDialog, setShowPartialSaveDialog] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   
-  // Duration options for iOS-style picker wheel (1-120 minutes)
-  const durationOptions = Array.from({ length: 120 }, (_, i) => i + 1).map(mins => ({
-    value: mins,
-    label: mins === 1 ? `1 minute` : `${mins} minutes`
-  }));
+  // Max duration for input field
+  const MAX_DURATION = 999;
   
   // Guard to prevent multiple completion triggers
   const hasCompletedRef = useRef(false);
@@ -717,10 +714,10 @@ export function TimerView() {
               ))}
             </div>
 
-            <IOSPickerWheel
-              options={durationOptions}
+            <DurationInput
               value={duration}
               onChange={setDuration}
+              max={MAX_DURATION}
               className="w-full"
             />
           </div>
@@ -776,7 +773,7 @@ export function TimerView() {
             variant="accent"
             size="lg" 
             className="w-full text-lg"
-            disabled={!selectedTechniqueId}
+            disabled={!selectedTechniqueId || duration === 0}
           >
             <Play className="w-5 h-5 mr-2" />
             Start Meditation
