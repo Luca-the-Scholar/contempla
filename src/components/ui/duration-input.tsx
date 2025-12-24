@@ -35,6 +35,11 @@ export function DurationInput({
     }
   };
 
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    // Select all text on focus so user can immediately type to replace
+    e.target.select();
+  };
+
   return (
     <div className={cn("relative", className)}>
       <Input
@@ -43,6 +48,7 @@ export function DurationInput({
         pattern="[0-9]*"
         value={value === 0 ? '' : value}
         onChange={handleChange}
+        onFocus={handleFocus}
         placeholder="0"
         min={min}
         max={max}
