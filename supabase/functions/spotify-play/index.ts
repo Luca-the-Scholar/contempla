@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// SECURITY NOTE: In production, restrict CORS to your specific domain
+// Replace '*' with your production domain: 'https://yourdomain.com'
+// For now, allowing all origins for development
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -271,36 +274,73 @@ serve(async (req) => {
       }
 
       // Devices exist but none are "ready" for playback
-      // Try targeting the first device explicitly
+      // Use Transfer Playback API to ACTIVATE the device and start playback
       const targetDevice = devices[0];
       const targetDeviceId = targetDevice?.id;
 
-      console.log('[spotify-play] Retrying with explicit device_id:', targetDeviceId);
+      console.log('[spotify-play] Transferring playback to activate device:', targetDeviceId);
 
-      playResponse = await fetch(`${basePlayUrl}?device_id=${encodeURIComponent(targetDeviceId)}`, {
+      // Step 1: Transfer playback to the device with play=true
+      const transferResponse = await fetch('https://api.spotify.com/v1/me/player', {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${settings.access_token}`,
-          'Content-Type': 'application/json' },
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          context_uri: `spotify:playlist:${playlist_id}`,
+          device_ids: [targetDeviceId],
+          play: true,
         }),
       });
 
-      // Retry succeeded
-      if (playResponse.status === 204) {
-        console.log('[spotify-play] Playback started successfully after device targeting');
-        return new Response(JSON.stringify({ success: true, reqId }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      // 204 = Transfer successful
+      if (transferResponse.status === 204) {
+        console.log('[spotify-play] Device activated via transfer, now starting playlist...');
+
+        // Step 2: Now start the playlist on the activated device
+        playResponse = await fetch(`${basePlayUrl}?device_id=${encodeURIComponent(targetDeviceId)}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${settings.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            context_uri: `spotify:playlist:${playlist_id}`,
+          }),
         });
+
+        if (playResponse.status === 204) {
+          console.log('[spotify-play] Playback started successfully after transfer');
+          return new Response(JSON.stringify({ success: true, reqId }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
       }
 
-      // Still 404 after targeting - device not ready
-      console.log('[spotify-play] Still 404 after device targeting - device not ready');
+      // Transfer or playback failed
+      const { error: transferError } = await handleSpotifyResponse(transferResponse, 'Transfer Playback');
+      if (transferError) {
+        console.log('[spotify-play] Transfer failed, device may not support remote control');
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: `Found "${targetDevice.name}" but couldn't activate it. The Spotify app may need to be opened and played manually once.`,
+            code: 'NO_ACTIVE_DEVICE',
+            devices,
+            reqId,
+          }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      // Fallback error
       return new Response(
         JSON.stringify({
           success: false,
-          error: `Spotify is open on "${targetDevice.name}" but it's not ready for remote playback yet. Open Spotify and press Play once, then try Start Meditation again.`,
+          error: `Spotify is available on "${targetDevice.name}" but playback couldn't start. Try playing any song in Spotify first.`,
           code: 'NO_ACTIVE_DEVICE',
           devices,
           reqId,

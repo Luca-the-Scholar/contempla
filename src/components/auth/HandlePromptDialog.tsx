@@ -15,7 +15,7 @@ import { z } from "zod";
 const handleSchema = z
   .string()
   .min(3, "Handle must be at least 3 characters")
-  .max(20, "Handle must be 20 characters or less")
+  .max(30, "Handle must be 30 characters or less")
   .regex(/^[a-zA-Z0-9_]+$/, "Only letters, numbers, and underscores allowed");
 
 interface HandlePromptDialogProps {

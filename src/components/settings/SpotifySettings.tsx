@@ -499,7 +499,7 @@ export function SpotifySettings() {
           {settings?.play_on_meditation_start && settings?.selected_playlist_id && (
             <div className="space-y-3 pt-2">
               <p className="text-xs text-muted-foreground">
-                If autoplay doesn't start, open Spotify and press Play once so your phone becomes the active playback device.
+                ✨ Spotify will start automatically when you begin meditation. If Spotify isn't already active, Contempla will open it briefly to activate playback (you'll need to swipe back). Requires Spotify Premium.
               </p>
 
               <div className="flex gap-2">

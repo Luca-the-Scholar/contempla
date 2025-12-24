@@ -1,6 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Capacitor } from "@capacitor/core";
-import { Browser } from "@capacitor/browser";
 
 /**
  * Check if Spotify autoplay is enabled for the current user.
@@ -44,36 +43,47 @@ export async function isSpotifyAutoplayEnabled(): Promise<boolean> {
  * Open the Spotify app on native iOS/Android devices.
  * Uses window.location.href for deep linking on iOS which triggers the native app.
  * Falls back to opening Spotify web on other platforms.
+ *
+ * @param playlistId - Spotify playlist ID (not URI, just the ID)
+ * @param returnToApp - If true, schedules a deep link back to Contempla after delay
+ * @param returnDelayMs - Milliseconds to wait before returning to app (default 800ms)
  */
-export async function openSpotifyApp(playlistId?: string): Promise<boolean> {
+export async function openSpotifyApp(
+  playlistId?: string,
+  returnToApp: boolean = false,
+  returnDelayMs: number = 800
+): Promise<boolean> {
   const isNative = Capacitor.isNativePlatform();
-  
-  // Use Spotify URI scheme to open the app
-  const spotifyUri = playlistId 
+
+  // Spotify URI for opening content
+  const spotifyUri = playlistId
     ? `spotify:playlist:${playlistId}`
     : 'spotify:';
-  
+
   const spotifyWebUrl = playlistId
     ? `https://open.spotify.com/playlist/${playlistId}`
     : 'https://open.spotify.com';
 
   if (isNative) {
     try {
-      // On iOS, assign to window.location.href to trigger the deep link
-      // This is the most reliable way to open another app via URI scheme
-      console.log('[Spotify] Attempting deep link:', spotifyUri);
+      // On iOS, window.location.href is the most reliable way to open another app
+      // This WILL switch to Spotify briefly to activate it as a device
+      console.log('[Spotify] Opening Spotify with URI:', spotifyUri);
       window.location.href = spotifyUri;
+
+      // Schedule return to Contempla using deep link
+      if (returnToApp) {
+        setTimeout(() => {
+          console.log('[Spotify] Returning to Contempla...');
+          // Use our app's deep link scheme to bring it back to foreground
+          window.location.href = 'contempla://timer';
+        }, returnDelayMs);
+      }
+
       return true;
     } catch (error) {
-      console.log('[Spotify] Deep link failed, trying browser:', error);
-      try {
-        // Fallback to web URL if app isn't installed
-        await Browser.open({ url: spotifyWebUrl });
-        return true;
-      } catch {
-        console.log('[Spotify] Browser fallback also failed');
-        return false;
-      }
+      console.log('[Spotify] Deep link failed:', error);
+      return false;
     }
   } else {
     // On web, open in new tab
@@ -82,7 +92,7 @@ export async function openSpotifyApp(playlistId?: string): Promise<boolean> {
   }
 }
 
-export async function startSpotifyPlayback(): Promise<{ success: boolean; error?: string; code?: string; reqId?: string }> {
+export async function startSpotifyPlayback(): Promise<{ success: boolean; error?: string; code?: string; reqId?: string; spotifyAppOpened?: boolean }> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false };
@@ -128,21 +138,18 @@ export async function startSpotifyPlayback(): Promise<{ success: boolean; error?
       console.log('[Spotify] Token refreshed successfully');
     }
 
-    // CRITICAL FIX: Open Spotify app first to activate the device
-    // This works around Spotify's API limitation where devices only appear when actively playing
-    console.log('[Spotify] Opening Spotify app to activate device...');
-    await openSpotifyApp(settings.selected_playlist_id);
+    // OPTIMIZED APPROACH:
+    // 1. First try Web API without opening Spotify (fastest, works if device already active)
+    // 2. If no device found, open Spotify app briefly to register device
+    // 3. Then use Transfer Playback API to activate and start playlist
+    console.log('[Spotify] Starting playback via Web API...');
 
-    // Give Spotify time to register the device and start playing (1.5s to handle audio session handoff)
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    // Standardized payload for play action
     const payload = {
       action: 'play',
       playlist_id: settings.selected_playlist_id,
     };
 
-    const { data, error } = await supabase.functions.invoke('spotify-play', {
+    let { data, error } = await supabase.functions.invoke('spotify-play', {
       body: payload,
     });
 
@@ -171,6 +178,57 @@ export async function startSpotifyPlayback(): Promise<{ success: boolean; error?
       const errorMsg = data?.error || 'Spotify playback could not be started.';
       const code = data?.code as string | undefined;
       const reqId = data?.reqId as string | undefined;
+
+      // If NO_ACTIVE_DEVICE, try opening Spotify to register device, then retry
+      if (code === 'NO_ACTIVE_DEVICE') {
+        console.log('[Spotify] No active device - opening Spotify app to register device...');
+
+        // Open Spotify app with deep link to register the device
+        await openSpotifyApp(settings.selected_playlist_id, false);
+
+        // Wait for device registration (1 second should be enough)
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Retry the playback request - Transfer Playback API will activate device
+        console.log('[Spotify] Retrying playback after device registration...');
+        const retryResult = await supabase.functions.invoke('spotify-play', {
+          body: payload,
+        });
+
+        // Handle retry response
+        if (retryResult.error) {
+          let parsed: any = null;
+          try {
+            const ctx = (retryResult.error as any)?.context as Response | undefined;
+            if (ctx) {
+              const text = await ctx.text();
+              parsed = text ? JSON.parse(text) : null;
+            }
+          } catch {
+            // ignore
+          }
+
+          return {
+            success: false,
+            error: parsed?.error || retryResult.error.message,
+            code: parsed?.code,
+            reqId: parsed?.reqId
+          };
+        }
+
+        if (retryResult.data?.success === false || retryResult.data?.error) {
+          return {
+            success: false,
+            error: retryResult.data?.error || 'Spotify playback could not be started after retry.',
+            code: retryResult.data?.code,
+            reqId: retryResult.data?.reqId
+          };
+        }
+
+        // Retry succeeded!
+        console.log('[Spotify] Playback started successfully after device activation');
+        return { success: true, spotifyAppOpened: true };
+      }
 
       return { success: false, error: errorMsg, code, reqId };
     }

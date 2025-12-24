@@ -120,15 +120,25 @@ export function HistoryView() {
       setCurrentStreak(streak);
   };
 
-  const handleEditSession = async (sessionId: string, newMinutes: number, newSessionDate?: string) => {
-    const updateData: { duration_minutes: number; session_date?: string } = { 
-      duration_minutes: newMinutes 
+  const handleEditSession = async (sessionId: string, newMinutes: number, newSessionDate?: string, newTechniqueId?: string) => {
+    const updateData: { duration_minutes: number; session_date?: string; technique_id?: string; technique_name?: string } = {
+      duration_minutes: newMinutes
     };
-    
+
     if (newSessionDate) {
       updateData.session_date = newSessionDate;
     }
-    
+
+    if (newTechniqueId) {
+      updateData.technique_id = newTechniqueId;
+
+      // Also update the denormalized technique_name for Activity Feed
+      const technique = techniques.find(t => t.id === newTechniqueId);
+      if (technique) {
+        updateData.technique_name = technique.name;
+      }
+    }
+
     const { error } = await supabase
       .from('sessions')
       .update(updateData)
@@ -196,6 +206,7 @@ export function HistoryView() {
     
     return filteredSessions.map(s => ({
       id: s.id,
+      technique_id: s.technique_id,
       technique_name: s.technique_name || "Unknown",
       duration_minutes: s.duration_minutes,
       session_date: s.session_date,
@@ -347,6 +358,7 @@ export function HistoryView() {
           <SessionFeed
             sessions={feedSessions}
             editable={true}
+            techniques={techniques}
             onEdit={handleEditSession}
             onDelete={handleDeleteSession}
             emptyMessage="No sessions recorded yet. Start your practice!"

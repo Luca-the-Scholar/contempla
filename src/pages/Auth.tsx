@@ -276,7 +276,7 @@ export default function Auth() {
           password,
         });
         if (error) throw error;
-        toast({ title: "Welcome back!" });
+        toast({ description: "Welcome back", duration: 1500 });
       } else {
         const { error } = await supabase.auth.signUp({
           email,
@@ -289,7 +289,7 @@ export default function Auth() {
           },
         });
         if (error) throw error;
-        toast({ title: "Account created! Welcome to your practice." });
+        toast({ description: "Account created successfully", duration: 2000 });
       }
     } catch (error: any) {
       toast({

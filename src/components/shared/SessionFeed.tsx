@@ -6,6 +6,7 @@ import { Clock, ChevronUp, Loader2, Edit2, Trash2, Check, X, Calendar, Timer, Ch
 import { Input } from "@/components/ui/input";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,10 +32,16 @@ export interface FeedSession {
   id: string;
   user_id?: string;
   user_name?: string;
+  technique_id: string;
   technique_name: string;
   duration_minutes: number;
   session_date: string;
   manual_entry?: boolean;
+}
+
+export interface Technique {
+  id: string;
+  name: string;
 }
 
 interface SessionFeedProps {
@@ -44,7 +51,8 @@ interface SessionFeedProps {
   onLoadMore?: () => void;
   showUserInfo?: boolean;
   editable?: boolean;
-  onEdit?: (sessionId: string, newMinutes: number, newSessionDate?: string) => Promise<void>;
+  techniques?: Technique[];
+  onEdit?: (sessionId: string, newMinutes: number, newSessionDate?: string, newTechniqueId?: string) => Promise<void>;
   onDelete?: (sessionId: string) => Promise<void>;
   emptyMessage?: string;
   scrollContainerRef?: React.RefObject<HTMLDivElement>;
@@ -59,6 +67,7 @@ export function SessionFeed({
   onLoadMore,
   showUserInfo = false,
   editable = false,
+  techniques = [],
   onEdit,
   onDelete,
   emptyMessage = "No sessions yet",
@@ -70,6 +79,7 @@ export function SessionFeed({
   const [editMinutes, setEditMinutes] = useState<string>('');
   const [editDate, setEditDate] = useState<Date | undefined>(undefined);
   const [editTime, setEditTime] = useState<string>('');
+  const [editTechniqueId, setEditTechniqueId] = useState<string>('');
   const [saving, setSaving] = useState(false);
   const [selectedSession, setSelectedSession] = useState<FeedSession | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -184,6 +194,7 @@ export function SessionFeed({
   const startEdit = (session: FeedSession) => {
     setEditingId(session.id);
     setEditMinutes(session.duration_minutes.toString());
+    setEditTechniqueId(session.technique_id);
     const sessionDate = new Date(session.session_date);
     setEditDate(sessionDate);
     if (hasExplicitTime(session.session_date)) {
@@ -198,12 +209,13 @@ export function SessionFeed({
     setEditMinutes('');
     setEditDate(undefined);
     setEditTime('');
+    setEditTechniqueId('');
   };
 
   const saveEdit = async (sessionId: string) => {
     const newMinutes = parseInt(editMinutes, 10);
-    if (isNaN(newMinutes) || newMinutes <= 0 || !onEdit || !editDate) return;
-    
+    if (isNaN(newMinutes) || newMinutes <= 0 || !onEdit || !editDate || !editTechniqueId) return;
+
     // Build the new session date
     const newSessionDate = new Date(editDate);
     if (editTime) {
@@ -212,14 +224,15 @@ export function SessionFeed({
     } else {
       newSessionDate.setHours(0, 0, 0, 0);
     }
-    
+
     setSaving(true);
     try {
-      await onEdit(sessionId, newMinutes, formatDateForStorage(newSessionDate, !!editTime));
+      await onEdit(sessionId, newMinutes, formatDateForStorage(newSessionDate, !!editTime), editTechniqueId);
       setEditingId(null);
       setEditMinutes('');
       setEditDate(undefined);
       setEditTime('');
+      setEditTechniqueId('');
     } finally {
       setSaving(false);
     }
@@ -285,6 +298,28 @@ export function SessionFeed({
           {selectedSession && (
             <div className="space-y-4">
               <div className="space-y-3">
+                {editingId === selectedSession.id && techniques.length > 0 && (
+                  <div className="flex items-center gap-3 text-sm">
+                    <FileEdit className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Technique:</span>
+                    <Select
+                      value={editTechniqueId}
+                      onValueChange={setEditTechniqueId}
+                    >
+                      <SelectTrigger className="h-7 text-xs flex-1" onClick={(e) => e.stopPropagation()}>
+                        <SelectValue placeholder="Select technique" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {techniques.map((tech) => (
+                          <SelectItem key={tech.id} value={tech.id} className="text-xs">
+                            {tech.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 <div className="flex items-center gap-3 text-sm">
                   <Timer className="w-4 h-4 text-muted-foreground" />
                   <span className="text-muted-foreground">Duration:</span>
@@ -304,7 +339,7 @@ export function SessionFeed({
                     <span className="font-medium">{selectedSession.duration_minutes} minutes</span>
                   )}
                 </div>
-                
+
                 <div className="flex items-center gap-3 text-sm">
                   <Calendar className="w-4 h-4 text-muted-foreground" />
                   <span className="text-muted-foreground">Date:</span>

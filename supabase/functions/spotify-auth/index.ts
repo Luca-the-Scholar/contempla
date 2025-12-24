@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// SECURITY NOTE: In production, restrict CORS to your specific domain
+// Replace '*' with your production domain: 'https://yourdomain.com'
+// For now, allowing all origins for development
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -36,14 +39,14 @@ function errorResponse(error: string, details?: unknown, spotifyError?: unknown,
 async function handleSpotifyResponse(response: Response, context: string): Promise<{ data: unknown; error: Response | null }> {
   const rawText = await response.text();
   console.log(`[spotify-auth] ${context} - Status: ${response.status}, Body: ${rawText}`);
-  
+
   let parsed: unknown = null;
   try {
     parsed = JSON.parse(rawText);
   } catch {
     console.error(`[spotify-auth] ${context} - Failed to parse response as JSON`);
   }
-  
+
   if (!response.ok) {
     const spotifyError = parsed && typeof parsed === 'object' ? parsed : { raw: rawText };
     const errorMessage = (parsed as any)?.error_description || (parsed as any)?.error?.message || (parsed as any)?.error || `Spotify API error (${response.status})`;
@@ -52,7 +55,7 @@ async function handleSpotifyResponse(response: Response, context: string): Promi
       error: errorResponse(errorMessage, { context, httpStatus: response.status }, spotifyError, response.status >= 500 ? 502 : 400),
     };
   }
-  
+
   return { data: parsed, error: null };
 }
 

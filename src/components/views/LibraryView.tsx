@@ -123,7 +123,7 @@ export function LibraryView() {
 
       if (error) throw error;
 
-      toast({ title: "Technique added!" });
+      toast({ description: "Technique added", duration: 1500 });
       setAddModalOpen(false);
       setFormData({ name: "", description: "", instructionSteps: [""], tradition: "", relevantText: "" });
       fetchTechniques();
@@ -204,7 +204,7 @@ export function LibraryView() {
 
       if (error) throw error;
 
-      toast({ title: "Technique deleted" });
+      toast({ description: "Technique deleted", duration: 1500 });
       setDeleteDialogOpen(false);
       setTechniqueToDelete(null);
       fetchTechniques();
@@ -262,7 +262,7 @@ export function LibraryView() {
 
       if (error) throw error;
 
-      toast({ title: "Technique updated!" });
+      toast({ description: "Technique updated", duration: 1500 });
       setIsEditing(false);
       setDetailTechnique(null);
       fetchTechniques();
@@ -290,7 +290,7 @@ export function LibraryView() {
 
       if (error) throw error;
 
-      toast({ title: "Technique duplicated!" });
+      toast({ description: "Technique duplicated", duration: 1500 });
       fetchTechniques();
     } catch (error: any) {
       toast({

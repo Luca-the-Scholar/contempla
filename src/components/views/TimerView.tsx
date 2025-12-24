@@ -111,16 +111,51 @@ export function TimerView() {
 
   const fetchTechniques = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data: techniquesData, error: techError } = await supabase
         .from("techniques")
         .select("id, name, instructions, tradition, original_author_name");
-      
+
       if (techError) throw techError;
 
-      // Sort by name
-      const sortedTechniques = (techniquesData || []).sort((a, b) => 
-        a.name.localeCompare(b.name)
-      );
+      // Get the most recent session for each technique to determine sort order
+      const { data: sessionsData } = await supabase
+        .from("meditation_sessions")
+        .select("technique_id, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      // Create a map of technique_id -> most recent session timestamp
+      const lastPracticedMap = new Map<string, string>();
+      if (sessionsData) {
+        for (const session of sessionsData) {
+          if (!lastPracticedMap.has(session.technique_id)) {
+            lastPracticedMap.set(session.technique_id, session.created_at);
+          }
+        }
+      }
+
+      // Sort by most recently practiced, then by name for techniques never practiced
+      const sortedTechniques = (techniquesData || []).sort((a, b) => {
+        const aLastPracticed = lastPracticedMap.get(a.id);
+        const bLastPracticed = lastPracticedMap.get(b.id);
+
+        // Both have been practiced - sort by most recent
+        if (aLastPracticed && bLastPracticed) {
+          return new Date(bLastPracticed).getTime() - new Date(aLastPracticed).getTime();
+        }
+
+        // Only a has been practiced - a comes first
+        if (aLastPracticed && !bLastPracticed) return -1;
+
+        // Only b has been practiced - b comes first
+        if (!aLastPracticed && bLastPracticed) return 1;
+
+        // Neither has been practiced - sort alphabetically
+        return a.name.localeCompare(b.name);
+      });
 
       setTechniques(sortedTechniques);
       if (sortedTechniques.length > 0 && !selectedTechniqueId) {
@@ -181,20 +216,34 @@ export function TimerView() {
       setNotificationId(notifId);
     }
 
-    // CRITICAL: Start Spotify AFTER the meditation sound finishes playing
-    // This prevents iOS audio session from deactivating Spotify device
-    // Delay by 2 seconds to ensure start sound completes and audio session stabilizes
+    // CRITICAL: Delay Spotify playback to avoid audio conflict with timer start sound
+    // Timer sound lasts up to 10 seconds, so we delay Spotify by 11 seconds to be safe
+    // This prevents iOS from silencing Spotify music when timer sound plays
     setTimeout(() => {
+      // Try to start Spotify playback if configured (don't await - fire and forget)
       startSpotifyPlayback().then(result => {
-      if (result.success) return;
+        if (result.success) {
+          // Success - music started
+          console.log('[Spotify] Playback started successfully');
 
-      // Show user-friendly error messages based on error code
-      if (result.code === 'NO_ACTIVE_DEVICE') {
+          // If Spotify app was opened, show toast to guide user back
+          if (result.spotifyAppOpened) {
+            toast({
+              title: "Music started!",
+              description: "Swipe back to Contempla to continue your meditation",
+              duration: 4000,
+            });
+          }
+          return;
+        }
+
+        // Show user-friendly error messages based on error code
+        if (result.code === 'NO_ACTIVE_DEVICE') {
         toast({
-          title: "No Spotify device detected",
-          description: result.error || "Open Spotify on any device (phone, computer, etc.) and ensure you're signed into the same account that's connected in Settings.",
+          title: "Spotify couldn't start",
+          description: "Make sure Spotify is installed on your device. Your meditation will start without music.",
           variant: "default",
-          duration: 8000, // Longer duration for important message
+          duration: 6000,
         });
         return;
       }
@@ -234,7 +283,7 @@ export function TimerView() {
         console.log('Spotify playback not started:', result.error, result.code);
       }
     });
-    }, 2000); // 2 second delay to let meditation sound complete and audio session stabilize
+    }, 11000); // 11 seconds delay to allow timer start sound to finish
 
     setInitialDuration(duration);
     setSecondsLeft(duration * 60);
