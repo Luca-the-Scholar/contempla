@@ -7,8 +7,15 @@ interface BottomNavProps {
 
 export function BottomNav({ activeView, onViewChange }: BottomNavProps) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 glass border-t border-border/30 z-50 safe-bottom safe-left safe-right">
-      <div className="max-w-2xl mx-auto">
+    <nav 
+      className="fixed bottom-0 left-0 right-0 glass border-t border-border/30 z-50"
+      style={{
+        paddingBottom: 'env(safe-area-inset-bottom)',
+        paddingLeft: 'max(env(safe-area-inset-left), 0.25rem)',
+        paddingRight: 'max(env(safe-area-inset-right), 0.25rem)',
+      }}
+    >
+      <div className="max-w-2xl mx-auto px-2">
         <div className="flex items-center justify-between px-1 py-1.5 gap-0.5">
           <button
             onClick={() => onViewChange('community')}
