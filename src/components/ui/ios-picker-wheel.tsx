@@ -13,9 +13,9 @@ const ITEM_HEIGHT = 44;
 const VISIBLE_ITEMS = 5;
 
 // Momentum / inertia physics constants
-const FRICTION = 0.92; // Lower = more friction, stops faster
-const VELOCITY_MULTIPLIER = 2.5; // Higher = faster flings
-const MIN_VELOCITY = 0.5; // Stop animating below this
+const FRICTION = 0.96; // Higher = less friction, spins longer
+const VELOCITY_MULTIPLIER = 8; // Higher = faster flings
+const MIN_VELOCITY = 0.3; // Stop animating below this
 
 export function IOSPickerWheel({ 
   options, 
