@@ -1,19 +1,36 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// SECURITY NOTE: In production, restrict CORS to your specific domain
-// Replace '*' with your production domain: 'https://yourdomain.com'
-// For now, allowing all origins for development
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Build allowed origins list from environment or use production defaults
+const ALLOWED_ORIGINS = (() => {
+  const envOrigins = Deno.env.get('ALLOWED_ORIGINS');
+  if (envOrigins) {
+    return envOrigins.split(',').map(o => o.trim());
+  }
+  // Default production origins
+  return [
+    'https://contempla.lovable.app',
+    'https://c0338147-c332-4b2c-b5d7-a5ad61c0e9ec.lovableproject.com'
+  ];
+})();
+
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  const allowedOrigin = origin && ALLOWED_ORIGINS.some(o => 
+    origin === o || origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app')
+  ) ? origin : ALLOWED_ORIGINS[0];
+  
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Credentials': 'true',
+  };
+}
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
 // Helper to create consistent error responses
-function errorResponse(error: string, details?: unknown, spotifyError?: unknown, status = 400): Response {
+function errorResponse(error: string, corsHeaders: Record<string, string>, details?: unknown, spotifyError?: unknown, status = 400): Response {
   const body = {
     error,
     details: details ?? null,
@@ -28,7 +45,7 @@ function errorResponse(error: string, details?: unknown, spotifyError?: unknown,
 }
 
 // Helper to handle Spotify API responses
-async function handleSpotifyResponse(response: Response, context: string): Promise<{ data: unknown; error: Response | null }> {
+async function handleSpotifyResponse(response: Response, context: string, corsHeaders: Record<string, string>): Promise<{ data: unknown; error: Response | null }> {
   // For 204 No Content, return success
   if (response.status === 204) {
     console.log(`[spotify-play] ${context} - Status: 204 (No Content - Success)`);
@@ -50,7 +67,7 @@ async function handleSpotifyResponse(response: Response, context: string): Promi
     const errorMessage = (parsed as any)?.error?.message || (parsed as any)?.error || `Spotify API error (${response.status})`;
     return {
       data: null,
-      error: errorResponse(errorMessage, { context, httpStatus: response.status }, spotifyError, response.status >= 500 ? 502 : 400),
+      error: errorResponse(errorMessage, corsHeaders, { context, httpStatus: response.status }, spotifyError, response.status >= 500 ? 502 : 400),
     };
   }
   
@@ -58,6 +75,10 @@ async function handleSpotifyResponse(response: Response, context: string): Promi
 }
 
 serve(async (req) => {
+  // Get origin for CORS
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+  
   // ========== DIAGNOSTIC LOGGING ==========
   const reqId = crypto.randomUUID();
   const method = req.method;
@@ -87,7 +108,7 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return errorResponse('Authorization header required', { context: 'auth_check', reqId });
+      return errorResponse('Authorization header required', corsHeaders, { context: 'auth_check', reqId });
     }
 
     // Parse body from rawBody (never use req.json())
@@ -96,7 +117,7 @@ serve(async (req) => {
       try {
         body = JSON.parse(rawBody);
       } catch {
-        return errorResponse('Invalid JSON body', { context: 'parse_body', reqId, bodyPreview: rawBody.substring(0, 200) });
+        return errorResponse('Invalid JSON body', corsHeaders, { context: 'parse_body', reqId, bodyPreview: rawBody.substring(0, 200) });
       }
     }
     
@@ -113,7 +134,7 @@ serve(async (req) => {
     
     const { data: { user }, error: userError } = await anonSupabase.auth.getUser();
     if (userError || !user) {
-      return errorResponse('Unauthorized', { userError: userError?.message }, null, 401);
+      return errorResponse('Unauthorized', corsHeaders, { userError: userError?.message }, null, 401);
     }
 
     // Get access token from database
@@ -126,12 +147,12 @@ serve(async (req) => {
       .maybeSingle();
 
     if (settingsError || !settings?.access_token) {
-      return errorResponse('Spotify not connected', { settingsError: settingsError?.message, userId: user.id });
+      return errorResponse('Spotify not connected', corsHeaders, { settingsError: settingsError?.message, userId: user.id });
     }
 
     // Check if token is expired
     if (new Date(settings.token_expires_at) < new Date()) {
-      return errorResponse('Token expired - refresh required', { expiresAt: settings.token_expires_at });
+      return errorResponse('Token expired - refresh required', corsHeaders, { expiresAt: settings.token_expires_at });
     }
 
     // Handle pause action
@@ -152,7 +173,7 @@ serve(async (req) => {
         });
       }
 
-      const { error: pauseError } = await handleSpotifyResponse(pauseResponse, 'Pause Playback');
+      const { error: pauseError } = await handleSpotifyResponse(pauseResponse, 'Pause Playback', corsHeaders);
       if (pauseError) return pauseError;
 
       return new Response(JSON.stringify({ success: true }), {
@@ -162,7 +183,7 @@ serve(async (req) => {
 
     // For play action, playlist_id is required
     if (!playlist_id) {
-      return errorResponse('playlist_id is required for play action', { providedBody: body, reqId });
+      return errorResponse('playlist_id is required for play action', corsHeaders, { providedBody: body, reqId });
     }
 
     console.log(`[spotify-play] Starting playback for playlist: ${playlist_id}`);
@@ -250,7 +271,7 @@ serve(async (req) => {
         },
       });
 
-      const { data: devicesData } = await handleSpotifyResponse(devicesResponse, 'Get Devices (after 404)');
+      const { data: devicesData } = await handleSpotifyResponse(devicesResponse, 'Get Devices (after 404)', corsHeaders);
       const devices = (devicesData as any)?.devices || [];
       const deviceNames = devices.map((d: any) => d.name).join(', ');
 
@@ -318,7 +339,7 @@ serve(async (req) => {
       }
 
       // Transfer or playback failed
-      const { error: transferError } = await handleSpotifyResponse(transferResponse, 'Transfer Playback');
+      const { error: transferError } = await handleSpotifyResponse(transferResponse, 'Transfer Playback', corsHeaders);
       if (transferError) {
         console.log('[spotify-play] Transfer failed, device may not support remote control');
         return new Response(
@@ -370,7 +391,7 @@ serve(async (req) => {
     }
 
     // Handle other non-2xx responses
-    const { error: playError } = await handleSpotifyResponse(playResponse, 'Start Playback (unexpected status)');
+    const { error: playError } = await handleSpotifyResponse(playResponse, 'Start Playback (unexpected status)', corsHeaders);
     if (playError) return playError;
 
     return new Response(JSON.stringify({ success: true, reqId }), {
@@ -382,6 +403,6 @@ serve(async (req) => {
     const stack = error instanceof Error ? error.stack : undefined;
     
     console.error('[spotify-play] Unhandled error:', { message, stack });
-    return errorResponse(message, { stack }, null, 500);
+    return errorResponse(message, corsHeaders, { stack }, null, 500);
   }
 });
