@@ -224,8 +224,23 @@ VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
 ```
 
-## Lovable Integration
+## Deployment
 
-This project was bootstrapped with [Lovable](https://lovable.dev). You can continue development via the Lovable platform or locally with your preferred IDE.
+### Frontend Deployment (via Lovable)
+
+This project uses [Lovable](https://lovable.dev) for deployment. The frontend React application is automatically deployed through the Lovable platform.
 
 **Project URL**: https://lovable.dev/projects/7df366e1-29c8-4092-b7aa-f7ab0eae8e3d
+
+### Backend Deployment (Supabase)
+
+**All Supabase resources (database migrations, edge functions, etc.) are deployed through Lovable's integration with Supabase.**
+
+Do not manually deploy to Supabase using the CLI. Instead:
+- Push your changes to the repository
+- Lovable handles deployment of:
+  - Database migrations in `supabase/migrations/`
+  - Edge functions in `supabase/functions/`
+  - Any Supabase configuration changes
+
+This ensures consistency between your development environment and production.
