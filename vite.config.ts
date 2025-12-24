@@ -1,71 +1,27 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import fs from "fs";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 
-function parseDotEnv(contents: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const line of contents.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const idx = trimmed.indexOf("=");
-    if (idx === -1) continue;
-    const key = trimmed.slice(0, idx).trim();
-    let value = trimmed.slice(idx + 1).trim();
-    // Strip surrounding quotes
-    if (
-      (value.startsWith("\"") && value.endsWith("\"")) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    out[key] = value;
-  }
-  return out;
-}
-
-function readLocalEnvFile(): Record<string, string> {
-  try {
-    const envPath = path.resolve(process.cwd(), ".env");
-    const contents = fs.readFileSync(envPath, "utf8");
-    return parseDotEnv(contents);
-  } catch {
-    return {};
-  }
-}
-
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  // Ensure dev + production builds always receive the required public backend env vars.
-  // In some environments these may be available with or without the VITE_ prefix.
+  // Ensure production builds receive the required public backend env vars.
+  // Depending on environment, these may be available as SUPABASE_* (without VITE_ prefix).
   const fileEnv = loadEnv(mode, process.cwd(), "");
-  const dotEnv = readLocalEnvFile();
-
-  const projectId =
-    fileEnv.VITE_SUPABASE_PROJECT_ID ||
-    dotEnv.VITE_SUPABASE_PROJECT_ID ||
-    process.env.VITE_SUPABASE_PROJECT_ID;
 
   const supabaseUrl =
     fileEnv.VITE_SUPABASE_URL ||
-    dotEnv.VITE_SUPABASE_URL ||
     process.env.VITE_SUPABASE_URL ||
     fileEnv.SUPABASE_URL ||
-    dotEnv.SUPABASE_URL ||
-    process.env.SUPABASE_URL ||
-    (projectId ? `https://${projectId}.supabase.co` : undefined);
+    process.env.SUPABASE_URL;
 
   const supabasePublishableKey =
     fileEnv.VITE_SUPABASE_PUBLISHABLE_KEY ||
-    dotEnv.VITE_SUPABASE_PUBLISHABLE_KEY ||
     process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
     fileEnv.SUPABASE_PUBLISHABLE_KEY ||
-    dotEnv.SUPABASE_PUBLISHABLE_KEY ||
     process.env.SUPABASE_PUBLISHABLE_KEY ||
     fileEnv.SUPABASE_ANON_KEY ||
-    dotEnv.SUPABASE_ANON_KEY ||
     process.env.SUPABASE_ANON_KEY;
 
   // Populate VITE_* so Vite's env replacement can also work.
