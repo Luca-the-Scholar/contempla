@@ -50,10 +50,10 @@ export function TimerView() {
   const [showPartialSaveDialog, setShowPartialSaveDialog] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   
-  // Duration options for iOS-style picker wheel
-  const durationOptions = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60].map(mins => ({
+  // Duration options for iOS-style picker wheel (1-120 minutes)
+  const durationOptions = Array.from({ length: 120 }, (_, i) => i + 1).map(mins => ({
     value: mins,
-    label: `${mins} minutes`
+    label: mins === 1 ? `1 minute` : `${mins} minutes`
   }));
   
   // Guard to prevent multiple completion triggers
