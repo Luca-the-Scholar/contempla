@@ -147,6 +147,7 @@ export function CommunityView() {
         id: s.id,
         user_id: friendId,
         user_name: profile.name || "Friend",
+        technique_id: s.technique_id,
         technique_name: s.techniques?.name || "Meditation",
         duration_minutes: s.duration_minutes,
         session_date: s.session_date,

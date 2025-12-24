@@ -122,7 +122,7 @@ export function TimerView() {
 
       // Get the most recent session for each technique to determine sort order
       const { data: sessionsData } = await supabase
-        .from("meditation_sessions")
+        .from("sessions")
         .select("technique_id, created_at")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
