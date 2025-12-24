@@ -489,7 +489,7 @@ export function TimerView() {
           </div>
         )}
         
-        <div className="fixed inset-0 bg-background z-50 flex items-center justify-center px-4">
+        <div className="fixed inset-0 bg-background z-50 flex items-center justify-center px-4 safe-all">
           <div className="max-w-md w-full space-y-8 text-center animate-fade-in">
             <div className="w-20 h-20 mx-auto rounded-full bg-primary/20 flex items-center justify-center mb-6">
               <Check className="w-10 h-10 text-primary" />
@@ -546,7 +546,7 @@ export function TimerView() {
           </DialogContent>
         </Dialog>
 
-        <div className="fixed inset-0 bg-gradient-to-b from-background via-background to-primary/5 z-50 flex flex-col items-center justify-center px-4">
+        <div className="fixed inset-0 bg-gradient-to-b from-background via-background to-primary/5 z-50 flex flex-col items-center justify-center px-4 safe-all">
         <div className="max-w-md w-full space-y-8">
           {showWakeLockWarning && (
             <Alert className="bg-accent/20 border-accent/50">

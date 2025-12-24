@@ -7,7 +7,14 @@
       "Bash(npx tsc:*)",
       "Bash(psql:*)",
       "Bash(npm run build:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(xcodebuild:*)",
+      "Bash(echo:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(grep:*)",
+      "Bash(npx cap:*)"
     ]
   }
 }
