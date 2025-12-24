@@ -7,18 +7,24 @@ const ALLOWED_ORIGINS = (() => {
   if (envOrigins) {
     return envOrigins.split(',').map(o => o.trim());
   }
-  // Default production origins
+  // Default production origins + localhost for development
   return [
     'https://contempla.lovable.app',
-    'https://c0338147-c332-4b2c-b5d7-a5ad61c0e9ec.lovableproject.com'
+    'https://c0338147-c332-4b2c-b5d7-a5ad61c0e9ec.lovableproject.com',
+    'http://localhost:5173',
+    'http://localhost:4173',
+    'http://localhost:8080',
   ];
 })();
 
 function getCorsHeaders(origin: string | null): Record<string, string> {
-  const allowedOrigin = origin && ALLOWED_ORIGINS.some(o => 
-    origin === o || origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app')
+  // Allow Capacitor native origins (capacitor://, ionic://) and configured origins
+  const isCapacitorOrigin = origin && (origin.startsWith('capacitor://') || origin.startsWith('ionic://'));
+  const allowedOrigin = origin && (
+    isCapacitorOrigin ||
+    ALLOWED_ORIGINS.some(o => origin === o || origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app'))
   ) ? origin : ALLOWED_ORIGINS[0];
-  
+
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -100,6 +106,24 @@ serve(async (req) => {
   }
 
   try {
+    // Parse and validate request body
+    let body: { action?: string } = {};
+    if (rawBody) {
+      try {
+        body = JSON.parse(rawBody);
+      } catch (e) {
+        return errorResponse('Invalid JSON body', corsHeaders, { context: 'body_parse', reqId, error: String(e) });
+      }
+    }
+
+    // Validate action parameter (currently only 'list' is supported, but validate for future)
+    const action = body.action || 'list';
+    if (action !== 'list') {
+      return errorResponse(`Invalid action: ${action}`, corsHeaders, { context: 'action_validation', reqId, validActions: ['list'] });
+    }
+
+    console.log(`[spotify-playlists] [${reqId}] Action: ${action}`);
+
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return errorResponse('Authorization header required', corsHeaders, { context: 'auth_check', reqId });

@@ -7,18 +7,24 @@ const ALLOWED_ORIGINS = (() => {
   if (envOrigins) {
     return envOrigins.split(',').map(o => o.trim());
   }
-  // Default production origins
+  // Default production origins + localhost for development
   return [
     'https://contempla.lovable.app',
-    'https://c0338147-c332-4b2c-b5d7-a5ad61c0e9ec.lovableproject.com'
+    'https://c0338147-c332-4b2c-b5d7-a5ad61c0e9ec.lovableproject.com',
+    'http://localhost:5173',
+    'http://localhost:4173',
+    'http://localhost:8080',
   ];
 })();
 
 function getCorsHeaders(origin: string | null): Record<string, string> {
-  const allowedOrigin = origin && ALLOWED_ORIGINS.some(o => 
-    origin === o || origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app')
+  // Allow Capacitor native origins (capacitor://, ionic://) and configured origins
+  const isCapacitorOrigin = origin && (origin.startsWith('capacitor://') || origin.startsWith('ionic://'));
+  const allowedOrigin = origin && (
+    isCapacitorOrigin ||
+    ALLOWED_ORIGINS.some(o => origin === o || origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app'))
   ) ? origin : ALLOWED_ORIGINS[0];
-  
+
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',

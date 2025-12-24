@@ -1,6 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Capacitor } from "@capacitor/core";
 
+// Token refresh lock to prevent concurrent refresh requests
+let tokenRefreshPromise: Promise<void> | null = null;
+
 /**
  * Check if Spotify autoplay is enabled for the current user.
  * Returns true only if user has connected Spotify, selected a playlist,
@@ -121,21 +124,37 @@ export async function startSpotifyPlayback(): Promise<{ success: boolean; error?
     if (expiresAt < fiveMinutesFromNow) {
       console.log('[Spotify] Token expired or expiring soon, refreshing...');
 
-      // Call spotify-auth to refresh the token
-      const { data: refreshData, error: refreshError } = await supabase.functions.invoke('spotify-auth', {
-        body: { action: 'refresh' },
-      });
+      // Use existing refresh promise if one is in progress, otherwise create new one
+      if (!tokenRefreshPromise) {
+        tokenRefreshPromise = (async () => {
+          try {
+            // Call spotify-auth to refresh the token
+            const { data: refreshData, error: refreshError } = await supabase.functions.invoke('spotify-auth', {
+              body: { action: 'refresh' },
+            });
 
-      if (refreshError || refreshData?.error) {
-        console.error('[Spotify] Token refresh failed:', refreshError?.message || refreshData?.error);
+            if (refreshError || refreshData?.error) {
+              console.error('[Spotify] Token refresh failed:', refreshError?.message || refreshData?.error);
+              throw new Error('TOKEN_EXPIRED');
+            }
+
+            console.log('[Spotify] Token refreshed successfully');
+          } finally {
+            // Clear the lock after refresh completes (success or failure)
+            tokenRefreshPromise = null;
+          }
+        })();
+      }
+
+      try {
+        await tokenRefreshPromise;
+      } catch {
         return {
           success: false,
           error: 'Spotify authentication expired. Please reconnect Spotify in Settings.',
           code: 'TOKEN_EXPIRED'
         };
       }
-
-      console.log('[Spotify] Token refreshed successfully');
     }
 
     // OPTIMIZED APPROACH:

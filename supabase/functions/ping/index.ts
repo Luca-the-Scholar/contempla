@@ -1,11 +1,41 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Build allowed origins list from environment or use production defaults
+const ALLOWED_ORIGINS = (() => {
+  const envOrigins = Deno.env.get('ALLOWED_ORIGINS');
+  if (envOrigins) {
+    return envOrigins.split(',').map(o => o.trim());
+  }
+  // Default production origins + localhost for development
+  return [
+    'https://contempla.lovable.app',
+    'https://c0338147-c332-4b2c-b5d7-a5ad61c0e9ec.lovableproject.com',
+    'http://localhost:5173',
+    'http://localhost:4173',
+    'http://localhost:8080',
+  ];
+})();
+
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  // Allow Capacitor native origins (capacitor://, ionic://) and configured origins
+  const isCapacitorOrigin = origin && (origin.startsWith('capacitor://') || origin.startsWith('ionic://'));
+  const allowedOrigin = origin && (
+    isCapacitorOrigin ||
+    ALLOWED_ORIGINS.some(o => origin === o || origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app'))
+  ) ? origin : ALLOWED_ORIGINS[0];
+
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Credentials': 'true',
+  };
+}
 
 serve(async (req) => {
+  // Get origin for CORS
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   const requestId = crypto.randomUUID();
   const timestamp = new Date().toISOString();
 

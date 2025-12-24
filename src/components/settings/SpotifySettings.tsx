@@ -246,6 +246,7 @@ export function SpotifySettings() {
     try {
       // Check if token needs refresh
       if (settings?.token_expires_at && new Date(settings.token_expires_at) < new Date()) {
+        console.log('[SpotifySettings] Token expired, refreshing...');
         await refreshToken();
       }
 
@@ -257,26 +258,16 @@ export function SpotifySettings() {
 
       if (error) throw error;
       if (data?.error) {
-        if (data.error.includes('expired')) {
-          await refreshToken();
-          // Retry after token refresh
-          const retryData = await supabase.functions.invoke('spotify-playlists', {
-            body: payload,
-          });
-          if (retryData.data?.playlists) {
-            setPlaylists(retryData.data.playlists);
-            return;
-          }
-        }
         throw new Error(data.error);
       }
 
       setPlaylists(data.playlists || []);
     } catch (error: any) {
-      console.error('Error loading playlists:', error);
+      console.error('[SpotifySettings] Error loading playlists:', error);
+      const { message: details, reqId } = await getEdgeFunctionErrorDetails(error);
       toast({
         title: "Failed to load playlists",
-        description: error.message,
+        description: reqId ? `${details} (ref: ${reqId.slice(0, 8)})` : details,
         variant: "destructive",
       });
     } finally {
@@ -290,10 +281,36 @@ export function SpotifySettings() {
     const { data, error } = await supabase.functions.invoke('spotify-auth', {
       body: payload,
     });
-    if (error || data?.error) {
-      throw new Error('Failed to refresh token');
+    if (error) {
+      console.error('[SpotifySettings] Token refresh edge function error:', error);
+      throw error;
+    }
+    if (data?.error) {
+      console.error('[SpotifySettings] Token refresh failed:', data);
+      throw new Error(data.error);
     }
     await loadSettings();
+  };
+
+  const handleTestTokenRefresh = async () => {
+    try {
+      toast({
+        title: "Testing token refresh...",
+        description: "This may take a moment",
+      });
+      await refreshToken();
+      toast({
+        title: "Token refresh successful!",
+        description: "Your Spotify connection is working correctly",
+      });
+    } catch (error: any) {
+      const { message: details, reqId } = await getEdgeFunctionErrorDetails(error);
+      toast({
+        title: "Token refresh failed",
+        description: reqId ? `${details} (ref: ${reqId.slice(0, 8)})` : details,
+        variant: "destructive",
+      });
+    }
   };
 
   const handlePlaylistChange = async (playlistId: string) => {
@@ -439,10 +456,15 @@ export function SpotifySettings() {
               <div className="w-2 h-2 rounded-full bg-[#1DB954]" />
               <span className="text-sm text-muted-foreground">Connected to Spotify</span>
             </div>
-            <Button variant="ghost" size="sm" onClick={handleDisconnect}>
-              <X className="w-4 h-4 mr-1" />
-              Disconnect
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleTestTokenRefresh}>
+                Test Connection
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleDisconnect}>
+                <X className="w-4 h-4 mr-1" />
+                Disconnect
+              </Button>
+            </div>
           </div>
 
           <div className="space-y-2">
