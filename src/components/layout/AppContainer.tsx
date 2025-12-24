@@ -5,6 +5,10 @@ interface AppContainerProps {
 }
 
 export function AppContainer({ children }: AppContainerProps) {
-  return <div>{children}</div>;
+  return (
+    <div className="px-4 pt-safe-top">
+      {children}
+    </div>
+  );
 }
 
