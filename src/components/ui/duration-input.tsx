@@ -41,7 +41,7 @@ export function DurationInput({
   };
 
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn("flex items-center gap-3", className)}>
       <Input
         type="number"
         inputMode="numeric"
@@ -53,12 +53,12 @@ export function DurationInput({
         min={min}
         max={max}
         className={cn(
-          "text-center text-2xl font-semibold h-14 pr-20",
+          "text-left text-2xl font-semibold h-14 w-24",
           "bg-muted/50 border-border/50",
           "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
         )}
       />
-      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground text-lg">
+      <span className="text-muted-foreground text-lg">
         minutes
       </span>
     </div>
