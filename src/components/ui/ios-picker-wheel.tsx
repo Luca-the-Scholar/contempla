@@ -12,6 +12,11 @@ interface IOSPickerWheelProps {
 const ITEM_HEIGHT = 44;
 const VISIBLE_ITEMS = 5;
 
+// Momentum / inertia physics constants
+const FRICTION = 0.92; // Lower = more friction, stops faster
+const VELOCITY_MULTIPLIER = 2.5; // Higher = faster flings
+const MIN_VELOCITY = 0.5; // Stop animating below this
+
 export function IOSPickerWheel({ 
   options, 
   value, 
@@ -22,6 +27,12 @@ export function IOSPickerWheel({
   const containerRef = useRef<HTMLDivElement>(null);
   const isScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Touch / pointer tracking for momentum
+  const lastTouchY = useRef<number | null>(null);
+  const lastTouchTime = useRef<number | null>(null);
+  const velocity = useRef(0);
+  const rafId = useRef<number | null>(null);
 
   const selectedIndex = options.findIndex(opt => opt.value === value);
   const centerOffset = Math.floor(VISIBLE_ITEMS / 2);
@@ -35,9 +46,87 @@ export function IOSPickerWheel({
     }
   }, [selectedIndex, isExpanded]);
 
-  const handleScroll = useCallback(() => {
+  // Cancel any ongoing momentum animation
+  const cancelMomentum = useCallback(() => {
+    if (rafId.current !== null) {
+      cancelAnimationFrame(rafId.current);
+      rafId.current = null;
+    }
+  }, []);
+
+  // Snap to nearest item and fire onChange
+  const snapToNearest = useCallback(() => {
+    if (!containerRef.current) return;
+    const scrollTop = containerRef.current.scrollTop;
+    const newIndex = Math.round(scrollTop / ITEM_HEIGHT);
+    const clampedIndex = Math.max(0, Math.min(options.length - 1, newIndex));
+
+    containerRef.current.scrollTo({
+      top: clampedIndex * ITEM_HEIGHT,
+      behavior: 'smooth'
+    });
+
+    if (options[clampedIndex] && options[clampedIndex].value !== value) {
+      onChange(options[clampedIndex].value);
+    }
+    isScrollingRef.current = false;
+  }, [options, value, onChange]);
+
+  // Momentum animation loop
+  const animateMomentum = useCallback(() => {
     if (!containerRef.current) return;
 
+    velocity.current *= FRICTION;
+
+    if (Math.abs(velocity.current) < MIN_VELOCITY) {
+      snapToNearest();
+      return;
+    }
+
+    containerRef.current.scrollTop += velocity.current;
+    rafId.current = requestAnimationFrame(animateMomentum);
+  }, [snapToNearest]);
+
+  // Handle touch / pointer start
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    cancelMomentum();
+    lastTouchY.current = e.clientY;
+    lastTouchTime.current = Date.now();
+    velocity.current = 0;
+    isScrollingRef.current = true;
+  }, [cancelMomentum]);
+
+  // Handle touch / pointer move
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (lastTouchY.current === null || lastTouchTime.current === null) return;
+
+    const currentY = e.clientY;
+    const currentTime = Date.now();
+    const deltaY = lastTouchY.current - currentY;
+    const deltaTime = currentTime - lastTouchTime.current || 1;
+
+    // Track instantaneous velocity
+    velocity.current = (deltaY / deltaTime) * 16 * VELOCITY_MULTIPLIER;
+
+    lastTouchY.current = currentY;
+    lastTouchTime.current = currentTime;
+  }, []);
+
+  // Handle touch / pointer end — kick off momentum
+  const handlePointerUp = useCallback(() => {
+    lastTouchY.current = null;
+    lastTouchTime.current = null;
+
+    if (Math.abs(velocity.current) > MIN_VELOCITY) {
+      rafId.current = requestAnimationFrame(animateMomentum);
+    } else {
+      snapToNearest();
+    }
+  }, [animateMomentum, snapToNearest]);
+
+  // Fallback scroll handler for wheel / non-touch
+  const handleScroll = useCallback(() => {
+    if (!containerRef.current) return;
     isScrollingRef.current = true;
 
     if (scrollTimeoutRef.current) {
@@ -45,36 +134,23 @@ export function IOSPickerWheel({
     }
 
     scrollTimeoutRef.current = setTimeout(() => {
-      if (!containerRef.current) return;
-
-      const scrollTop = containerRef.current.scrollTop;
-      const newIndex = Math.round(scrollTop / ITEM_HEIGHT);
-      const clampedIndex = Math.max(0, Math.min(options.length - 1, newIndex));
-      
-      containerRef.current.scrollTo({
-        top: clampedIndex * ITEM_HEIGHT,
-        behavior: 'smooth'
-      });
-
-      if (options[clampedIndex] && options[clampedIndex].value !== value) {
-        onChange(options[clampedIndex].value);
+      // Only snap if momentum isn't active
+      if (rafId.current === null) {
+        snapToNearest();
       }
-
-      isScrollingRef.current = false;
-    }, 100);
-  }, [options, value, onChange]);
+    }, 120);
+  }, [snapToNearest]);
 
   useEffect(() => {
     return () => {
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+      cancelMomentum();
     };
-  }, []);
+  }, [cancelMomentum]);
 
   const containerHeight = ITEM_HEIGHT * VISIBLE_ITEMS;
 
-  // Collapsed state - just a button showing current selection
+  // Collapsed state
   if (!isExpanded) {
     return (
       <button
@@ -93,7 +169,7 @@ export function IOSPickerWheel({
     );
   }
 
-  // Expanded state - full picker wheel
+  // Expanded state
   return (
     <div className={cn("relative", className)}>
       <div 
@@ -113,11 +189,16 @@ export function IOSPickerWheel({
           }}
         />
         
-        {/* Scrollable container */}
+        {/* Scrollable container with momentum */}
         <div
           ref={containerRef}
-          className="h-full overflow-y-auto scrollbar-hide snap-y snap-mandatory"
+          className="h-full overflow-y-auto scrollbar-hide snap-y snap-mandatory touch-pan-y"
           onScroll={handleScroll}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerUp}
+          onPointerCancel={handlePointerUp}
           style={{
             scrollSnapType: 'y mandatory',
             WebkitOverflowScrolling: 'touch',
@@ -132,13 +213,14 @@ export function IOSPickerWheel({
               <div
                 key={option.value}
                 className={cn(
-                  "flex items-center justify-center snap-center transition-all duration-150 cursor-pointer",
+                  "flex items-center justify-center snap-center transition-all duration-150 cursor-pointer select-none",
                   isSelected 
                     ? "text-foreground font-semibold text-lg" 
                     : "text-muted-foreground text-base"
                 )}
                 style={{ height: ITEM_HEIGHT }}
                 onClick={() => {
+                  cancelMomentum();
                   onChange(option.value);
                   if (containerRef.current) {
                     containerRef.current.scrollTo({
@@ -155,7 +237,7 @@ export function IOSPickerWheel({
         </div>
       </div>
       
-      {/* Done button to collapse */}
+      {/* Done button */}
       <button
         type="button"
         onClick={() => setIsExpanded(false)}
