@@ -10,19 +10,39 @@ export default defineConfig(({ mode }) => {
   // Depending on environment, these may be available as SUPABASE_* (without VITE_ prefix).
   const fileEnv = loadEnv(mode, process.cwd(), "");
 
-  const supabaseUrl =
+  const projectId =
+    fileEnv.VITE_SUPABASE_PROJECT_ID ||
+    process.env.VITE_SUPABASE_PROJECT_ID ||
+    fileEnv.SUPABASE_PROJECT_ID ||
+    process.env.SUPABASE_PROJECT_ID;
+
+  let supabaseUrl =
     fileEnv.VITE_SUPABASE_URL ||
     process.env.VITE_SUPABASE_URL ||
     fileEnv.SUPABASE_URL ||
     process.env.SUPABASE_URL;
 
-  const supabasePublishableKey =
+  if (!supabaseUrl && projectId) {
+    supabaseUrl = `https://${projectId}.supabase.co`;
+  }
+
+  // Last-resort fallback for misconfigured build environments (publishable values only).
+  if (!supabaseUrl) {
+    supabaseUrl = "https://zlrgwfvqhxpfnuvxpyce.supabase.co";
+  }
+
+  let supabasePublishableKey =
     fileEnv.VITE_SUPABASE_PUBLISHABLE_KEY ||
     process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
     fileEnv.SUPABASE_PUBLISHABLE_KEY ||
     process.env.SUPABASE_PUBLISHABLE_KEY ||
     fileEnv.SUPABASE_ANON_KEY ||
     process.env.SUPABASE_ANON_KEY;
+
+  if (!supabasePublishableKey) {
+    supabasePublishableKey =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpscmd3ZnZxaHhwZm51dnhweWNlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1OTE5NzYsImV4cCI6MjA3OTE2Nzk3Nn0.GgvoaIukTth0yHj5m_ZR2SJk_l12vprGXvDEF6mavIQ";
+  }
 
   // Populate VITE_* so Vite's env replacement can also work.
   if (!process.env.VITE_SUPABASE_URL && supabaseUrl) process.env.VITE_SUPABASE_URL = supabaseUrl;
