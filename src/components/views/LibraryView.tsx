@@ -317,7 +317,7 @@ export function LibraryView() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-32">
+    <div className="min-h-screen bg-background pb-32 pt-6 safe-top">
       <div className="max-w-2xl mx-auto px-4 py-6">
         <Tabs defaultValue="personal" className="space-y-5">
           <TabsList className="grid w-full grid-cols-2 h-12 rounded-xl bg-muted/50 p-1">

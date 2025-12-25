@@ -223,7 +223,7 @@ export function SettingsView() {
           </div>
         </div>}
       
-      <div className="min-h-screen bg-background pb-32">
+      <div className="min-h-screen bg-background pb-32 pt-6 safe-top">
         <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
           {/* Profile Settings */}
           <Card className="p-6">
