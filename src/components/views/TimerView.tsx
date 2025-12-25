@@ -631,8 +631,8 @@ export function TimerView() {
             <h2 className="text-sm font-medium text-muted-foreground mb-3">
               Duration
             </h2>
-            <div className="flex gap-1.5 mb-4 justify-center max-w-full overflow-hidden">
-              {presetDurations.map(preset => <Button key={preset} variant={duration === preset ? "default" : "outline"} size="sm" className="px-3 py-1.5 text-sm min-w-0" onClick={() => setDuration(preset)}>
+            <div className="flex gap-2 mb-4 justify-center max-w-full overflow-hidden">
+              {presetDurations.map(preset => <Button key={preset} variant={duration === preset ? "default" : "outline"} className="px-5 py-2.5 text-base min-w-0" onClick={() => setDuration(preset)}>
                   {preset}m
                 </Button>)}
             </div>
