@@ -208,8 +208,8 @@ export function CommunityView() {
   // Friend Profile View
   if (selectedFriend) {
     return (
-      <div className="min-h-screen bg-background pb-32 pt-6 safe-top">
-        <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
+      <div className="min-h-screen bg-background pb-32 pt-safe-top">
+        <div className="max-w-2xl mx-auto px-5 py-6 space-y-5">
           {/* Back Button */}
           <Button 
             variant="ghost" 
@@ -280,8 +280,8 @@ export function CommunityView() {
 
   // Main Community View with Activity Feed
   return (
-    <div className="min-h-screen bg-background pb-32 pt-6 safe-top">
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
+    <div className="min-h-screen bg-background pb-32 pt-safe-top">
+      <div className="max-w-2xl mx-auto px-5 py-6 space-y-5">
         {/* User Profile Summary */}
         <div className="stats-card">
           <div className="flex items-center gap-4">
