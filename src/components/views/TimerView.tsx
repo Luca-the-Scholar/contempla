@@ -596,7 +596,7 @@ export function TimerView() {
 
       <div className="min-h-screen bg-transparent pb-32 pt-6 safe-top">
         <div className="max-w-2xl mx-auto mt-[20px] px-[12px] py-[25px]">
-        <Card className="p-6 space-y-6 w-full">
+        <Card className="p-6 space-y-6">
           {/* Technique Selection */}
           <div>
             <h2 className="text-sm font-medium text-muted-foreground mb-3">
