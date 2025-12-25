@@ -235,21 +235,13 @@
     scrollbar-width: none;
   }
   
-  /* Safe area padding for mobile - iPhone standard ~47px status bar + extra padding */
+  /* Safe area padding for mobile */
   .safe-bottom {
-    padding-bottom: max(env(safe-area-inset-bottom, 0px), 34px);
+    padding-bottom: env(safe-area-inset-bottom, 0);
   }
   
   .safe-top {
-    padding-top: max(env(safe-area-inset-top, 0px), 47px);
-  }
-  
-  .pt-safe-top {
-    padding-top: max(env(safe-area-inset-top, 0px), 47px);
-  }
-  
-  .pb-safe-bottom {
-    padding-bottom: max(env(safe-area-inset-bottom, 0px), 34px);
+    padding-top: env(safe-area-inset-top, 0);
   }
   
   .safe-left {
@@ -261,7 +253,7 @@
   }
   
   .safe-all {
-    padding: max(env(safe-area-inset-top, 0px), 47px) env(safe-area-inset-right, 0) max(env(safe-area-inset-bottom, 0px), 34px) env(safe-area-inset-left, 0);
+    padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
   }
   
   /* Smooth transitions */

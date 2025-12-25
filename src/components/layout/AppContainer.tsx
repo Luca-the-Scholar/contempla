@@ -6,7 +6,7 @@ interface AppContainerProps {
 
 export function AppContainer({ children }: AppContainerProps) {
   return (
-    <div className="px-5 pt-12 pb-20 max-w-[390px] mx-auto w-full min-h-screen">
+    <div className="px-4 pt-safe-top">
       {children}
     </div>
   );
