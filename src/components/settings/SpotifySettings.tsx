@@ -524,11 +524,12 @@ export function SpotifySettings() {
                 ✨ Spotify will start automatically when you begin meditation. If Spotify isn't already active, Contempla will open it briefly to activate playback (you'll need to swipe back). Requires Spotify Premium.
               </p>
 
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Button
                   onClick={handleTestAutoplay}
                   variant="outline"
-                  className="flex-1"
+                  size="sm"
+                  className="flex-1 text-xs"
                   disabled={testingAutoplay}
                 >
                   {testingAutoplay ? (
@@ -544,7 +545,8 @@ export function SpotifySettings() {
                 <Button
                   onClick={() => openSpotifyApp()}
                   variant="default"
-                  className="flex-1 bg-[#1DB954] hover:bg-[#1ed760] text-white"
+                  size="sm"
+                  className="flex-1 text-xs bg-[#1DB954] hover:bg-[#1ed760] text-white"
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />
                   Open Spotify
