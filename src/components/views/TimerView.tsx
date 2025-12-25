@@ -662,7 +662,7 @@ export function TimerView() {
 
       <div className="min-h-screen bg-background pb-32 pt-safe-top">
         <div className="max-w-2xl mx-auto px-5 py-6">
-        <Card className="p-6 space-y-6">
+        <Card className="p-6 space-y-6 overflow-hidden">
           {/* Technique Selection */}
           <div>
             <h2 className="text-sm font-medium text-muted-foreground mb-3">
@@ -706,12 +706,12 @@ export function TimerView() {
             <h2 className="text-sm font-medium text-muted-foreground mb-3">
               Duration
             </h2>
-            <div className="flex gap-2 mb-4">
+            <div className="flex gap-2 mb-4 min-w-0">
               {presetDurations.map(preset => (
                 <Button 
                   key={preset}
                   variant={duration === preset ? "default" : "outline"}
-                  className="flex-1"
+                  className="flex-1 min-w-0 px-2"
                   onClick={() => setDuration(preset)}
                 >
                   {preset}m
@@ -732,7 +732,7 @@ export function TimerView() {
             <h2 className="text-sm font-medium text-muted-foreground mb-3">
               Completion Sound
             </h2>
-            <div className="flex gap-2">
+            <div className="flex gap-2 min-w-0">
               <Select 
                 value={selectedSound} 
                 onValueChange={(val) => {
@@ -741,7 +741,7 @@ export function TimerView() {
                   localStorage.setItem('selectedSound', val);
                 }}
               >
-                <SelectTrigger className="flex-1">
+                <SelectTrigger className="flex-1 min-w-0">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
