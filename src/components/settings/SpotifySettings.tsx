@@ -451,16 +451,16 @@ export function SpotifySettings() {
         </div>
       ) : (
         <>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-[#1DB954]" />
+              <div className="w-2 h-2 rounded-full bg-[#1DB954] shrink-0" />
               <span className="text-sm text-muted-foreground">Connected to Spotify</span>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleTestTokenRefresh}>
+            <div className="flex gap-2 flex-wrap">
+              <Button variant="outline" size="sm" className="text-xs px-2" onClick={handleTestTokenRefresh}>
                 Test Connection
               </Button>
-              <Button variant="ghost" size="sm" onClick={handleDisconnect}>
+              <Button variant="ghost" size="sm" className="text-xs px-2" onClick={handleDisconnect}>
                 <X className="w-4 h-4 mr-1" />
                 Disconnect
               </Button>
