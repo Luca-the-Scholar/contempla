@@ -223,8 +223,8 @@ export function HistoryView() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-32 pt-safe-top">
-      <div className="max-w-2xl mx-auto px-5 py-6 space-y-5">
+    <div className="min-h-screen bg-transparent pb-32 pt-safe-top">
+      <div className="max-w-2xl mx-auto px-5 py-6 space-y-5 rounded-3xl bg-gradient-to-b from-background via-background to-transparent [mask-image:linear-gradient(to_bottom,black_85%,transparent_100%)]">
         {/* Summary Stats */}
         <div className="stats-card">
           <div className="grid grid-cols-2 gap-6">
