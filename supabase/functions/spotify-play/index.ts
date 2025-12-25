@@ -302,10 +302,22 @@ serve(async (req) => {
 
       // Devices exist but none are "ready" for playback
       // Use Transfer Playback API to ACTIVATE the device and start playback
-      const targetDevice = devices[0];
+
+      // PRIORITIZE SMARTPHONE DEVICES over computers/speakers
+      // Spotify device types: 'Computer', 'Smartphone', 'Speaker', 'TV', etc.
+      const mobileDevice = devices.find((d: any) =>
+        d.type === 'Smartphone' || d.type === 'Tablet' || d.name?.toLowerCase().includes('iphone')
+      );
+
+      const targetDevice = mobileDevice || devices[0]; // Fallback to first device if no mobile found
       const targetDeviceId = targetDevice?.id;
 
-      console.log('[spotify-play] Transferring playback to activate device:', targetDeviceId);
+      console.log('[spotify-play] Transferring playback to activate device:', {
+        deviceId: targetDeviceId,
+        deviceName: targetDevice.name,
+        deviceType: targetDevice.type,
+        prioritizedMobile: !!mobileDevice
+      });
 
       // Step 1: Transfer playback to the device with play=true
       const transferResponse = await fetch('https://api.spotify.com/v1/me/player', {

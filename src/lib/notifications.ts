@@ -1,6 +1,19 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 
+export type TimerSound = 'none' | 'bowl-struck-1' | 'bowl-struck-2' | 'bowl-struck-3' | 'bowl-struck-4' | 'gong' | 'bell-1' | 'bell-2';
+
+// Map timer sound IDs to actual notification sound file names
+const NOTIFICATION_SOUND_MAP: Record<Exclude<TimerSound, 'none'>, string> = {
+  'bowl-struck-1': 'tibetan-bowl-struck-1.wav',
+  'bowl-struck-2': 'tibetan-bowl-struck-2.wav',
+  'bowl-struck-3': 'tibetan-bowl-struck-3.wav',
+  'bowl-struck-4': 'tibetan-bowl-struck-4.wav',
+  'gong': 'gong-sweet.wav',
+  'bell-1': 'small-bell-1.wav',
+  'bell-2': 'small-bell-2.wav',
+};
+
 export async function requestNotificationPermission(): Promise<boolean> {
   if (!Capacitor.isNativePlatform()) {
     // Web doesn't need permission for local notifications in the same way
@@ -16,7 +29,10 @@ export async function requestNotificationPermission(): Promise<boolean> {
   }
 }
 
-export async function scheduleTimerNotification(durationMs: number): Promise<number | null> {
+export async function scheduleTimerNotification(
+  durationMs: number,
+  sound: TimerSound = 'bowl-struck-1'
+): Promise<number | null> {
   if (!Capacitor.isNativePlatform()) {
     return null;
   }
@@ -25,6 +41,11 @@ export async function scheduleTimerNotification(durationMs: number): Promise<num
     const notificationId = Date.now();
     const triggerTime = new Date(Date.now() + durationMs);
 
+    // Get the notification sound file, or use default if 'none' selected
+    const notificationSound = sound === 'none'
+      ? 'tibetan-bowl-struck-1.wav'  // Fallback to default if user disabled sound
+      : NOTIFICATION_SOUND_MAP[sound];
+
     await LocalNotifications.schedule({
       notifications: [
         {
@@ -32,7 +53,7 @@ export async function scheduleTimerNotification(durationMs: number): Promise<num
           title: 'Meditation Complete',
           body: 'Your meditation session has ended. Take a moment to notice how you feel.',
           schedule: { at: triggerTime },
-          sound: 'tibetan-bowl-struck-1.wav',
+          sound: notificationSound,
           actionTypeId: 'TIMER_COMPLETE',
           extra: {
             type: 'timer_complete',

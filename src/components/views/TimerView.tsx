@@ -9,7 +9,7 @@ import { Play, Pause, Square, Check, AlertTriangle, Volume2 } from "lucide-react
 import { DurationInput } from "@/components/ui/duration-input";
 import { useToast } from "@/hooks/use-toast";
 import { useNoSleep } from "@/hooks/use-nosleep";
-import { triggerVibrationPattern } from "@/lib/haptics";
+import { triggerNotificationHaptic } from "@/lib/haptics";
 import { useTimerSound, TimerSound, SOUND_LABELS } from "@/hooks/use-timer-sound";
 import { trackEvent } from "@/hooks/use-analytics";
 import { incrementSessionAndCheckReview } from "@/lib/app-review";
@@ -203,8 +203,8 @@ export function TimerView() {
       }
     }
 
-    // Schedule background notification for when timer completes
-    const notifId = await scheduleTimerNotification(duration * 60 * 1000);
+    // Schedule background notification for when timer completes (with user's selected sound)
+    const notifId = await scheduleTimerNotification(duration * 60 * 1000, selectedSound);
     if (notifId) {
       setNotificationId(notifId);
     }
@@ -327,9 +327,9 @@ export function TimerView() {
     // Play sound exactly once
     playSound(selectedSound);
 
-    // Vibrate
+    // Vibrate - use iOS notification haptic for best effect
     if (hapticEnabled) {
-      await triggerVibrationPattern([300, 100, 300, 100, 500]);
+      await triggerNotificationHaptic('success');
     }
 
     // Cancel any scheduled notification since we're handling completion

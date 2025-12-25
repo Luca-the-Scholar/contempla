@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { triggerVibration } from "@/lib/haptics";
+import { triggerNotificationHaptic } from "@/lib/haptics";
 import { ProfileEditDialog } from "@/components/settings/ProfileEditDialog";
 import { AdminPanel } from "@/components/settings/AdminPanel";
 import { PremiumModal } from "@/components/settings/PremiumModal";
@@ -338,12 +338,17 @@ export function SettingsView() {
                 }} />
                 </div>
                 <Button variant="outline" size="sm" onClick={async () => {
-                const success = await triggerVibration();
+                const success = await triggerNotificationHaptic('success');
                 if (!success) {
                   toast({
                     title: "Vibration not available",
                     description: "Your device may not support haptic feedback",
                     variant: "destructive"
+                  });
+                } else {
+                  toast({
+                    title: "Vibration test successful",
+                    description: "This is how your phone will vibrate when the timer ends",
                   });
                 }
               }} className="w-full">
