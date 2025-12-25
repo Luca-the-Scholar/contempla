@@ -546,8 +546,8 @@ export function TimerView() {
           </DialogContent>
         </Dialog>
 
-        <div className="fixed inset-0 bg-gradient-to-b from-background via-background to-primary/5 z-50 flex flex-col items-center justify-center px-4 safe-all">
-        <div className="max-w-md w-full space-y-8">
+        <div className="fixed inset-0 bg-gradient-to-b from-background via-background to-primary/5 z-50 flex flex-col items-center justify-center px-6 pt-safe-top pb-safe-bottom">
+        <div className="max-w-sm w-full space-y-6">
           {showWakeLockWarning && (
             <Alert className="bg-accent/20 border-accent/50">
               <AlertTriangle className="h-4 w-4 text-accent" />
@@ -598,27 +598,27 @@ export function TimerView() {
             </div>
           </div>
 
-          <div className="flex gap-4">
+          <div className="flex gap-3 w-full">
             {timerState === 'running' ? (
               <>
-                <Button onClick={handlePause} variant="outline" size="lg" className="flex-1">
-                  <Pause className="w-5 h-5 mr-2" />
-                  Pause
+                <Button onClick={handlePause} variant="outline" size="lg" className="flex-1 min-w-0">
+                  <Pause className="w-5 h-5 mr-2 shrink-0" />
+                  <span className="truncate">Pause</span>
                 </Button>
-                <Button onClick={handleStop} variant="destructive" size="lg" className="flex-1">
-                  <Square className="w-5 h-5 mr-2" />
-                  Stop
+                <Button onClick={handleStop} variant="destructive" size="lg" className="flex-1 min-w-0">
+                  <Square className="w-5 h-5 mr-2 shrink-0" />
+                  <span className="truncate">Stop</span>
                 </Button>
               </>
             ) : (
               <>
-                <Button onClick={handleResume} variant="accent" size="lg" className="flex-1">
-                  <Play className="w-5 h-5 mr-2" />
-                  Resume
+                <Button onClick={handleResume} variant="accent" size="lg" className="flex-1 min-w-0">
+                  <Play className="w-5 h-5 mr-2 shrink-0" />
+                  <span className="truncate">Resume</span>
                 </Button>
-                <Button onClick={handleStop} variant="destructive" size="lg" className="flex-1">
-                  <Square className="w-5 h-5 mr-2" />
-                  Stop
+                <Button onClick={handleStop} variant="destructive" size="lg" className="flex-1 min-w-0">
+                  <Square className="w-5 h-5 mr-2 shrink-0" />
+                  <span className="truncate">Stop</span>
                 </Button>
               </>
             )}
