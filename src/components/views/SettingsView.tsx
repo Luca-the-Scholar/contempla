@@ -291,7 +291,7 @@ export function SettingsView() {
           <Card className="p-6">
             <div className="flex items-center gap-3 mb-4">
               <Bell className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-semibold">Notifications</h2>
+              <h2 className="text-lg font-semibold">Notifications (Coming Soon)</h2>
             </div>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
