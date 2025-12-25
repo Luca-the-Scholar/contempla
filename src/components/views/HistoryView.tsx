@@ -183,7 +183,7 @@ export function HistoryView() {
         <p className="text-muted-foreground">Loading history...</p>
       </div>;
   }
-  return <div className="min-h-screen bg-background pb-32 pt-6 safe-top">
+  return <div className="min-h-screen bg-transparent pb-32 pt-6 safe-top">
       <div className="max-w-2xl mx-auto space-y-5 mt-[20px] px-[12px] py-[25px]">
         {/* Summary Stats */}
         <div className="stats-card">
