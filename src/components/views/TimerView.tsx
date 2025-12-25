@@ -660,8 +660,8 @@ export function TimerView() {
         </DialogContent>
       </Dialog>
 
-      <div className="min-h-screen bg-background pb-32 pt-6 safe-top">
-        <div className="max-w-2xl mx-auto px-4 py-6">
+      <div className="min-h-screen bg-background pb-32 pt-safe-top">
+        <div className="max-w-2xl mx-auto px-5 py-6">
         <Card className="p-6 space-y-6">
           {/* Technique Selection */}
           <div>
