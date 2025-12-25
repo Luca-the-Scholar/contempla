@@ -623,6 +623,11 @@ export function TimerView() {
               </>
             )}
           </div>
+
+          {/* Screen-on reminder */}
+          <p className="text-xs text-muted-foreground text-center">
+            For best results, keep your screen on during meditation
+          </p>
         </div>
         </div>
       </>
@@ -778,11 +783,6 @@ export function TimerView() {
             <Play className="w-5 h-5 mr-2" />
             Start Meditation
           </Button>
-
-          {/* Screen-on reminder */}
-          <p className="text-xs text-muted-foreground text-center">
-            For best results, keep your screen on during meditation
-          </p>
         </Card>
       </div>
 
