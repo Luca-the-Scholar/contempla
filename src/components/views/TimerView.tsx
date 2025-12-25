@@ -565,7 +565,7 @@ export function TimerView() {
 
           {/* Screen-on reminder */}
           <p className="text-xs text-muted-foreground text-center">
-            For best results, keep your screen on during meditation
+            For best results, keep this screen open during meditation
           </p>
         </div>
         </div>
