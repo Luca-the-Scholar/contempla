@@ -7,19 +7,9 @@ import { toast } from "sonner";
 import { ManualEntryDialog } from "@/components/timer/ManualEntryDialog";
 import { ManualEntriesView } from "@/components/timer/ManualEntriesView";
 import { SessionFeed, FeedSession } from "@/components/shared/SessionFeed";
-import {
-  format,
-  startOfMonth,
-  endOfMonth,
-  eachDayOfInterval,
-  isSameDay,
-  addMonths,
-  subMonths,
-  getDay,
-} from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, getDay } from "date-fns";
 import { trackEvent } from "@/hooks/use-analytics";
 import { parseStoredDate, getLocalDateKey, isSameLocalDay } from "@/lib/date-utils";
-
 interface Session {
   id: string;
   duration_minutes: number;
@@ -28,12 +18,10 @@ interface Session {
   technique_id: string;
   technique_name?: string;
 }
-
 interface Technique {
   id: string;
   name: string;
 }
-
 export function HistoryView() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [techniques, setTechniques] = useState<Technique[]>([]);
@@ -42,35 +30,23 @@ export function HistoryView() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [currentStreak, setCurrentStreak] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     fetchData();
     // Track calendar opened
     trackEvent('calendar_opened');
   }, []);
-
   const fetchData = async () => {
     try {
-      const [sessionsResult, techniquesResult] = await Promise.all([
-        supabase
-          .from("sessions")
-          .select("id, duration_minutes, session_date, manual_entry, technique_id")
-          .order("session_date", { ascending: false }),
-        supabase.from("techniques").select("id, name"),
-      ]);
-
+      const [sessionsResult, techniquesResult] = await Promise.all([supabase.from("sessions").select("id, duration_minutes, session_date, manual_entry, technique_id").order("session_date", {
+        ascending: false
+      }), supabase.from("techniques").select("id, name")]);
       if (sessionsResult.error) throw sessionsResult.error;
       if (techniquesResult.error) throw techniquesResult.error;
-
-      const techniqueMap = new Map(
-        (techniquesResult.data || []).map((t) => [t.id, t.name])
-      );
-
-      const sessionsWithNames = (sessionsResult.data || []).map((s) => ({
+      const techniqueMap = new Map((techniquesResult.data || []).map(t => [t.id, t.name]));
+      const sessionsWithNames = (sessionsResult.data || []).map(s => ({
         ...s,
-        technique_name: techniqueMap.get(s.technique_id) || "Unknown",
+        technique_name: techniqueMap.get(s.technique_id) || "Unknown"
       }));
-
       setSessions(sessionsWithNames);
       setTechniques(techniquesResult.data || []);
 
@@ -88,7 +64,6 @@ export function HistoryView() {
   const parseSessionDate = (dateStr: string): Date => {
     return parseStoredDate(dateStr);
   };
-
   const calculateStreak = (sessionData: Session[]) => {
     if (sessionData.length === 0) {
       setCurrentStreak(0);
@@ -96,10 +71,7 @@ export function HistoryView() {
     }
 
     // Use local date keys for consistency
-    const uniqueDates = new Set(
-      sessionData.map((s) => getLocalDateKey(parseSessionDate(s.session_date)))
-    );
-
+    const uniqueDates = new Set(sessionData.map(s => getLocalDateKey(parseSessionDate(s.session_date))));
     const today = getLocalDateKey(new Date());
     const yesterday = getLocalDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
 
@@ -108,27 +80,26 @@ export function HistoryView() {
       setCurrentStreak(0);
       return;
     }
-
     let streak = 0;
     let checkDate = uniqueDates.has(today) ? new Date() : new Date(Date.now() - 24 * 60 * 60 * 1000);
-
     while (uniqueDates.has(getLocalDateKey(checkDate))) {
       streak++;
       checkDate = new Date(checkDate.getTime() - 24 * 60 * 60 * 1000);
     }
-
-      setCurrentStreak(streak);
+    setCurrentStreak(streak);
   };
-
   const handleEditSession = async (sessionId: string, newMinutes: number, newSessionDate?: string, newTechniqueId?: string) => {
-    const updateData: { duration_minutes: number; session_date?: string; technique_id?: string; technique_name?: string } = {
+    const updateData: {
+      duration_minutes: number;
+      session_date?: string;
+      technique_id?: string;
+      technique_name?: string;
+    } = {
       duration_minutes: newMinutes
     };
-
     if (newSessionDate) {
       updateData.session_date = newSessionDate;
     }
-
     if (newTechniqueId) {
       updateData.technique_id = newTechniqueId;
 
@@ -138,23 +109,17 @@ export function HistoryView() {
         updateData.technique_name = technique.name;
       }
     }
-
-    const { error } = await supabase
-      .from('sessions')
-      .update(updateData)
-      .eq('id', sessionId);
-
+    const {
+      error
+    } = await supabase.from('sessions').update(updateData).eq('id', sessionId);
     if (error) throw error;
     toast.success('Session updated');
     fetchData();
   };
-
   const handleDeleteSession = async (sessionId: string) => {
-    const { error } = await supabase
-      .from('sessions')
-      .delete()
-      .eq('id', sessionId);
-
+    const {
+      error
+    } = await supabase.from('sessions').delete().eq('id', sessionId);
     if (error) throw error;
     toast.success('Session deleted');
     fetchData();
@@ -163,7 +128,7 @@ export function HistoryView() {
   // Aggregate sessions by date for heatmap
   const sessionsByDate = useMemo(() => {
     const map = new Map<string, number>();
-    sessions.forEach((session) => {
+    sessions.forEach(session => {
       const dateKey = getLocalDateKey(parseSessionDate(session.session_date));
       map.set(dateKey, (map.get(dateKey) || 0) + session.duration_minutes);
     });
@@ -174,9 +139,11 @@ export function HistoryView() {
   const calendarDays = useMemo(() => {
     const start = startOfMonth(currentMonth);
     const end = endOfMonth(currentMonth);
-    return eachDayOfInterval({ start, end });
+    return eachDayOfInterval({
+      start,
+      end
+    });
   }, [currentMonth]);
-
   const getHeatmapColor = (minutes: number) => {
     if (minutes === 0) return "bg-muted/30";
     // Distinct solid colors: cool blue → warm orange progression
@@ -186,7 +153,6 @@ export function HistoryView() {
     if (minutes >= 15) return "bg-[hsl(180,50%,40%)]"; // Teal
     return "bg-[hsl(210,60%,45%)]"; // Cool blue
   };
-
   const totalMinutes = sessions.reduce((sum, s) => sum + s.duration_minutes, 0);
   const totalHours = Math.floor(totalMinutes / 60);
   const remainingMinutes = totalMinutes % 60;
@@ -194,7 +160,7 @@ export function HistoryView() {
   // Convert sessions to FeedSession format, filtered by selected date if any
   const feedSessions: FeedSession[] = useMemo(() => {
     let filteredSessions = sessions;
-    
+
     // If a date is selected, filter sessions to that date
     if (selectedDate) {
       const selectedDateKey = getLocalDateKey(selectedDate);
@@ -203,28 +169,22 @@ export function HistoryView() {
         return sessionDateKey === selectedDateKey;
       });
     }
-    
     return filteredSessions.map(s => ({
       id: s.id,
       technique_id: s.technique_id,
       technique_name: s.technique_name || "Unknown",
       duration_minutes: s.duration_minutes,
       session_date: s.session_date,
-      manual_entry: s.manual_entry,
+      manual_entry: s.manual_entry
     }));
   }, [sessions, selectedDate]);
-
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center pb-32">
+    return <div className="min-h-screen flex items-center justify-center pb-32">
         <p className="text-muted-foreground">Loading history...</p>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="min-h-screen bg-transparent pb-32 pt-safe-top">
-      <div className="max-w-2xl mx-auto px-5 py-6 space-y-5 rounded-3xl bg-gradient-to-b from-background via-background to-transparent [mask-image:linear-gradient(to_bottom,black_85%,transparent_100%)]">
+  return <div className="min-h-screen bg-background pb-32 pt-6 safe-top">
+      <div className="max-w-2xl mx-auto space-y-5 mt-[20px] px-[12px] py-[25px]">
         {/* Summary Stats */}
         <div className="stats-card">
           <div className="grid grid-cols-2 gap-6">
@@ -248,91 +208,65 @@ export function HistoryView() {
 
         {/* Manual Entry Actions */}
         <div className="flex items-center justify-center gap-2">
-          <ManualEntryDialog
-            techniques={techniques}
-            onEntryAdded={fetchData}
-          />
+          <ManualEntryDialog techniques={techniques} onEntryAdded={fetchData} />
           <ManualEntriesView onEntriesChanged={fetchData} />
         </div>
 
         {/* Calendar Heatmap */}
         <Card className="p-5">
           <div className="flex items-center justify-between mb-5">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-              className="h-9 w-9"
-            >
+            <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="h-9 w-9">
               <ChevronLeft className="h-5 w-5" />
             </Button>
             <h3 className="font-semibold text-lg">
               {format(currentMonth, "MMMM yyyy")}
             </h3>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-              className="h-9 w-9"
-            >
+            <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="h-9 w-9">
               <ChevronRight className="h-5 w-5" />
             </Button>
           </div>
 
           {/* Day headers */}
           <div className="grid grid-cols-7 gap-1.5 mb-2">
-            {["S", "M", "T", "W", "T", "F", "S"].map((day, i) => (
-              <div
-                key={i}
-                className="text-center text-xs text-muted-foreground font-semibold py-1"
-              >
+            {["S", "M", "T", "W", "T", "F", "S"].map((day, i) => <div key={i} className="text-center text-xs text-muted-foreground font-semibold py-1">
                 {day}
-              </div>
-            ))}
+              </div>)}
           </div>
 
           {/* Calendar grid */}
           <div className="grid grid-cols-7 gap-1.5">
             {/* Empty cells for days before month starts */}
-            {Array.from({ length: getDay(startOfMonth(currentMonth)) }).map(
-              (_, i) => (
-                <div key={`empty-${i}`} className="aspect-square" />
-              )
-            )}
+            {Array.from({
+            length: getDay(startOfMonth(currentMonth))
+          }).map((_, i) => <div key={`empty-${i}`} className="aspect-square" />)}
 
-            {calendarDays.map((day) => {
-              const dateKey = getLocalDateKey(day);
-              const minutes = sessionsByDate.get(dateKey) || 0;
-              const isToday = isSameDay(day, new Date());
-              const isSelected = selectedDate && isSameDay(day, selectedDate);
-
-              return (
-                <button
-                  key={dateKey}
-                  onClick={() => {
-                    trackEvent('calendar_day_clicked', { date_clicked: dateKey });
-                    // Toggle selection: if already selected, deselect it
-                    if (isSelected) {
-                      setSelectedDate(null);
-                    } else {
-                      setSelectedDate(day);
-                    }
-                  }}
-                  className={`
+            {calendarDays.map(day => {
+            const dateKey = getLocalDateKey(day);
+            const minutes = sessionsByDate.get(dateKey) || 0;
+            const isToday = isSameDay(day, new Date());
+            const isSelected = selectedDate && isSameDay(day, selectedDate);
+            return <button key={dateKey} onClick={() => {
+              trackEvent('calendar_day_clicked', {
+                date_clicked: dateKey
+              });
+              // Toggle selection: if already selected, deselect it
+              if (isSelected) {
+                setSelectedDate(null);
+              } else {
+                setSelectedDate(day);
+              }
+            }} className={`
                     aspect-square rounded-lg transition-all duration-200 flex items-center justify-center
                     ${getHeatmapColor(minutes)}
                     ${isToday ? "ring-2 ring-accent ring-offset-2 ring-offset-background" : ""}
                     ${isSelected ? "ring-2 ring-foreground scale-110" : ""}
                     hover:scale-105 active:scale-95
-                  `}
-                  title={`${format(day, "MMM d")}: ${minutes}m`}
-                >
+                  `} title={`${format(day, "MMM d")}: ${minutes}m`}>
                   <span className={`text-xs font-medium ${minutes > 0 ? 'text-white' : 'text-muted-foreground'}`}>
                     {format(day, "d")}
                   </span>
-                </button>
-              );
-            })}
+                </button>;
+          })}
           </div>
 
           {/* Legend */}
@@ -355,16 +289,8 @@ export function HistoryView() {
           <h3 className="text-lg font-semibold text-foreground sticky top-0 bg-background py-2 z-10">
             Practice History
           </h3>
-          <SessionFeed
-            sessions={feedSessions}
-            editable={true}
-            techniques={techniques}
-            onEdit={handleEditSession}
-            onDelete={handleDeleteSession}
-            emptyMessage="No sessions recorded yet. Start your practice!"
-          />
+          <SessionFeed sessions={feedSessions} editable={true} techniques={techniques} onEdit={handleEditSession} onDelete={handleDeleteSession} emptyMessage="No sessions recorded yet. Start your practice!" />
         </div>
       </div>
-    </div>
-  );
+    </div>;
 }
