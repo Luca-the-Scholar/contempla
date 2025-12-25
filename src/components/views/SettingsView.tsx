@@ -493,7 +493,7 @@ export function SettingsView() {
               <h2 className="text-lg font-semibold text-gradient">Contempla+</h2>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-              Unlock premium features and enhance your meditation practice.
+              Unlock premium features and support Contempla's mission to expand meditation knowledge.
             </p>
             <Button 
               className="w-full min-h-[44px] bg-gradient-to-r from-accent to-accent/80 hover:from-accent/90 hover:to-accent/70" 
