@@ -356,27 +356,6 @@ export function SettingsView() {
                   Test Vibration
                 </Button>
               </div>
-
-              {/* Visual Flash */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="visual-flash">Visual Flash</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Screen flashes when timer completes
-                    </p>
-                  </div>
-                  <Switch id="visual-flash" checked={visualFlash} onCheckedChange={checked => {
-                  setVisualFlash(checked);
-                  localStorage.setItem('visualFlash', String(checked));
-                }} />
-                </div>
-                <Button variant="outline" size="sm" onClick={() => setTestingFlash(true)} className="w-full">
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Test Visual Flash
-                </Button>
-              </div>
-
               {/* Screen Wake Lock */}
               <div className="flex items-center justify-between">
                 <div>
