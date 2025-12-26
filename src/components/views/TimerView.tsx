@@ -53,6 +53,10 @@ export function TimerView() {
   const [showPartialSaveDialog, setShowPartialSaveDialog] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
+  // Timer timing state - use elapsed-time calculation for accuracy when screen locks
+  const [timerStartTime, setTimerStartTime] = useState<number | null>(null);
+  const [timerEndTime, setTimerEndTime] = useState<number | null>(null);
+
   // Max duration for input field
   const MAX_DURATION = 999;
 
@@ -82,23 +86,28 @@ export function TimerView() {
       setSelectedTechnique(technique || null);
     }
   }, [selectedTechniqueId, techniques]);
+  // CRITICAL: Use elapsed-time calculation instead of countdown
+  // This ensures timer accuracy even when screen locks or app is backgrounded
   useEffect(() => {
-    if (timerState !== 'running') return;
+    if (timerState !== 'running' || !timerStartTime || !timerEndTime) return;
+
     const interval = setInterval(() => {
-      setSecondsLeft(prev => {
-        if (prev <= 1) {
-          // Guard: only complete once per timer run
-          if (!hasCompletedRef.current) {
-            hasCompletedRef.current = true;
-            handleTimerComplete();
-          }
-          return 0;
+      const now = Date.now();
+      const remaining = Math.max(0, Math.ceil((timerEndTime - now) / 1000));
+
+      setSecondsLeft(remaining);
+
+      if (remaining <= 0) {
+        // Guard: only complete once per timer run
+        if (!hasCompletedRef.current) {
+          hasCompletedRef.current = true;
+          handleTimerComplete();
         }
-        return prev - 1;
-      });
-    }, 1000);
+      }
+    }, 100); // Check every 100ms for better accuracy
+
     return () => clearInterval(interval);
-  }, [timerState]);
+  }, [timerState, timerStartTime, timerEndTime]);
   const fetchTechniques = async () => {
     try {
       const {
@@ -174,6 +183,13 @@ export function TimerView() {
     // Reset guards for new timer run
     hasCompletedRef.current = false;
     hasPlayedStartSoundRef.current = false;
+
+    // Calculate timer start and end times for elapsed-time calculation
+    const startTime = Date.now();
+    const endTime = startTime + (duration * 60 * 1000);
+    setTimerStartTime(startTime);
+    setTimerEndTime(endTime);
+    setSecondsLeft(duration * 60);
 
     // Track timer started
     trackEvent('timer_started', {
@@ -286,12 +302,15 @@ export function TimerView() {
     setTimerState('running');
   };
   const handleStop = () => {
-    // Calculate elapsed time in seconds
-    const totalSeconds = initialDuration * 60;
-    const elapsed = totalSeconds - secondsLeft;
+    // Calculate elapsed time in seconds using actual elapsed time
+    const elapsed = timerStartTime ? Math.floor((Date.now() - timerStartTime) / 1000) : 0;
 
     // Stop the timer immediately
     setTimerState('setup');
+
+    // Clear timer timing state
+    setTimerStartTime(null);
+    setTimerEndTime(null);
 
     // Cancel notification and stop sounds
     if (notificationId) {
@@ -319,6 +338,10 @@ export function TimerView() {
     setShowPartialSaveDialog(false);
   };
   const handleTimerComplete = async () => {
+    // Clear timer timing state
+    setTimerStartTime(null);
+    setTimerEndTime(null);
+
     // Visual flash
     if (visualFlashEnabled) {
       setShowCompletionFlash(true);

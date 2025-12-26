@@ -208,6 +208,7 @@ export function SettingsView() {
     await supabase.auth.signOut();
     navigate("/auth");
   };
+
   return <>
       {/* Flash overlay for testing */}
       {testingFlash && <div className="fixed inset-0 z-[100] flex items-center justify-center">
