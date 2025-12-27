@@ -46,9 +46,7 @@ export function TimerView() {
   const [showWakeLockWarning, setShowWakeLockWarning] = useState(false);
   const [selectedSound, setSelectedSound] = useState<TimerSound>('bowl-struck-1');
   const [hapticEnabled, setHapticEnabled] = useState(true);
-  const [visualFlashEnabled, setVisualFlashEnabled] = useState(true);
   const [screenWakeLockEnabled, setScreenWakeLockEnabled] = useState(true);
-  const [showCompletionFlash, setShowCompletionFlash] = useState(false);
   const [notificationId, setNotificationId] = useState<number | null>(null);
   const [showPartialSaveDialog, setShowPartialSaveDialog] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -72,8 +70,6 @@ export function TimerView() {
     if (hapticStored !== null) setHapticEnabled(hapticStored === 'true');
     const soundStored = localStorage.getItem('selectedSound');
     if (soundStored) setSelectedSound(soundStored as TimerSound);
-    const flashStored = localStorage.getItem('visualFlash');
-    if (flashStored !== null) setVisualFlashEnabled(flashStored === 'true');
     const wakeLockStored = localStorage.getItem('screenWakeLock');
     if (wakeLockStored !== null) setScreenWakeLockEnabled(wakeLockStored === 'true');
   }, []);
@@ -342,11 +338,6 @@ export function TimerView() {
     setTimerStartTime(null);
     setTimerEndTime(null);
 
-    // Visual flash
-    if (visualFlashEnabled) {
-      setShowCompletionFlash(true);
-    }
-
     // Play sound exactly once
     playSound(selectedSound);
 
@@ -373,9 +364,6 @@ export function TimerView() {
       // Check if we should prompt for app review (after 50 sessions, only on native)
       await incrementSessionAndCheckReview();
     }
-  };
-  const dismissFlash = () => {
-    setShowCompletionFlash(false);
   };
   const logSession = async (minutesPracticed: number) => {
     try {
@@ -466,19 +454,6 @@ export function TimerView() {
   if (timerState === 'complete') {
     const minutesPracticed = Math.floor((initialDuration * 60 - secondsLeft) / 60);
     return <>
-        {showCompletionFlash && <div className="fixed inset-0 z-[60] flex items-center justify-center">
-            <div className="absolute inset-0 bg-primary/20 animate-pulse" />
-            <div className="relative z-10 text-center space-y-6 p-8">
-              <div className="text-4xl font-bold text-foreground animate-pulse">
-                Session Complete!
-              </div>
-              <Button onClick={dismissFlash} size="lg" className="min-w-[200px] min-h-[56px] text-lg">
-                <Check className="w-5 h-5 mr-2" />
-                Done
-              </Button>
-            </div>
-          </div>}
-        
         <div className="fixed inset-0 bg-background z-50 flex items-center justify-center px-4 safe-all">
           <div className="max-w-md w-full space-y-8 text-center animate-fade-in">
             <div className="w-20 h-20 mx-auto rounded-full bg-primary/20 flex items-center justify-center mb-6">

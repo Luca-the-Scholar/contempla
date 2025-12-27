@@ -50,9 +50,7 @@ export function SettingsView() {
   // Timer alert settings
   const [hapticEnabled, setHapticEnabled] = useState(true);
   const [screenWakeLock, setScreenWakeLock] = useState(true);
-  const [visualFlash, setVisualFlash] = useState(true);
   const [startSoundEnabled, setStartSoundEnabled] = useState(true);
-  const [testingFlash, setTestingFlash] = useState(false);
 
   // Admin state
   const [isAdmin, setIsAdmin] = useState(false);
@@ -72,8 +70,6 @@ export function SettingsView() {
     if (hapticStored !== null) setHapticEnabled(hapticStored === 'true');
     const wakeLockStored = localStorage.getItem('screenWakeLock');
     if (wakeLockStored !== null) setScreenWakeLock(wakeLockStored === 'true');
-    const flashStored = localStorage.getItem('visualFlash');
-    if (flashStored !== null) setVisualFlash(flashStored === 'true');
     const startSoundStored = localStorage.getItem('startSoundEnabled');
     if (startSoundStored !== null) setStartSoundEnabled(startSoundStored === 'true');
   }, []);
@@ -210,20 +206,6 @@ export function SettingsView() {
   };
 
   return <>
-      {/* Flash overlay for testing */}
-      {testingFlash && <div className="fixed inset-0 z-[100] flex items-center justify-center">
-          <div className="absolute inset-0 bg-primary/20 animate-pulse" />
-          <div className="relative z-10 text-center space-y-6 p-8">
-            <div className="text-4xl font-bold text-foreground animate-pulse">
-              Timer Complete!
-            </div>
-            <Button onClick={() => setTestingFlash(false)} size="lg" className="min-w-[200px] min-h-[56px] text-lg">
-              <Check className="w-5 h-5 mr-2" />
-              Done
-            </Button>
-          </div>
-        </div>}
-      
       <div className="min-h-screen bg-transparent pb-32 pt-6 safe-top">
         <div className="max-w-2xl mx-auto space-y-4 mt-[20px] px-[12px] py-[25px]">
           {/* Profile Settings */}
