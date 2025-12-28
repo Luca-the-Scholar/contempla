@@ -654,7 +654,27 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_profiles: {
+        Row: {
+          created_at: string | null
+          handle: string | null
+          id: string | null
+          name: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          handle?: string | null
+          id?: string | null
+          name?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          handle?: string | null
+          id?: string | null
+          name?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       add_manual_session: {
@@ -699,6 +719,15 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      lookup_profile_by_handle: {
+        Args: { lookup_handle: string }
+        Returns: {
+          created_at: string
+          handle: string
+          id: string
+          name: string
+        }[]
       }
       promote_user_to_admin: { Args: { user_email: string }; Returns: boolean }
       recalculate_technique_mastery: {
