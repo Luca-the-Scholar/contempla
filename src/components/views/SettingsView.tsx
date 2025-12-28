@@ -206,8 +206,8 @@ export function SettingsView() {
   };
 
   return <>
-      <div className="min-h-screen bg-transparent pb-32 pt-6 safe-top">
-        <div className="max-w-2xl mx-auto space-y-4 mt-[20px] px-[12px] py-[25px]">
+      <div className="min-h-screen bg-transparent pb-32 safe-top">
+        <div className="max-w-2xl mx-auto space-y-4 px-[12px] pb-[25px]">
           {/* Profile Settings */}
           <Card className="p-6">
             <div className="flex items-center gap-3 mb-4">

@@ -328,3 +328,15 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* iOS Safe Area - Toast Notifications */
+/* Sonner toasts need explicit safe-area handling */
+/* Using fixed position since offset prop doesn't work */
+[data-sonner-toaster] {
+  top: 80px !important;  /* Dynamic Island (59px) + moderate breathing room (21px) */
+}
+
+/* Ensure individual toasts don't add extra margin */
+[data-sonner-toast] {
+  margin-top: 0 !important;
+}

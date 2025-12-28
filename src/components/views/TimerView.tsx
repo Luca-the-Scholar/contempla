@@ -504,7 +504,7 @@ export function TimerView() {
           </DialogContent>
         </Dialog>
 
-        <div className="fixed inset-0 bg-gradient-to-b from-background via-background to-primary/5 z-50 flex flex-col items-center justify-center px-6 pt-safe-top pb-safe-bottom">
+        <div className="fixed inset-0 bg-gradient-to-b from-background via-background to-primary/5 z-50 flex flex-col items-center justify-center px-6 safe-top pb-safe-bottom">
         <div className="max-w-sm w-full space-y-6">
           {showWakeLockWarning && <Alert className="bg-accent/20 border-accent/50">
               <AlertTriangle className="h-4 w-4 text-accent" />
@@ -592,8 +592,8 @@ export function TimerView() {
         </DialogContent>
       </Dialog>
 
-      <div className="min-h-screen bg-transparent pb-32 pt-6 safe-top">
-        <div className="max-w-2xl mx-auto mt-[20px] px-[12px] py-[25px]">
+      <div className="min-h-screen bg-transparent pb-32 safe-top">
+        <div className="max-w-2xl mx-auto px-[12px] pb-[25px]">
         <Card className="p-6 space-y-6">
           {/* Technique Selection */}
           <div>

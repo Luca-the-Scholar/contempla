@@ -317,8 +317,8 @@ export function LibraryView() {
   }
 
   return (
-    <div className="min-h-screen bg-transparent pb-32 pt-6 safe-top">
-      <div className="max-w-2xl mx-auto mt-[20px] px-[12px] py-[25px]">
+    <div className="min-h-screen bg-transparent pb-32 safe-top">
+      <div className="max-w-2xl mx-auto px-[12px] pb-[25px]">
         <Tabs defaultValue="personal" className="space-y-5">
           <TabsList className="grid w-full grid-cols-2 h-12 rounded-xl bg-muted/50 p-1">
             <TabsTrigger value="personal" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-glow-sm font-semibold">
@@ -345,53 +345,61 @@ export function LibraryView() {
                 </Button>
               </Card>
             ) : (
-              <div className="space-y-6">
-                {Object.entries(groupedTechniques).map(([tradition, techs]) => (
-                  <div key={tradition} className="space-y-3">
-                    <h2 className="text-sm font-semibold text-primary uppercase tracking-wide px-1">{tradition}</h2>
-                    {techs.map((technique) => (
-                      <Card 
-                        key={technique.id} 
-                        className="p-4 cursor-pointer card-interactive"
-                        onClick={() => {
-                          trackEvent('technique_viewed', { technique_id: technique.id });
-                          setDetailTechnique(technique);
-                        }}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-semibold text-foreground truncate">{technique.name}</h3>
-                              {technique.is_favorite && (
-                                <Star className="h-4 w-4 fill-accent text-accent shrink-0" />
+              <>
+                <div className="flex justify-end">
+                  <Button variant="accent" onClick={() => setAddModalOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Technique
+                  </Button>
+                </div>
+                <div className="space-y-6">
+                  {Object.entries(groupedTechniques).map(([tradition, techs]) => (
+                    <div key={tradition} className="space-y-3">
+                      <h2 className="text-sm font-semibold text-primary uppercase tracking-wide px-1">{tradition}</h2>
+                      {techs.map((technique) => (
+                        <Card
+                          key={technique.id}
+                          className="p-4 cursor-pointer card-interactive"
+                          onClick={() => {
+                            trackEvent('technique_viewed', { technique_id: technique.id });
+                            setDetailTechnique(technique);
+                          }}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-foreground truncate">{technique.name}</h3>
+                                {technique.is_favorite && (
+                                  <Star className="h-4 w-4 fill-accent text-accent shrink-0" />
+                                )}
+                              </div>
+                              {technique.original_author_name && (
+                                <p className="text-xs text-accent mt-0.5">by {technique.original_author_name}</p>
+                              )}
+                              {(technique.description || technique.instructions) && (
+                                <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                                  {technique.description || technique.instructions}
+                                </p>
                               )}
                             </div>
-                            {technique.original_author_name && (
-                              <p className="text-xs text-accent mt-0.5">by {technique.original_author_name}</p>
-                            )}
-                            {(technique.description || technique.instructions) && (
-                              <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-                                {technique.description || technique.instructions}
-                              </p>
-                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="shrink-0 text-muted-foreground hover:text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openDeleteDialog(technique);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="shrink-0 text-muted-foreground hover:text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openDeleteDialog(technique);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                ))}
-              </div>
+                        </Card>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </TabsContent>
 
@@ -406,15 +414,6 @@ export function LibraryView() {
           </TabsContent>
         </Tabs>
       </div>
-
-      {/* Floating action button */}
-      <button
-        onClick={() => setAddModalOpen(true)}
-        className="fab"
-        aria-label="Add technique"
-      >
-        <Plus className="h-6 w-6" />
-      </button>
 
       {/* Add Technique Dialog */}
       <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
