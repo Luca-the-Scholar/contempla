@@ -686,20 +686,6 @@ export type Database = {
         }
         Returns: string
       }
-      apply_daily_decay: { Args: never; Returns: undefined }
-      calculate_duration_multiplier: {
-        Args: { duration_minutes: number }
-        Returns: number
-      }
-      calculate_mastery_from_minutes: {
-        Args: { cumulative_minutes: number }
-        Returns: number
-      }
-      calculate_mastery_increase: {
-        Args: { duration_minutes: number }
-        Returns: number
-      }
-      calculate_streak_bonus: { Args: { streak_days: number }; Returns: number }
       get_or_create_conversation: {
         Args: { other_user_id: string }
         Returns: string
@@ -730,19 +716,7 @@ export type Database = {
         }[]
       }
       promote_user_to_admin: { Args: { user_email: string }; Returns: boolean }
-      recalculate_technique_mastery: {
-        Args: { p_technique_id: string; p_user_id: string }
-        Returns: undefined
-      }
       run_daily_analytics_backup: { Args: never; Returns: undefined }
-      update_mastery_after_session: {
-        Args: {
-          p_duration_minutes: number
-          p_technique_id: string
-          p_user_id: string
-        }
-        Returns: undefined
-      }
     }
     Enums: {
       app_role: "user" | "admin"
