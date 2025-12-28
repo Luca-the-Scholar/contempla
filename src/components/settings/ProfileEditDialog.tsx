@@ -71,7 +71,7 @@ export function ProfileEditDialog({
         
         // Check if handle is already taken
         const { data: existing } = await supabase
-          .from("profiles")
+          .from("public_profiles")
           .select("id")
           .ilike("handle", handle)
           .neq("id", user.id)

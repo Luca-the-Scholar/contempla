@@ -117,7 +117,7 @@ export function FriendsListDialog({ onViewFriend }: FriendsListDialogProps) {
 
       // Search for user by exact handle match (handles are stored lowercase)
       const { data: profiles, error: searchError } = await supabase
-        .from("profiles")
+        .from("public_profiles")
         .select("id, handle, name")
         .eq("handle", handle)
         .limit(1);

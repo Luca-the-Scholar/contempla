@@ -48,7 +48,7 @@ export function HandlePromptDialog({ open, userId, onComplete }: HandlePromptDia
     try {
       // Check if handle is already taken
       const { data: existing } = await supabase
-        .from("profiles")
+        .from("public_profiles")
         .select("id")
         .eq("handle", trimmedHandle)
         .neq("id", userId)

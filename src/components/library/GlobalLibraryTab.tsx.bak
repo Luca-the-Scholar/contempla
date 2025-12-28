@@ -8,7 +8,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Copy, Globe, Book, MapPin, Bookmark, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { sanitizeUserContent, sanitizeUserContentArray } from "@/lib/sanitize";
 
 interface GlobalTechnique {
   id: string;
@@ -50,14 +49,14 @@ export function GlobalLibraryTab() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-
+      
       const { data } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id)
         .eq('role', 'admin')
         .maybeSingle();
-
+      
       setIsAdmin(!!data);
     } catch (error) {
       console.error('Error checking admin status:', error);
@@ -74,7 +73,7 @@ export function GlobalLibraryTab() {
 
       if (error) throw error;
       setTechniques(data || []);
-
+      
       // Fetch submitter names
       const submitterIds = [...new Set((data || []).map(t => t.submitted_by))];
       if (submitterIds.length > 0) {
@@ -82,7 +81,7 @@ export function GlobalLibraryTab() {
           .from('profiles')
           .select('id, name')
           .in('id', submitterIds);
-
+        
         const namesMap: Record<string, string> = {};
         (profiles || []).forEach((p: SubmitterProfile) => {
           namesMap[p.id] = p.name || 'Anonymous';
@@ -127,7 +126,7 @@ export function GlobalLibraryTab() {
         title: "Saved to library",
         description: `${technique.name} by ${authorName} has been saved to your library.`,
       });
-
+      
       setDetailsOpen(false);
     } catch (error: any) {
       toast({
@@ -163,7 +162,7 @@ export function GlobalLibraryTab() {
         title: "Copied to library",
         description: `A copy of ${technique.name} has been added to your library. You can now edit it.`,
       });
-
+      
       setDetailsOpen(false);
     } catch (error: any) {
       toast({
@@ -188,7 +187,7 @@ export function GlobalLibraryTab() {
 
   const confirmDelete = async () => {
     if (!techniqueToDelete) return;
-
+    
     try {
       const { error } = await supabase
         .from('global_techniques')
@@ -201,7 +200,7 @@ export function GlobalLibraryTab() {
         title: "Technique deleted",
         description: `${techniqueToDelete.name} has been removed from the global library.`,
       });
-
+      
       setTechniques(prev => prev.filter(t => t.id !== techniqueToDelete.id));
       setDetailsOpen(false);
     } catch (error: any) {
@@ -241,14 +240,14 @@ export function GlobalLibraryTab() {
             <div className="space-y-3">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <h3 className="font-semibold">{sanitizeUserContent(technique.name)}</h3>
+                  <h3 className="font-semibold">{technique.name}</h3>
                   <p className="text-xs text-muted-foreground">by {getAuthorName(technique)}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="secondary">{sanitizeUserContent(technique.tradition)}</Badge>
+                    <Badge variant="secondary">{technique.tradition}</Badge>
                     {technique.home_region && (
                       <Badge variant="outline" className="text-xs">
                         <MapPin className="h-3 w-3 mr-1" />
-                        {sanitizeUserContent(technique.home_region)}
+                        {technique.home_region}
                       </Badge>
                     )}
                   </div>
@@ -256,12 +255,12 @@ export function GlobalLibraryTab() {
               </div>
 
               <p className="text-sm text-muted-foreground line-clamp-2">
-                {sanitizeUserContent(technique.instructions)}
+                {technique.instructions}
               </p>
 
               {technique.tags && technique.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1">
-                  {sanitizeUserContentArray(technique.tags).map((tag, idx) => (
+                  {technique.tags.map((tag, idx) => (
                     <Badge key={idx} variant="outline" className="text-xs">
                       {tag}
                     </Badge>
@@ -287,10 +286,10 @@ export function GlobalLibraryTab() {
         <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
           <DialogContent className="max-w-2xl max-h-[80vh]">
             <DialogHeader>
-              <DialogTitle>{sanitizeUserContent(selectedTechnique.name)}</DialogTitle>
+              <DialogTitle>{selectedTechnique.name}</DialogTitle>
               <DialogDescription>
-                by {getAuthorName(selectedTechnique)} • {sanitizeUserContent(selectedTechnique.tradition)}
-                {selectedTechnique.home_region && ` • ${sanitizeUserContent(selectedTechnique.home_region)}`}
+                by {getAuthorName(selectedTechnique)} • {selectedTechnique.tradition}
+                {selectedTechnique.home_region && ` • ${selectedTechnique.home_region}`}
               </DialogDescription>
             </DialogHeader>
 
@@ -299,7 +298,7 @@ export function GlobalLibraryTab() {
                 <div>
                   <h4 className="font-semibold mb-2">Instructions</h4>
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                    {sanitizeUserContent(selectedTechnique.instructions)}
+                    {selectedTechnique.instructions}
                   </p>
                 </div>
 
@@ -307,7 +306,7 @@ export function GlobalLibraryTab() {
                   <div>
                     <h4 className="font-semibold mb-2">Origin</h4>
                     <p className="text-sm text-muted-foreground">
-                      {sanitizeUserContent(selectedTechnique.origin_story)}
+                      {selectedTechnique.origin_story}
                     </p>
                   </div>
                 )}
@@ -316,7 +315,7 @@ export function GlobalLibraryTab() {
                   <div>
                     <h4 className="font-semibold mb-2">Cultural Context</h4>
                     <p className="text-sm text-muted-foreground">
-                      {sanitizeUserContent(selectedTechnique.worldview_context)}
+                      {selectedTechnique.worldview_context}
                     </p>
                   </div>
                 )}
@@ -325,7 +324,7 @@ export function GlobalLibraryTab() {
                   <div>
                     <h4 className="font-semibold mb-2">Lineage</h4>
                     <p className="text-sm text-muted-foreground">
-                      {sanitizeUserContent(selectedTechnique.lineage_info)}
+                      {selectedTechnique.lineage_info}
                     </p>
                   </div>
                 )}
@@ -334,7 +333,7 @@ export function GlobalLibraryTab() {
                   <div>
                     <h4 className="font-semibold mb-2">Relevant Texts</h4>
                     <ul className="list-disc list-inside text-sm text-muted-foreground">
-                      {sanitizeUserContentArray(selectedTechnique.relevant_texts).map((text, idx) => (
+                      {selectedTechnique.relevant_texts.map((text, idx) => (
                         <li key={idx}>{text}</li>
                       ))}
                     </ul>
@@ -345,7 +344,7 @@ export function GlobalLibraryTab() {
                   <div>
                     <h4 className="font-semibold mb-2">External Links</h4>
                     <ul className="space-y-1">
-                      {sanitizeUserContentArray(selectedTechnique.external_links).map((link, idx) => (
+                      {selectedTechnique.external_links.map((link, idx) => (
                         <li key={idx}>
                           <a
                             href={link}
@@ -407,7 +406,7 @@ export function GlobalLibraryTab() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Technique</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{sanitizeUserContent(techniqueToDelete?.name)}" from the global library? This action cannot be undone.
+              Are you sure you want to delete "{techniqueToDelete?.name}" from the global library? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

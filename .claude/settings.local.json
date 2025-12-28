@@ -17,7 +17,8 @@
       "Bash(npx cap:*)",
       "Bash(cat:*)",
       "Bash(xargs:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(npm install:*)"
     ]
   }
 }
