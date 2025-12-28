@@ -37,11 +37,25 @@ export function HistoryView() {
   }, []);
   const fetchData = async () => {
     try {
-      const [sessionsResult, techniquesResult] = await Promise.all([supabase.from("sessions").select("id, duration_minutes, session_date, manual_entry, technique_id").order("session_date", {
-        ascending: false
-      }), supabase.from("techniques").select("id, name")]);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const [sessionsResult, techniquesResult] = await Promise.all([
+        supabase
+          .from("sessions")
+          .select("id, duration_minutes, session_date, manual_entry, technique_id")
+          .eq('user_id', user.id)
+          .order("session_date", { ascending: false }),
+
+        supabase
+          .from("techniques")
+          .select("id, name")
+          .eq('user_id', user.id)
+      ]);
+
       if (sessionsResult.error) throw sessionsResult.error;
       if (techniquesResult.error) throw techniquesResult.error;
+
       const techniqueMap = new Map((techniquesResult.data || []).map(t => [t.id, t.name]));
       const sessionsWithNames = (sessionsResult.data || []).map(s => ({
         ...s,
@@ -117,12 +131,49 @@ export function HistoryView() {
     fetchData();
   };
   const handleDeleteSession = async (sessionId: string) => {
-    const {
-      error
-    } = await supabase.from('sessions').delete().eq('id', sessionId);
-    if (error) throw error;
-    toast.success('Session deleted');
-    fetchData();
+    try {
+      // DIAGNOSTIC LOGGING
+      console.log('=== DELETE SESSION ATTEMPT ===');
+      console.log('Session ID:', sessionId);
+
+      // Fetch the session details before deletion
+      const { data: sessionData, error: fetchError } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('id', sessionId)
+        .single();
+
+      console.log('Session data:', sessionData);
+      console.log('Fetch error:', fetchError);
+
+      if (fetchError) {
+        console.error('Could not fetch session before delete:', fetchError);
+      }
+
+      // Get current user for comparison
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('Current user ID:', user?.id);
+      console.log('Session user_id matches current user:', sessionData?.user_id === user?.id);
+
+      // Attempt deletion
+      const { error, data } = await supabase
+        .from('sessions')
+        .delete()
+        .eq('id', sessionId)
+        .select();
+
+      console.log('Delete response data:', data);
+      console.log('Delete error:', error);
+      console.log('==============================');
+
+      if (error) throw error;
+
+      toast.success('Session deleted');
+      await fetchData();
+    } catch (error: any) {
+      console.error('Failed to delete session:', error);
+      toast.error('Failed to delete session: ' + error.message);
+    }
   };
 
   // Aggregate sessions by date for heatmap
@@ -183,8 +234,8 @@ export function HistoryView() {
         <p className="text-muted-foreground">Loading history...</p>
       </div>;
   }
-  return <div className="min-h-screen bg-transparent pb-32 pt-6 safe-top">
-      <div className="max-w-2xl mx-auto space-y-5 mt-[20px] px-[12px] py-[25px]">
+  return <div className="min-h-screen bg-transparent pb-32 safe-top">
+      <div className="max-w-2xl mx-auto space-y-5 px-[12px] pb-[25px]">
         {/* Summary Stats */}
         <div className="stats-card">
           <div className="grid grid-cols-2 gap-6">

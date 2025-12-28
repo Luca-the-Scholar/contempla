@@ -81,6 +81,7 @@ export function SessionFeed({
   const [editTime, setEditTime] = useState<string>('');
   const [editTechniqueId, setEditTechniqueId] = useState<string>('');
   const [saving, setSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [selectedSession, setSelectedSession] = useState<FeedSession | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -474,15 +475,25 @@ export function SessionFeed({
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() => {
-                                onDelete?.(selectedSession.id);
-                                setDetailsOpen(false);
+                              onClick={async () => {
+                                setIsDeleting(true);
+                                try {
+                                  if (onDelete) {
+                                    await onDelete(selectedSession.id);
+                                  }
+                                  setDetailsOpen(false);
+                                } catch (error) {
+                                  // Error already handled in handleDeleteSession
+                                } finally {
+                                  setIsDeleting(false);
+                                }
                               }}
+                              disabled={isDeleting}
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
-                              Delete
+                              {isDeleting ? 'Deleting...' : 'Delete'}
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
