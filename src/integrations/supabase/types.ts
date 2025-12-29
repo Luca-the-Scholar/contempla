@@ -141,6 +141,7 @@ export type Database = {
           relevant_texts: string[] | null
           submitted_by: string
           tags: string[] | null
+          teacher_attribution: string | null
           tips: string | null
           tradition: string
           updated_at: string | null
@@ -161,6 +162,7 @@ export type Database = {
           relevant_texts?: string[] | null
           submitted_by: string
           tags?: string[] | null
+          teacher_attribution?: string | null
           tips?: string | null
           tradition: string
           updated_at?: string | null
@@ -181,6 +183,7 @@ export type Database = {
           relevant_texts?: string[] | null
           submitted_by?: string
           tags?: string[] | null
+          teacher_attribution?: string | null
           tips?: string | null
           tradition?: string
           updated_at?: string | null
