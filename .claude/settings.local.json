@@ -18,7 +18,11 @@
       "Bash(cat:*)",
       "Bash(xargs:*)",
       "Bash(wc:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(mkdir:*)",
+      "Bash(ls:*)",
+      "Bash(node:*)",
+      "Bash(find:*)"
     ]
   }
 }

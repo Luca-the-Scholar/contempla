@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Compass } from "lucide-react";
+import logoTransparent from "@/assets/logo-transparent.png";
 import { z } from "zod";
 import { HandlePromptDialog } from "@/components/auth/HandlePromptDialog";
 import { Session, User } from "@supabase/supabase-js";
@@ -305,9 +305,11 @@ export default function Auth() {
   if (checkingSession) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-6">
-        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow-md animate-pulse">
-          <Compass className="w-8 h-8 text-white" />
-        </div>
+        <img
+          src={logoTransparent}
+          alt="Contempla"
+          className="w-16 h-16 object-contain animate-pulse"
+        />
       </div>
     );
   }
@@ -339,9 +341,11 @@ export default function Auth() {
         <Card className="w-full max-w-md p-8 space-y-6 backdrop-blur-sm border-primary/20">
           <div className="text-center space-y-2">
             <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow-md">
-                <Compass className="w-8 h-8 text-white" />
-              </div>
+              <img
+                src={logoTransparent}
+                alt="Contempla"
+                className="w-16 h-16 object-contain"
+              />
             </div>
             <h1 className="text-2xl font-bold">Reset Password</h1>
             <p className="text-muted-foreground">Enter your email to receive a reset link</p>
@@ -412,9 +416,11 @@ export default function Auth() {
       <Card className="w-full max-w-md p-8 space-y-6 backdrop-blur-sm border-primary/20">
         <div className="text-center space-y-2">
           <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow-md">
-              <Compass className="w-8 h-8 text-white" />
-            </div>
+            <img
+              src={logoTransparent}
+              alt="Contempla"
+              className="w-16 h-16 object-contain"
+            />
           </div>
           <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
             Contempla

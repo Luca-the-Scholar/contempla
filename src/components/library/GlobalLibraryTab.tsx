@@ -14,6 +14,7 @@ interface GlobalTechnique {
   id: string;
   name: string;
   instructions: string;
+  tips: string | null;
   tradition: string;
   tags: string[];
   origin_story: string | null;
@@ -115,6 +116,7 @@ export function GlobalLibraryTab() {
           user_id: user.id,
           name: technique.name,
           instructions: technique.instructions,
+          tips: technique.tips,
           tradition: technique.tradition,
           tags: technique.tags,
           source_global_technique_id: technique.id,
@@ -153,6 +155,7 @@ export function GlobalLibraryTab() {
           user_id: user.id,
           name: `${technique.name} (Copy)`,
           instructions: technique.instructions,
+          tips: technique.tips,
           tradition: technique.tradition,
           tags: technique.tags
         });
@@ -302,6 +305,15 @@ export function GlobalLibraryTab() {
                     {sanitizeUserContent(selectedTechnique.instructions)}
                   </p>
                 </div>
+
+                {selectedTechnique.tips && (
+                  <div>
+                    <h4 className="font-semibold mb-2">💡 Tips for Practice</h4>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      {sanitizeUserContent(selectedTechnique.tips)}
+                    </p>
+                  </div>
+                )}
 
                 {selectedTechnique.origin_story && (
                   <div>

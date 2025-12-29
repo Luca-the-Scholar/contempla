@@ -34,6 +34,7 @@ interface Technique {
   name: string;
   description?: string | null;
   instructions: string | null;
+  tips?: string | null;
   tradition: string | null;
   is_favorite: boolean;
   source_global_technique_id?: string | null;
@@ -54,12 +55,14 @@ export function LibraryView() {
     name: "",
     description: "",
     instructionSteps: [""],
+    tipSteps: [] as string[],
     tradition: "",
   });
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     instructionSteps: [""],
+    tipSteps: [] as string[],
     tradition: "",
     relevantText: "",
   });
@@ -75,7 +78,7 @@ export function LibraryView() {
     try {
       const { data: techniquesData, error: techError } = await supabase
         .from("techniques")
-        .select("id, name, description, instructions, tradition, is_favorite, source_global_technique_id, original_author_name, tags")
+        .select("id, name, description, instructions, tips, tradition, is_favorite, source_global_technique_id, original_author_name, tags")
         .order("name", { ascending: true });
 
       if (techError) throw techError;
@@ -112,11 +115,18 @@ export function LibraryView() {
         ? filledSteps.map((step, idx) => `${idx + 1}. ${step}`).join("\n")
         : null;
 
+      // Format tips as bullet points (only if there are filled tips)
+      const filledTips = formData.tipSteps.filter(t => t.trim());
+      const formattedTips = filledTips.length > 0
+        ? filledTips.map(tip => `• ${tip}`).join("\n")
+        : null;
+
       const { error } = await supabase.from("techniques").insert({
         user_id: user.id,
         name: formData.name.trim(),
         description: formData.description.trim() || null,
         instructions: formattedInstructions,
+        tips: formattedTips,
         tradition: formData.tradition.trim() || null,
         original_author_name: formData.relevantText.trim() || null,
       });
@@ -125,7 +135,7 @@ export function LibraryView() {
 
       toast({ description: "Technique added", duration: 1500 });
       setAddModalOpen(false);
-      setFormData({ name: "", description: "", instructionSteps: [""], tradition: "", relevantText: "" });
+      setFormData({ name: "", description: "", instructionSteps: [""], tipSteps: [], tradition: "", relevantText: "" });
       fetchTechniques();
     } catch (error: any) {
       toast({
@@ -157,6 +167,30 @@ export function LibraryView() {
     }));
   };
 
+  // Tip step helpers (for add form)
+  const addTipStep = () => {
+    if (formData.tipSteps.length < 10) {
+      setFormData(prev => ({
+        ...prev,
+        tipSteps: [...prev.tipSteps, ""]
+      }));
+    }
+  };
+
+  const removeTipStep = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      tipSteps: prev.tipSteps.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateTipStep = (index: number, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      tipSteps: prev.tipSteps.map((tip, i) => i === index ? value : tip)
+    }));
+  };
+
   // Edit form instruction step helpers
   const addEditInstructionStep = () => {
     setEditFormData(prev => ({
@@ -179,18 +213,56 @@ export function LibraryView() {
     }));
   };
 
+  // Edit form tip step helpers
+  const addEditTipStep = () => {
+    if (editFormData.tipSteps.length < 10) {
+      setEditFormData(prev => ({
+        ...prev,
+        tipSteps: [...prev.tipSteps, ""]
+      }));
+    }
+  };
+
+  const removeEditTipStep = (index: number) => {
+    setEditFormData(prev => ({
+      ...prev,
+      tipSteps: prev.tipSteps.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateEditTipStep = (index: number, value: string) => {
+    setEditFormData(prev => ({
+      ...prev,
+      tipSteps: prev.tipSteps.map((tip, i) => i === index ? value : tip)
+    }));
+  };
+
   // Parse numbered instructions into steps
   const parseInstructionsToSteps = (instructions: string | null | undefined): string[] => {
     if (!instructions) return [""];
-    
+
     // Try to parse numbered steps like "1. Step one\n2. Step two"
     const lines = instructions.split('\n').filter(line => line.trim());
     const steps = lines.map(line => {
       // Remove leading number and period/dot (e.g., "1. ", "2) ", "1: ")
       return line.replace(/^\d+[\.\)\:]\s*/, '').trim();
     }).filter(step => step);
-    
+
     return steps.length > 0 ? steps : [""];
+  };
+
+  // Parse bullet tips into array
+  const parseTipsToSteps = (tips: string | null | undefined): string[] => {
+    if (!tips) return [];
+
+    // Parse bullet points like "• Tip one\n• Tip two"
+    const lines = tips.split('\n').filter(line => line.trim());
+    const tipSteps = lines.map(line => {
+      // Remove leading bullet (e.g., "• ", "* ", "- ")
+      return line.replace(/^[•\*\-]\s*/, '').trim();
+    }).filter(tip => tip);
+
+    return tipSteps;
   };
 
   const handleDeleteTechnique = async () => {
@@ -227,6 +299,7 @@ export function LibraryView() {
       name: technique.name,
       description: technique.description || "",
       instructionSteps: parseInstructionsToSteps(technique.instructions),
+      tipSteps: parseTipsToSteps(technique.tips),
       tradition: technique.tradition || "",
     });
     setIsEditing(true);
@@ -250,12 +323,19 @@ export function LibraryView() {
         ? filledSteps.map((step, idx) => `${idx + 1}. ${step}`).join("\n")
         : null;
 
+      // Format tips as bullet points (only if there are filled tips)
+      const filledTips = editFormData.tipSteps.filter(t => t.trim());
+      const formattedTips = filledTips.length > 0
+        ? filledTips.map(tip => `• ${tip}`).join("\n")
+        : null;
+
       const { error } = await supabase
         .from("techniques")
         .update({
           name: editFormData.name.trim(),
           description: editFormData.description.trim() || null,
           instructions: formattedInstructions,
+          tips: formattedTips,
           tradition: editFormData.tradition.trim() || null,
         })
         .eq("id", detailTechnique.id);
@@ -526,6 +606,52 @@ export function LibraryView() {
               </Button>
             </div>
 
+            {/* Tips for Practice (Optional) */}
+            <div className="space-y-2">
+              <Label>💡 Tips for Practice (Optional)</Label>
+              <p className="text-xs text-muted-foreground mb-3">
+                Add helpful tips or advice for practitioners (maximum 10 tips).
+              </p>
+
+              {formData.tipSteps.length > 0 && (
+                <div className="space-y-2">
+                  {formData.tipSteps.map((tip, idx) => (
+                    <div key={idx} className="flex gap-2 items-start">
+                      <div className="flex items-center gap-1 pt-2.5 text-muted-foreground">
+                        <span className="text-sm font-medium">•</span>
+                      </div>
+                      <Textarea
+                        value={tip}
+                        onChange={(e) => updateTipStep(idx, e.target.value)}
+                        placeholder="Tip for practice..."
+                        rows={2}
+                        className="flex-1"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeTipStep(idx)}
+                        className="mt-1"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={addTipStep}
+                className="mt-2"
+                disabled={formData.tipSteps.length >= 10}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Add Tip {formData.tipSteps.length >= 10 && "(Max 10)"}
+              </Button>
+            </div>
+
             <Button onClick={handleAddTechnique} className="w-full">
               Add Technique
             </Button>
@@ -629,6 +755,45 @@ export function LibraryView() {
                   Add Step
                 </Button>
               </div>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">💡 Tips for Practice (Optional)</Label>
+                {editFormData.tipSteps.length > 0 && (
+                  <div className="space-y-2">
+                    {editFormData.tipSteps.map((tip, idx) => (
+                      <div key={idx} className="flex gap-2 items-start">
+                        <div className="flex items-center gap-1 pt-2.5 text-muted-foreground">
+                          <span className="text-sm font-medium">•</span>
+                        </div>
+                        <Textarea
+                          value={tip}
+                          onChange={(e) => updateEditTipStep(idx, e.target.value)}
+                          placeholder="Tip for practice..."
+                          rows={2}
+                          className="flex-1"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeEditTipStep(idx)}
+                          className="mt-1"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addEditTipStep}
+                  className="mt-2"
+                  disabled={editFormData.tipSteps.length >= 10}
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add Tip {editFormData.tipSteps.length >= 10 && "(Max 10)"}
+                </Button>
+              </div>
               <div className="flex gap-2">
                 <Button onClick={handleUpdateTechnique} className="flex-1">
                   Save Changes
@@ -661,6 +826,14 @@ export function LibraryView() {
                 <div>
                   <h4 className="text-sm font-medium text-muted-foreground mb-1">Instructions</h4>
                   <p className="whitespace-pre-wrap">{detailTechnique.instructions}</p>
+                </div>
+              )}
+
+              {/* Tips for Practice */}
+              {detailTechnique?.tips && (
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground mb-1">💡 Tips for Practice</h4>
+                  <p className="whitespace-pre-wrap text-muted-foreground">{detailTechnique.tips}</p>
                 </div>
               )}
 

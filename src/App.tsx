@@ -10,6 +10,7 @@ import { initDeepLinking, DEEP_LINK_ROUTES } from "./lib/deep-linking";
 import { requestNotificationPermission } from "./lib/notifications";
 import { Capacitor } from "@capacitor/core";
 import { SplashScreen } from "@capacitor/splash-screen";
+import { LocalNotifications } from "@capacitor/local-notifications";
 import { AppContainer } from "./components/layout/AppContainer";
 
 const queryClient = new QueryClient();
@@ -49,7 +50,32 @@ function DeepLinkHandler() {
     // Request notification permission on native platforms
     if (Capacitor.isNativePlatform()) {
       requestNotificationPermission();
+
+      // Listen for notification taps (daily reminders)
+      LocalNotifications.addListener('localNotificationActionPerformed', (notification) => {
+        console.log('[Notification] Tapped:', notification);
+
+        // Check if this is a daily reminder notification
+        if (notification.notification.extra?.route) {
+          const route = notification.notification.extra.route;
+          console.log('[Notification] Opening route:', route);
+
+          // Navigate to the route specified in the notification
+          if (route === '/timer') {
+            navigate('/?tab=timer');
+          } else {
+            navigate(route);
+          }
+        }
+      });
     }
+
+    // Cleanup listener on unmount
+    return () => {
+      if (Capacitor.isNativePlatform()) {
+        LocalNotifications.removeAllListeners();
+      }
+    };
   }, [navigate]);
 
   return null;

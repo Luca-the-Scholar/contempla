@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Bell, LogOut, User, Shield, Vibrate, Sparkles, Check, Heart, Pencil, Mail, Lock, Crown, Trash2, Music, Wifi } from "lucide-react";
@@ -27,6 +28,7 @@ import { PremiumModal } from "@/components/settings/PremiumModal";
 import { SpotifySettings } from "@/components/settings/SpotifySettings";
 import { EdgeFunctionTest } from "@/components/diagnostics/EdgeFunctionTest";
 import { trackEvent } from "@/hooks/use-analytics";
+import { scheduleReminders, requestReminderPermissions, checkReminderPermissions } from "@/lib/reminder-scheduler";
 
 export function SettingsView() {
   const [userName, setUserName] = useState("");
@@ -35,6 +37,12 @@ export function SettingsView() {
   const [notifications, setNotifications] = useState(false);
   const [dailyReminder, setDailyReminder] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Daily reminder settings
+  const [morningEnabled, setMorningEnabled] = useState(false);
+  const [morningTime, setMorningTime] = useState("08:00");
+  const [eveningEnabled, setEveningEnabled] = useState(false);
+  const [eveningTime, setEveningTime] = useState("20:00");
 
   // Edit dialog states
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -100,6 +108,12 @@ export function SettingsView() {
         const prefs = profile.profile_preferences as any;
         setNotifications(prefs?.notifications || false);
         setDailyReminder(prefs?.dailyReminder || false);
+
+        // Load reminder settings
+        setMorningEnabled(prefs?.morningEnabled || false);
+        setMorningTime(prefs?.morningTime || "08:00");
+        setEveningEnabled(prefs?.eveningEnabled || false);
+        setEveningTime(prefs?.eveningTime || "20:00");
         // Profile visibility removed - using granular settings only
         setStreakVisibility(profile.show_streak_to_friends as any || 'friends');
         setTechniqueVisibility(profile.show_techniques_to_friends as any || 'friends');
@@ -147,6 +161,135 @@ export function SettingsView() {
       });
     }
   };
+
+  // Handler for morning reminder toggle
+  const handleMorningToggle = async (checked: boolean) => {
+    try {
+      // Check/request permissions first
+      const hasPermission = await checkReminderPermissions();
+      if (!hasPermission && checked) {
+        const granted = await requestReminderPermissions();
+        if (!granted) {
+          toast({
+            title: "Permission denied",
+            description: "Please enable notifications in your device settings to use reminders.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      setMorningEnabled(checked);
+      await saveReminderSettings({ morningEnabled: checked });
+    } catch (error: any) {
+      toast({
+        title: "Error updating reminder",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handler for evening reminder toggle
+  const handleEveningToggle = async (checked: boolean) => {
+    try {
+      // Check/request permissions first
+      const hasPermission = await checkReminderPermissions();
+      if (!hasPermission && checked) {
+        const granted = await requestReminderPermissions();
+        if (!granted) {
+          toast({
+            title: "Permission denied",
+            description: "Please enable notifications in your device settings to use reminders.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      setEveningEnabled(checked);
+      await saveReminderSettings({ eveningEnabled: checked });
+    } catch (error: any) {
+      toast({
+        title: "Error updating reminder",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handler for time changes
+  const handleTimeChange = async (type: 'morning' | 'evening', time: string) => {
+    if (type === 'morning') {
+      setMorningTime(time);
+      await saveReminderSettings({ morningTime: time });
+    } else {
+      setEveningTime(time);
+      await saveReminderSettings({ eveningTime: time });
+    }
+  };
+
+  // Save reminder settings to database and schedule notifications
+  const saveReminderSettings = async (updates: Partial<{
+    morningEnabled: boolean;
+    morningTime: string;
+    eveningEnabled: boolean;
+    eveningTime: string;
+  }>) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get current preferences
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("profile_preferences")
+        .eq("id", user.id)
+        .single();
+
+      const prefs = (profile?.profile_preferences as any) || {};
+
+      // Update with new reminder settings
+      const newPrefs = {
+        ...prefs,
+        morningEnabled: updates.morningEnabled !== undefined ? updates.morningEnabled : morningEnabled,
+        morningTime: updates.morningTime || morningTime,
+        eveningEnabled: updates.eveningEnabled !== undefined ? updates.eveningEnabled : eveningEnabled,
+        eveningTime: updates.eveningTime || eveningTime,
+      };
+
+      // Save to database
+      const { error } = await supabase
+        .from("profiles")
+        .upsert({
+          id: user.id,
+          profile_preferences: newPrefs,
+        });
+
+      if (error) throw error;
+
+      // Schedule/update notifications
+      await scheduleReminders({
+        morningEnabled: newPrefs.morningEnabled,
+        morningTime: newPrefs.morningTime,
+        eveningEnabled: newPrefs.eveningEnabled,
+        eveningTime: newPrefs.eveningTime,
+      });
+
+      toast({
+        title: "Reminder updated!",
+        description: "Your daily meditation reminder has been saved.",
+      });
+    } catch (error: any) {
+      console.error("Error saving reminder settings:", error);
+      toast({
+        title: "Error saving reminder",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handlePrivacyUpdate = async (field: string, value: any) => {
     setSaving(true);
     try {
@@ -270,30 +413,71 @@ export function SettingsView() {
           {/* Edit Profile Dialog */}
           <ProfileEditDialog open={editDialogOpen} onOpenChange={setEditDialogOpen} editType={editType} currentValue={editType === "name" ? userName : editType === "handle" ? (userHandle || "") : editType === "email" ? userEmail : ""} onSuccess={fetchSettings} />
 
-          {/* Notifications */}
+          {/* Daily Reminders */}
           <Card className="p-6">
             <div className="flex items-center gap-3 mb-4">
               <Bell className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-semibold">Notifications (Coming Soon)</h2>
+              <h2 className="text-lg font-semibold">Daily Reminders</h2>
             </div>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="notifications">Push Notifications</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Receive notifications about your practice
-                  </p>
+            <div className="space-y-5">
+              {/* Morning Reminder */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="morning-reminder">Morning Reminder</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Start your day with meditation
+                    </p>
+                  </div>
+                  <Switch
+                    id="morning-reminder"
+                    checked={morningEnabled}
+                    onCheckedChange={handleMorningToggle}
+                  />
                 </div>
-                <Switch id="notifications" checked={notifications} onCheckedChange={checked => handleToggleSetting("notifications", checked)} />
+
+                {morningEnabled && (
+                  <div className="pl-4 border-l-2 border-accent/20">
+                    <Label htmlFor="morning-time" className="text-sm">Time</Label>
+                    <Input
+                      id="morning-time"
+                      type="time"
+                      value={morningTime}
+                      onChange={(e) => handleTimeChange('morning', e.target.value)}
+                      className="w-32 mt-1"
+                    />
+                  </div>
+                )}
               </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="daily-reminder">Daily Reminder</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Remind me to practice each day
-                  </p>
+
+              {/* Evening Reminder */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="evening-reminder">Evening Reminder</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Wind down with reflection
+                    </p>
+                  </div>
+                  <Switch
+                    id="evening-reminder"
+                    checked={eveningEnabled}
+                    onCheckedChange={handleEveningToggle}
+                  />
                 </div>
-                <Switch id="daily-reminder" checked={dailyReminder} onCheckedChange={checked => handleToggleSetting("dailyReminder", checked)} />
+
+                {eveningEnabled && (
+                  <div className="pl-4 border-l-2 border-accent/20">
+                    <Label htmlFor="evening-time" className="text-sm">Time</Label>
+                    <Input
+                      id="evening-time"
+                      type="time"
+                      value={eveningTime}
+                      onChange={(e) => handleTimeChange('evening', e.target.value)}
+                      className="w-32 mt-1"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </Card>

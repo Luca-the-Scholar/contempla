@@ -17,6 +17,7 @@ const techniqueSchema = z.object({
   title: z.string().min(1, "Title is required").max(100, "Title must be 100 characters or less"),
   description: z.string().min(50, "Description must be at least 50 characters").max(2000, "Description must be 2000 characters or less"),
   instructionSteps: z.array(z.string().max(500, "Each step must be 500 characters or less")).min(1, "At least one instruction step is required").max(30, "Maximum 30 instruction steps allowed"),
+  tipSteps: z.array(z.string().max(500, "Each tip must be 500 characters or less")).max(10, "Maximum 10 tips allowed").optional(),
   tradition: z.string().max(500, "Tradition/Context must be 500 characters or less").optional(),
   source: z.string().max(300, "Relevant text must be 300 characters or less").optional(),
   suggestedDuration: z.string().optional(),
@@ -35,6 +36,7 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
     title: "",
     description: "",
     instructionSteps: [""],
+    tipSteps: [] as string[],
     tradition: "",
     source: "",
     suggestedDuration: "",
@@ -43,14 +45,16 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
   });
 
   const handleSubmit = async () => {
-    // Filter out empty instruction steps
+    // Filter out empty instruction steps and tips
     const filledSteps = formData.instructionSteps.filter(s => s.trim());
+    const filledTips = formData.tipSteps.filter(t => t.trim());
 
     // Validate with zod schema
     const validationData = {
       title: formData.title.trim(),
       description: formData.description.trim(),
       instructionSteps: filledSteps,
+      tipSteps: filledTips.length > 0 ? filledTips : undefined,
       tradition: formData.tradition.trim() || undefined,
       source: formData.source.trim() || undefined,
       suggestedDuration: formData.suggestedDuration || undefined,
@@ -89,12 +93,18 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
         .map((step, idx) => `${idx + 1}. ${step}`)
         .join("\n");
 
+      // Format tips as bullet points for storage
+      const formattedTips = filledTips.length > 0
+        ? filledTips.map(tip => `• ${tip}`).join("\n")
+        : null;
+
       const { error } = await supabase
         .from('global_techniques')
         .insert({
           name: formData.title.trim(),
           tradition: formData.tradition.trim() || "Personal Practice",
           instructions: formattedInstructions,
+          tips: formattedTips,
           origin_story: formData.description.trim(),
           lineage_info: formData.source.trim() || null,
           tags: formData.suggestedDuration ? [`${formData.suggestedDuration} min`] : [],
@@ -133,6 +143,7 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
         title: "",
         description: "",
         instructionSteps: [""],
+        tipSteps: [],
         tradition: "",
         source: "",
         suggestedDuration: "",
@@ -172,6 +183,29 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
     setFormData(prev => ({
       ...prev,
       instructionSteps: prev.instructionSteps.map((step, i) => i === index ? value : step)
+    }));
+  };
+
+  const addTip = () => {
+    if (formData.tipSteps.length < 10) {
+      setFormData(prev => ({
+        ...prev,
+        tipSteps: [...prev.tipSteps, ""]
+      }));
+    }
+  };
+
+  const removeTip = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      tipSteps: prev.tipSteps.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateTip = (index: number, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      tipSteps: prev.tipSteps.map((tip, i) => i === index ? value : tip)
     }));
   };
 
@@ -282,6 +316,58 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
               >
                 <Plus className="h-3 w-3 mr-1" />
                 Add Step {formData.instructionSteps.length >= 30 && "(Max 30)"}
+              </Button>
+            </div>
+
+            {/* Tips for Practice (Optional) */}
+            <div className="space-y-2">
+              <Label>💡 Tips for Practice (Optional)</Label>
+              <p className="text-xs text-muted-foreground mb-3">
+                Add helpful tips or advice for practitioners (maximum 10 tips). These will be displayed as bullet points.
+              </p>
+
+              {formData.tipSteps.length > 0 && (
+                <div className="space-y-2">
+                  {formData.tipSteps.map((tip, idx) => (
+                    <div key={idx} className="flex gap-2 items-start">
+                      <div className="flex items-center gap-1 pt-2.5 text-muted-foreground">
+                        <span className="text-sm font-medium">•</span>
+                      </div>
+                      <div className="relative flex-1">
+                        <Textarea
+                          value={tip}
+                          onChange={(e) => updateTip(idx, e.target.value)}
+                          placeholder="Tip for practice..."
+                          rows={2}
+                          maxLength={500}
+                          className="pr-16"
+                        />
+                        <span className="absolute bottom-2 right-3 text-xs text-muted-foreground pointer-events-none">
+                          {tip.length}/500
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeTip(idx)}
+                        className="mt-1"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={addTip}
+                className="mt-2"
+                disabled={formData.tipSteps.length >= 10}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Add Tip {formData.tipSteps.length >= 10 && "(Max 10)"}
               </Button>
             </div>
 

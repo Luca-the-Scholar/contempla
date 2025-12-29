@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'app.lovable.c0338147c3324b2cb5d7a5ad61c0e9ec',
-  appName: 'contempla',
+  appName: 'Contempla',
   webDir: 'dist',
   // Server config disabled for iOS - use iOS capacitor.config.json instead
   // server: {
