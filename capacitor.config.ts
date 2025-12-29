@@ -24,6 +24,8 @@ const config: CapacitorConfig = {
       splashImmersive: true,
     },
     LocalNotifications: {
+      // Note: smallIcon and iconColor are Android only
+      // iOS always uses the app icon from Assets.xcassets/AppIcon.appiconset
       smallIcon: 'ic_stat_icon_config_sample',
       iconColor: '#3b82f6',
       sound: 'tibetan-bowl-struck-1.wav',

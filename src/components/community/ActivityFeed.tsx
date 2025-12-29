@@ -38,6 +38,9 @@ export function ActivityFeed() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [sessionToHide, setSessionToHide] = useState<FeedSession | null>(null);
   const [isHiding, setIsHiding] = useState(false);
+  const [feedFilter, setFeedFilter] = useState<'friends' | 'all'>(() => {
+    return (localStorage.getItem('feed_filter') as 'friends' | 'all') || 'friends';
+  });
   const { toast } = useToast();
 
   const fetchFeed = useCallback(async () => {
@@ -74,24 +77,44 @@ export function ActivityFeed() {
 
       // Build the list of user IDs whose sessions we want to fetch
       const sharingFriendIds = friendProfiles?.map(p => p.id) || [];
-      
+
       // Build profile map for name lookups
       const profileMap = new Map<string, string>();
       friendProfiles?.forEach(p => profileMap.set(p.id, p.name || "Unknown"));
-      
+
       // Add current user to the profile map
       if (currentUserProfile) {
         profileMap.set(user.id, currentUserProfile.name || "You");
       }
 
-      // Determine which user IDs to fetch sessions for
-      const userIdsToFetch: string[] = [...sharingFriendIds];
-      
-      // Include current user's sessions if their sharing setting is not 'none'
-      const currentUserShares = currentUserProfile?.share_sessions_in_feed && 
-        currentUserProfile.share_sessions_in_feed !== 'none';
-      if (currentUserShares) {
-        userIdsToFetch.push(user.id);
+      // Determine which user IDs to fetch sessions for based on filter mode
+      let userIdsToFetch: string[] = [];
+
+      if (feedFilter === 'all') {
+        // "All" mode: Fetch sessions from ALL users with share_sessions_in_feed = 'all'
+        const { data: allSharingProfiles } = await supabase
+          .from("profiles")
+          .select("id, name")
+          .eq("share_sessions_in_feed", "all");
+
+        userIdsToFetch = allSharingProfiles?.map(p => p.id) || [];
+
+        // Add these users to profile map
+        allSharingProfiles?.forEach(p => {
+          if (!profileMap.has(p.id)) {
+            profileMap.set(p.id, p.name || "Unknown");
+          }
+        });
+      } else {
+        // "Friends" mode: Current behavior - only sharing friends
+        userIdsToFetch = [...sharingFriendIds];
+
+        // Include current user's sessions if their sharing setting is not 'none'
+        const currentUserShares = currentUserProfile?.share_sessions_in_feed &&
+          currentUserProfile.share_sessions_in_feed !== 'none';
+        if (currentUserShares) {
+          userIdsToFetch.push(user.id);
+        }
       }
 
       // If no one to fetch sessions from, show empty state
@@ -159,12 +182,18 @@ export function ActivityFeed() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, feedFilter]);
 
   useEffect(() => {
     fetchFeed();
     trackEvent('feed_opened');
   }, [fetchFeed]);
+
+  const handleFilterChange = (newFilter: 'friends' | 'all') => {
+    setFeedFilter(newFilter);
+    localStorage.setItem('feed_filter', newFilter);
+    trackEvent('feed_filter_changed', { filter: newFilter });
+  };
 
   // Pull-to-refresh
   const handleRefresh = useCallback(async () => {
@@ -291,37 +320,103 @@ export function ActivityFeed() {
 
   if (sessions.length === 0) {
     return (
-      <div 
-        className="text-center py-12 text-muted-foreground"
-        {...(showPullToRefresh ? handlers : {})}
-      >
-        {showPullToRefresh && (
-          <PullToRefreshIndicator 
-            pullDistance={pullDistance} 
-            isRefreshing={isRefreshing} 
-          />
-        )}
-        <Heart className="w-12 h-12 mx-auto mb-3 opacity-50" />
-        <p className="font-medium">No activity yet</p>
-        <p className="text-sm mt-1">
-          Complete a meditation or connect with friends to see activity here.
-        </p>
-      </div>
+      <>
+        {/* Filter Control */}
+        <div className="sticky top-0 z-10 bg-background pb-3 border-b mb-3">
+          <div className="flex gap-2 p-1 bg-muted rounded-lg">
+            <button
+              onClick={() => handleFilterChange('friends')}
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                feedFilter === 'friends'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground'
+              }`}
+            >
+              Friends
+            </button>
+            <button
+              onClick={() => handleFilterChange('all')}
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                feedFilter === 'all'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground'
+              }`}
+            >
+              All
+            </button>
+          </div>
+        </div>
+
+        <div
+          className="text-center py-12 text-muted-foreground"
+          {...(showPullToRefresh ? handlers : {})}
+        >
+          {showPullToRefresh && (
+            <PullToRefreshIndicator
+              pullDistance={pullDistance}
+              isRefreshing={isRefreshing}
+            />
+          )}
+          <Heart className="w-12 h-12 mx-auto mb-3 opacity-50" />
+          {feedFilter === 'friends' ? (
+            <>
+              <p className="font-medium">No activity from friends yet</p>
+              <p className="text-sm mt-1">
+                Add friends to see their meditation sessions here.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="font-medium">No public sessions yet</p>
+              <p className="text-sm mt-1">
+                Check back soon to see sessions from the community.
+              </p>
+            </>
+          )}
+        </div>
+      </>
     );
   }
 
   return (
-    <div 
-      className="space-y-3"
-      {...(showPullToRefresh ? handlers : {})}
-    >
-      {showPullToRefresh && (
-        <PullToRefreshIndicator 
-          pullDistance={pullDistance} 
-          isRefreshing={isRefreshing} 
-        />
-      )}
-      {sessions.map((session) => (
+    <>
+      {/* Filter Control */}
+      <div className="sticky top-0 z-10 bg-background pb-3 border-b mb-3">
+        <div className="flex gap-2 p-1 bg-muted rounded-lg">
+          <button
+            onClick={() => handleFilterChange('friends')}
+            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+              feedFilter === 'friends'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground'
+            }`}
+          >
+            Friends
+          </button>
+          <button
+            onClick={() => handleFilterChange('all')}
+            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+              feedFilter === 'all'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground'
+            }`}
+          >
+            All
+          </button>
+        </div>
+      </div>
+
+      <div
+        className="space-y-3"
+        {...(showPullToRefresh ? handlers : {})}
+      >
+        {showPullToRefresh && (
+          <PullToRefreshIndicator
+            pullDistance={pullDistance}
+            isRefreshing={isRefreshing}
+          />
+        )}
+        {sessions.map((session) => (
         <Card key={session.id} className="p-4 card-interactive">
           <div className="flex items-start gap-3">
             <Avatar 
@@ -394,6 +489,7 @@ export function ActivityFeed() {
           </div>
         </Card>
       ))}
+      </div>
 
       {/* Confirmation Dialog for Hiding Session */}
       <AlertDialog open={!!sessionToHide} onOpenChange={(open) => !open && setSessionToHide(null)}>
@@ -423,6 +519,6 @@ export function ActivityFeed() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }
