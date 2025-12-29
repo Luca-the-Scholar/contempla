@@ -17,7 +17,8 @@ const techniqueSchema = z.object({
   title: z.string().min(1, "Title is required").max(100, "Title must be 100 characters or less"),
   description: z.string().min(50, "Description must be at least 50 characters").max(2000, "Description must be 2000 characters or less"),
   instructionSteps: z.array(z.string().max(500, "Each step must be 500 characters or less")).min(1, "At least one instruction step is required").max(30, "Maximum 30 instruction steps allowed"),
-  tipSteps: z.array(z.string().max(500, "Each tip must be 500 characters or less")).max(10, "Maximum 10 tips allowed").optional(),
+  teacherAttribution: z.string().min(3, "Attribution is required - who should be credited for this technique?").max(200, "Attribution must be 200 characters or less"),
+  tipSteps: z.array(z.string().max(500, "Each tip must be 500 characters or less")).max(20, "Maximum 20 tips allowed").optional(),
   tradition: z.string().max(500, "Tradition/Context must be 500 characters or less").optional(),
   source: z.string().max(300, "Relevant text must be 300 characters or less").optional(),
   suggestedDuration: z.string().optional(),
@@ -36,6 +37,7 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
     title: "",
     description: "",
     instructionSteps: [""],
+    teacherAttribution: "",
     tipSteps: [] as string[],
     tradition: "",
     source: "",
@@ -54,6 +56,7 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
       title: formData.title.trim(),
       description: formData.description.trim(),
       instructionSteps: filledSteps,
+      teacherAttribution: formData.teacherAttribution.trim(),
       tipSteps: filledTips.length > 0 ? filledTips : undefined,
       tradition: formData.tradition.trim() || undefined,
       source: formData.source.trim() || undefined,
@@ -105,6 +108,7 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
           tradition: formData.tradition.trim() || "Personal Practice",
           instructions: formattedInstructions,
           tips: formattedTips,
+          teacher_attribution: formData.teacherAttribution.trim(),
           origin_story: formData.description.trim(),
           lineage_info: formData.source.trim() || null,
           tags: formData.suggestedDuration ? [`${formData.suggestedDuration} min`] : [],
@@ -143,6 +147,7 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
         title: "",
         description: "",
         instructionSteps: [""],
+        teacherAttribution: "",
         tipSteps: [],
         tradition: "",
         source: "",
@@ -187,7 +192,7 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
   };
 
   const addTip = () => {
-    if (formData.tipSteps.length < 10) {
+    if (formData.tipSteps.length < 20) {
       setFormData(prev => ({
         ...prev,
         tipSteps: [...prev.tipSteps, ""]
@@ -223,9 +228,9 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
           <div className="space-y-6 pr-4">
             {/* REQUIRED FIELDS */}
 
-            {/* Technique Title */}
+            {/* Technique Name */}
             <div className="space-y-2">
-              <Label htmlFor="title">Technique Title *</Label>
+              <Label htmlFor="title">Technique Name *</Label>
               <div className="relative">
                 <Input
                   id="title"
@@ -240,8 +245,38 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                A short, recognizable title for the practice.
+                A short, recognizable name for the practice.
               </p>
+            </div>
+
+            {/* Attribution - REQUIRED */}
+            <div className="space-y-2">
+              <Label htmlFor="attribution">
+                Attribution <span className="text-destructive">*</span>
+              </Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Who should be credited for this technique?
+              </p>
+              <Input
+                id="attribution"
+                value={formData.teacherAttribution}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  teacherAttribution: e.target.value
+                }))}
+                placeholder='e.g., "Thich Nhat Hanh" or "Jon Kabat-Zinn" or "Your Name" (if you developed it)'
+                maxLength={200}
+                required
+                className="pr-16"
+              />
+              <div className="flex justify-between items-center">
+                <p className="text-xs text-muted-foreground italic">
+                  Will display as: "Attributed to {formData.teacherAttribution || '[Name]'}"
+                </p>
+                <span className="text-xs text-muted-foreground">
+                  {formData.teacherAttribution?.length || 0}/200
+                </span>
+              </div>
             </div>
 
             {/* Description */}
@@ -252,7 +287,7 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
                   id="description"
                   value={formData.description}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Provide a brief overview of the meditation technique"
+                  placeholder="What is this practice? What does it do? Who is it for? (2-4 sentences)"
                   rows={4}
                   maxLength={2000}
                   className="pr-16"
@@ -262,7 +297,7 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                What is the fundamental purpose or approach of this practice?
+                Example: "A systematic practice of bringing awareness to different parts of the body, noticing sensations without judgment. Helps develop present-moment awareness and body connection."
               </p>
             </div>
 
@@ -319,61 +354,61 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
               </Button>
             </div>
 
-            {/* Tips for Practice (Optional) */}
-            <div className="space-y-2">
-              <Label>💡 Tips for Practice (Optional)</Label>
-              <p className="text-xs text-muted-foreground mb-3">
-                Add helpful tips or advice for practitioners (maximum 10 tips). These will be displayed as bullet points.
-              </p>
-
-              {formData.tipSteps.length > 0 && (
-                <div className="space-y-2">
-                  {formData.tipSteps.map((tip, idx) => (
-                    <div key={idx} className="flex gap-2 items-start">
-                      <div className="flex items-center gap-1 pt-2.5 text-muted-foreground">
-                        <span className="text-sm font-medium">•</span>
-                      </div>
-                      <div className="relative flex-1">
-                        <Textarea
-                          value={tip}
-                          onChange={(e) => updateTip(idx, e.target.value)}
-                          placeholder="Tip for practice..."
-                          rows={2}
-                          maxLength={500}
-                          className="pr-16"
-                        />
-                        <span className="absolute bottom-2 right-3 text-xs text-muted-foreground pointer-events-none">
-                          {tip.length}/500
-                        </span>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeTip(idx)}
-                        className="mt-1"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={addTip}
-                className="mt-2"
-                disabled={formData.tipSteps.length >= 10}
-              >
-                <Plus className="h-3 w-3 mr-1" />
-                Add Tip {formData.tipSteps.length >= 10 && "(Max 10)"}
-              </Button>
-            </div>
-
             {/* OPTIONAL FIELDS */}
             <div className="pt-4 border-t border-border">
               <p className="text-sm font-medium text-muted-foreground mb-4">Optional Fields</p>
+
+              {/* Tips for Practice */}
+              <div className="space-y-2 mb-6">
+                <Label>💡 Tips for Practice</Label>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Add helpful tips or advice for practitioners (maximum 20 tips). These will be displayed as bullet points.
+                </p>
+
+                {formData.tipSteps.length > 0 && (
+                  <div className="space-y-2">
+                    {formData.tipSteps.map((tip, idx) => (
+                      <div key={idx} className="flex gap-2 items-start">
+                        <div className="flex items-center gap-1 pt-2.5 text-muted-foreground">
+                          <span className="text-sm font-medium">•</span>
+                        </div>
+                        <div className="relative flex-1">
+                          <Textarea
+                            value={tip}
+                            onChange={(e) => updateTip(idx, e.target.value)}
+                            placeholder="e.g., Best practiced in the morning before eating, or Start with 10 minutes and gradually increase"
+                            rows={2}
+                            maxLength={500}
+                            className="pr-16"
+                          />
+                          <span className="absolute bottom-2 right-3 text-xs text-muted-foreground pointer-events-none">
+                            {tip.length}/500
+                          </span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeTip(idx)}
+                          className="mt-1"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addTip}
+                  className="mt-2"
+                  disabled={formData.tipSteps.length >= 20}
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add Tip {formData.tipSteps.length >= 20 && "(Max 20)"}
+                </Button>
+              </div>
 
               {/* Tradition/Context */}
               <div className="space-y-2 mb-6">
@@ -383,7 +418,7 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
                     id="tradition"
                     value={formData.tradition}
                     onChange={(e) => setFormData(prev => ({ ...prev, tradition: e.target.value }))}
-                    placeholder="In your own words, describe the tradition, lineage, or context of this technique"
+                    placeholder="e.g., Theravada Buddhism, Zen, Christian Contemplative Prayer, Secular Mindfulness, Personal/Eclectic"
                     rows={3}
                     maxLength={500}
                     className="pr-16"
@@ -393,7 +428,7 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  This could include a religious tradition, cultural context, or how you learned about this practice
+                  Use whatever words feel right. This will be displayed as a tag to help people find practices.
                 </p>
               </div>
 
@@ -428,11 +463,11 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
                   max="180"
                   value={formData.suggestedDuration}
                   onChange={(e) => setFormData(prev => ({ ...prev, suggestedDuration: e.target.value }))}
-                  placeholder="Typical length of practice"
+                  placeholder="e.g., 20 or 45"
                   className="w-32"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Typical recommended length for this practice session
+                  How long do you typically practice this technique?
                 </p>
               </div>
 

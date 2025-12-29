@@ -229,6 +229,69 @@ export function FriendsListDialog({ onViewFriend }: FriendsListDialogProps) {
     }
   };
 
+  const handleUnfriend = async (friendshipId: string, friendName: string) => {
+    // Show confirmation dialog
+    if (!window.confirm(`Remove ${friendName} as a friend?`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("friendships")
+        .delete()
+        .eq("id", friendshipId)
+        .eq("status", "accepted");
+
+      if (error) throw error;
+
+      // Track friend removed
+      trackEvent('friend_removed', { friendship_id: friendshipId });
+
+      toast({
+        title: "Friend removed",
+        description: `${friendName} has been removed from your friends.`,
+      });
+      fetchFriends();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to remove friend. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelRequest = async (friendshipId: string, friendName: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from("friendships")
+        .delete()
+        .eq("id", friendshipId)
+        .eq("user_id", user.id)
+        .eq("status", "pending");
+
+      if (error) throw error;
+
+      // Track request cancelled
+      trackEvent('friend_request_cancelled', { friendship_id: friendshipId });
+
+      toast({
+        title: "Request cancelled",
+        description: `Friend request to ${friendName} has been cancelled.`,
+      });
+      fetchFriends();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to cancel request. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getInitials = (name: string | null) => {
     if (!name) return "?";
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
@@ -334,15 +397,17 @@ export function FriendsListDialog({ onViewFriend }: FriendsListDialogProps) {
                 <div className="space-y-2">
                   <h4 className="text-sm font-semibold text-muted-foreground">Friends ({accepted.length})</h4>
                   {accepted.map((friend) => (
-                    <Card 
-                      key={friend.id} 
+                    <Card
+                      key={friend.id}
                       className="p-3 flex items-center justify-between cursor-pointer hover:bg-primary/5 transition-colors"
-                      onClick={() => {
-                        onViewFriend?.(friend.id);
-                        setOpen(false);
-                      }}
                     >
-                      <div className="flex items-center gap-3">
+                      <div
+                        className="flex items-center gap-3 flex-1"
+                        onClick={() => {
+                          onViewFriend?.(friend.id);
+                          setOpen(false);
+                        }}
+                      >
                         <Avatar className="w-10 h-10">
                           <AvatarFallback className="bg-primary/20 text-primary text-sm">
                             {getInitials(friend.name)}
@@ -350,7 +415,20 @@ export function FriendsListDialog({ onViewFriend }: FriendsListDialogProps) {
                         </Avatar>
                         <span className="font-medium">{friend.name}</span>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUnfriend(friend.friendshipId, friend.name || "this friend");
+                          }}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          Remove
+                        </Button>
+                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                      </div>
                     </Card>
                   ))}
                 </div>
@@ -361,7 +439,7 @@ export function FriendsListDialog({ onViewFriend }: FriendsListDialogProps) {
                 <div className="space-y-2">
                   <h4 className="text-sm font-semibold text-muted-foreground">Pending</h4>
                   {pendingSent.map((friend) => (
-                    <Card key={friend.id} className="p-3 flex items-center justify-between opacity-60">
+                    <Card key={friend.id} className="p-3 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <Avatar className="w-10 h-10">
                           <AvatarFallback className="bg-muted text-muted-foreground text-sm">
@@ -369,10 +447,18 @@ export function FriendsListDialog({ onViewFriend }: FriendsListDialogProps) {
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <span className="font-medium">{friend.name}</span>
+                          <span className="font-medium text-muted-foreground">{friend.name}</span>
                           <p className="text-xs text-muted-foreground">Request pending</p>
                         </div>
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleCancelRequest(friend.friendshipId, friend.name || "this user")}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        Cancel
+                      </Button>
                     </Card>
                   ))}
                 </div>
