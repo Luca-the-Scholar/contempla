@@ -141,6 +141,7 @@ export type Database = {
           relevant_texts: string[] | null
           submitted_by: string
           tags: string[] | null
+          tips: string | null
           tradition: string
           updated_at: string | null
           worldview_context: string | null
@@ -160,6 +161,7 @@ export type Database = {
           relevant_texts?: string[] | null
           submitted_by: string
           tags?: string[] | null
+          tips?: string | null
           tradition: string
           updated_at?: string | null
           worldview_context?: string | null
@@ -179,6 +181,7 @@ export type Database = {
           relevant_texts?: string[] | null
           submitted_by?: string
           tags?: string[] | null
+          tips?: string | null
           tradition?: string
           updated_at?: string | null
           worldview_context?: string | null
@@ -589,6 +592,7 @@ export type Database = {
           original_author_name: string | null
           source_global_technique_id: string | null
           tags: string[] | null
+          tips: string | null
           tradition: string | null
           updated_at: string | null
           user_id: string
@@ -603,6 +607,7 @@ export type Database = {
           original_author_name?: string | null
           source_global_technique_id?: string | null
           tags?: string[] | null
+          tips?: string | null
           tradition?: string | null
           updated_at?: string | null
           user_id: string
@@ -617,6 +622,7 @@ export type Database = {
           original_author_name?: string | null
           source_global_technique_id?: string | null
           tags?: string[] | null
+          tips?: string | null
           tradition?: string | null
           updated_at?: string | null
           user_id?: string
