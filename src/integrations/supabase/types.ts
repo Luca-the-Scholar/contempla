@@ -138,6 +138,7 @@ export type Database = {
           lineage_info: string | null
           name: string
           origin_story: string | null
+          relevant_link: string | null
           relevant_texts: string[] | null
           submitted_by: string
           tags: string[] | null
@@ -159,6 +160,7 @@ export type Database = {
           lineage_info?: string | null
           name: string
           origin_story?: string | null
+          relevant_link?: string | null
           relevant_texts?: string[] | null
           submitted_by: string
           tags?: string[] | null
@@ -180,6 +182,7 @@ export type Database = {
           lineage_info?: string | null
           name?: string
           origin_story?: string | null
+          relevant_link?: string | null
           relevant_texts?: string[] | null
           submitted_by?: string
           tags?: string[] | null
