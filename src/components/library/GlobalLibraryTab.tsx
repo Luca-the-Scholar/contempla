@@ -6,13 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Copy, Globe, Book, MapPin, Bookmark, Trash2 } from "lucide-react";
+import { Copy, Globe, Book, MapPin, Bookmark, Trash2, Clock, ExternalLink } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { sanitizeUserContent, sanitizeUserContentArray } from "@/lib/sanitize";
 
 interface GlobalTechnique {
   id: string;
   name: string;
+  teacher_attribution: string | null;
   instructions: string;
   tips: string | null;
   tradition: string;
@@ -20,6 +21,7 @@ interface GlobalTechnique {
   origin_story: string | null;
   worldview_context: string | null;
   lineage_info: string | null;
+  relevant_link: string | null;
   relevant_texts: string[] | null;
   external_links: string[] | null;
   home_region: string | null;
@@ -245,7 +247,12 @@ export function GlobalLibraryTab() {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <h3 className="font-semibold">{sanitizeUserContent(technique.name)}</h3>
-                  <p className="text-xs text-muted-foreground">by {getAuthorName(technique)}</p>
+                  {technique.teacher_attribution && (
+                    <p className="text-sm text-muted-foreground italic mb-1">
+                      Attributed to {sanitizeUserContent(technique.teacher_attribution)}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">Submitted by {getAuthorName(technique)}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <Badge variant="secondary">{sanitizeUserContent(technique.tradition)}</Badge>
                     {technique.home_region && (
@@ -290,15 +297,43 @@ export function GlobalLibraryTab() {
         <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
           <DialogContent className="max-w-2xl max-h-[80vh]">
             <DialogHeader>
-              <DialogTitle>{sanitizeUserContent(selectedTechnique.name)}</DialogTitle>
-              <DialogDescription>
-                by {getAuthorName(selectedTechnique)} • {sanitizeUserContent(selectedTechnique.tradition)}
-                {selectedTechnique.home_region && ` • ${sanitizeUserContent(selectedTechnique.home_region)}`}
+              <DialogTitle className="text-2xl font-bold mb-2">{sanitizeUserContent(selectedTechnique.name)}</DialogTitle>
+              {selectedTechnique.teacher_attribution && (
+                <p className="text-base text-muted-foreground italic mb-3">
+                  Attributed to {sanitizeUserContent(selectedTechnique.teacher_attribution)}
+                </p>
+              )}
+              <DialogDescription className="flex flex-wrap items-center gap-3">
+                <span>Submitted by {getAuthorName(selectedTechnique)}</span>
+                {selectedTechnique.tradition && (
+                  <>
+                    <span>•</span>
+                    <Badge variant="secondary">{sanitizeUserContent(selectedTechnique.tradition)}</Badge>
+                  </>
+                )}
+                {selectedTechnique.tags && selectedTechnique.tags.find(tag => tag.includes('min')) && (
+                  <>
+                    <span>•</span>
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {selectedTechnique.tags.find(tag => tag.includes('min'))}
+                    </span>
+                  </>
+                )}
               </DialogDescription>
             </DialogHeader>
 
             <ScrollArea className="max-h-[50vh]">
               <div className="space-y-4 pr-4">
+                {selectedTechnique.origin_story && (
+                  <div>
+                    <h4 className="font-semibold mb-2">About This Practice</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {sanitizeUserContent(selectedTechnique.origin_story)}
+                    </p>
+                  </div>
+                )}
+
                 <div>
                   <h4 className="font-semibold mb-2">Instructions</h4>
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap">
@@ -315,15 +350,6 @@ export function GlobalLibraryTab() {
                   </div>
                 )}
 
-                {selectedTechnique.origin_story && (
-                  <div>
-                    <h4 className="font-semibold mb-2">Origin</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {sanitizeUserContent(selectedTechnique.origin_story)}
-                    </p>
-                  </div>
-                )}
-
                 {selectedTechnique.worldview_context && (
                   <div>
                     <h4 className="font-semibold mb-2">Cultural Context</h4>
@@ -335,10 +361,27 @@ export function GlobalLibraryTab() {
 
                 {selectedTechnique.lineage_info && (
                   <div>
-                    <h4 className="font-semibold mb-2">Lineage</h4>
+                    <h4 className="font-semibold mb-2">Source</h4>
                     <p className="text-sm text-muted-foreground">
                       {sanitizeUserContent(selectedTechnique.lineage_info)}
                     </p>
+                  </div>
+                )}
+
+                {selectedTechnique.relevant_link && (
+                  <div>
+                    <h4 className="font-semibold mb-2 flex items-center gap-2">
+                      <ExternalLink className="w-4 h-4" />
+                      Relevant Link
+                    </h4>
+                    <a
+                      href={selectedTechnique.relevant_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline break-all"
+                    >
+                      {sanitizeUserContent(selectedTechnique.relevant_link)}
+                    </a>
                   </div>
                 )}
 

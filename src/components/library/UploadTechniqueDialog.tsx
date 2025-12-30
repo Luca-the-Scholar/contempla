@@ -14,13 +14,14 @@ import { trackEvent } from "@/hooks/use-analytics";
 
 // Validation schema with length limits - Beta v1 spec
 const techniqueSchema = z.object({
-  title: z.string().min(1, "Title is required").max(100, "Title must be 100 characters or less"),
+  title: z.string().min(1, "Title is required").max(150, "Title must be 150 characters or less"),
   description: z.string().min(50, "Description must be at least 50 characters").max(2000, "Description must be 2000 characters or less"),
   instructionSteps: z.array(z.string().max(500, "Each step must be 500 characters or less")).min(1, "At least one instruction step is required").max(30, "Maximum 30 instruction steps allowed"),
-  teacherAttribution: z.string().min(3, "Attribution is required - who should be credited for this technique?").max(200, "Attribution must be 200 characters or less"),
+  teacherAttribution: z.string().min(3, "Attribution is required - who should be credited for this technique?").max(100, "Attribution must be 100 characters or less"),
   tipSteps: z.array(z.string().max(500, "Each tip must be 500 characters or less")).max(20, "Maximum 20 tips allowed").optional(),
-  tradition: z.string().max(500, "Tradition/Context must be 500 characters or less").optional(),
+  tradition: z.string().max(100, "Tradition/Context must be 100 characters or less").optional(),
   source: z.string().max(300, "Relevant text must be 300 characters or less").optional(),
+  relevantLink: z.string().url("Please enter a valid URL (must start with http:// or https://)").max(500, "Maximum 500 characters").optional().or(z.literal("")),
   suggestedDuration: z.string().optional(),
   personalContext: z.string().max(1500, "Personal context must be 1500 characters or less").optional(),
   legalConfirmation: z.literal(true, { errorMap: () => ({ message: "You must confirm legal rights" }) })
@@ -41,6 +42,7 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
     tipSteps: [] as string[],
     tradition: "",
     source: "",
+    relevantLink: "",
     suggestedDuration: "",
     personalContext: "",
     legalConfirmation: false
@@ -60,6 +62,7 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
       tipSteps: filledTips.length > 0 ? filledTips : undefined,
       tradition: formData.tradition.trim() || undefined,
       source: formData.source.trim() || undefined,
+      relevantLink: formData.relevantLink.trim() || undefined,
       suggestedDuration: formData.suggestedDuration || undefined,
       personalContext: formData.personalContext.trim() || undefined,
       legalConfirmation: formData.legalConfirmation as true
@@ -111,6 +114,7 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
           teacher_attribution: formData.teacherAttribution.trim(),
           origin_story: formData.description.trim(),
           lineage_info: formData.source.trim() || null,
+          relevant_link: formData.relevantLink.trim() || null,
           tags: formData.suggestedDuration ? [`${formData.suggestedDuration} min`] : [],
           worldview_context: formData.personalContext.trim() || null,
           submitted_by: user.id,
@@ -151,6 +155,7 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
         tipSteps: [],
         tradition: "",
         source: "",
+        relevantLink: "",
         suggestedDuration: "",
         personalContext: "",
         legalConfirmation: false
@@ -237,11 +242,11 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
                   value={formData.title}
                   onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
                   placeholder='e.g., "Four-Part Breath" or "Mantra Anchoring"'
-                  maxLength={100}
+                  maxLength={150}
                   className="pr-16"
                 />
                 <span className="absolute bottom-2 right-3 text-xs text-muted-foreground pointer-events-none">
-                  {formData.title.length}/100
+                  {formData.title.length}/150
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -252,10 +257,10 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
             {/* Attribution - REQUIRED */}
             <div className="space-y-2">
               <Label htmlFor="attribution">
-                Attribution <span className="text-destructive">*</span>
+                Attribution *
               </Label>
               <p className="text-xs text-muted-foreground mb-2">
-                Who should be credited for this technique?
+                Who should be credited for this technique? If you developed it yourself, enter your own name.
               </p>
               <Input
                 id="attribution"
@@ -265,16 +270,16 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
                   teacherAttribution: e.target.value
                 }))}
                 placeholder='e.g., "Thich Nhat Hanh" or "Jon Kabat-Zinn" or "Your Name" (if you developed it)'
-                maxLength={200}
+                maxLength={100}
                 required
                 className="pr-16"
               />
               <div className="flex justify-between items-center">
                 <p className="text-xs text-muted-foreground italic">
-                  Will display as: "Attributed to {formData.teacherAttribution || '[Name]'}"
+                  Will display as: "{formData.title || 'Technique Name'}" attributed to {formData.teacherAttribution || '[Name]'}
                 </p>
                 <span className="text-xs text-muted-foreground">
-                  {formData.teacherAttribution?.length || 0}/200
+                  {formData.teacherAttribution?.length || 0}/100
                 </span>
               </div>
             </div>
@@ -414,17 +419,16 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
               <div className="space-y-2 mb-6">
                 <Label htmlFor="tradition">Tradition/Context</Label>
                 <div className="relative">
-                  <Textarea
+                  <Input
                     id="tradition"
                     value={formData.tradition}
                     onChange={(e) => setFormData(prev => ({ ...prev, tradition: e.target.value }))}
-                    placeholder="e.g., Theravada Buddhism, Zen, Christian Contemplative Prayer, Secular Mindfulness, Personal/Eclectic"
-                    rows={3}
-                    maxLength={500}
+                    placeholder="e.g., Theravada Buddhism, Zen, Christian Contemplative Prayer"
+                    maxLength={100}
                     className="pr-16"
                   />
                   <span className="absolute bottom-2 right-3 text-xs text-muted-foreground pointer-events-none">
-                    {formData.tradition.length}/500
+                    {formData.tradition.length}/100
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -451,6 +455,34 @@ export function UploadTechniqueDialog({ open, onOpenChange }: UploadTechniqueDia
                 <p className="text-xs text-muted-foreground">
                   Name and author of a book or text relevant for understanding this technique
                 </p>
+              </div>
+
+              {/* Relevant Link */}
+              <div className="space-y-2 mb-6">
+                <Label htmlFor="relevantLink">Relevant Link</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Optional URL to source material (article, video, book page, etc.)
+                </p>
+                <Input
+                  id="relevantLink"
+                  type="url"
+                  value={formData.relevantLink}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    relevantLink: e.target.value
+                  }))}
+                  placeholder="e.g., https://example.com/article or https://amazon.com/book"
+                  maxLength={500}
+                  className="pr-16"
+                />
+                <div className="flex justify-between items-center">
+                  <p className="text-xs text-muted-foreground italic">
+                    Link to where this technique is described or can be learned
+                  </p>
+                  <span className="text-xs text-muted-foreground">
+                    {formData.relevantLink?.length || 0}/500
+                  </span>
+                </div>
               </div>
 
               {/* Suggested Duration */}
