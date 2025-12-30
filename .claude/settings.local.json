@@ -22,7 +22,10 @@
       "Bash(mkdir:*)",
       "Bash(ls:*)",
       "Bash(node:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npx tsx seed-global-library.ts)",
+      "Bash(test:*)",
+      "Bash(npx tsx run-seed.ts)"
     ]
   }
 }
