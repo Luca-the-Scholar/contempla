@@ -357,16 +357,17 @@ export function GlobalLibraryTab() {
 
       {selectedTechnique && (
         <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-          <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col p-0 gap-0 overflow-hidden">
-            {/* Fixed Header */}
-            <div className="flex-shrink-0 p-6 pb-4 border-b">
-              <DialogHeader className="space-y-0">
-                {/* Title - reduced size */}
+          <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
+            {/* Scrollable Content Area - everything scrolls together */}
+            <div className="flex-1 overflow-y-auto min-h-0 p-6 pb-4">
+              {/* Header section - scrolls with content */}
+              <DialogHeader className="space-y-0 mb-6">
+                {/* Title */}
                 <DialogTitle className="text-xl font-semibold mb-1">
                   {sanitizeUserContent(selectedTechnique.name)}
                 </DialogTitle>
                 
-                {/* Subtitle: as practiced by - reduced size */}
+                {/* Subtitle: as practiced by */}
                 {selectedTechnique.teacher_attribution && (
                   <p className="text-base text-muted-foreground italic mb-1">
                     as practiced by {sanitizeUserContent(selectedTechnique.teacher_attribution)}
@@ -374,14 +375,11 @@ export function GlobalLibraryTab() {
                 )}
                 
                 {/* Metadata line */}
-                <p className="text-sm text-muted-foreground mb-4">
+                <p className="text-sm text-muted-foreground">
                   {sanitizeUserContent(selectedTechnique.tradition)} • Submitted by @{getSubmitterHandle(selectedTechnique)}
                 </p>
               </DialogHeader>
-            </div>
 
-            {/* Scrollable Content Area */}
-            <div className="flex-1 overflow-y-auto min-h-0 p-6">
               <div className="space-y-4">
                 {/* Description section - always visible */}
                 <div>
@@ -491,7 +489,7 @@ export function GlobalLibraryTab() {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground text-center">
-                  <strong>Save</strong> keeps attribution • <strong>Copy</strong> is editable
+                  Save keeps the original author attribution. Create Copy lets you edit freely.
                 </p>
                 {isAdmin && (
                   <Button
@@ -501,7 +499,7 @@ export function GlobalLibraryTab() {
                     className="w-full"
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
+                    Delete from Global Library
                   </Button>
                 )}
               </div>
