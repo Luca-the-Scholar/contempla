@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Copy, Globe, Bookmark, Trash2, ChevronRight, ExternalLink } from "lucide-react";
+import { Globe, Bookmark, Trash2, ChevronRight, ExternalLink } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { sanitizeUserContent } from "@/lib/sanitize";
 import { cn } from "@/lib/utils";
@@ -227,42 +227,6 @@ export function GlobalLibraryTab() {
     }
   };
 
-  const copyToPersonalLibrary = async (technique: GlobalTechnique) => {
-    setAdding(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { error } = await supabase
-        .from('techniques')
-        .insert({
-          user_id: user.id,
-          name: `${technique.name} (Copy)`,
-          instructions: technique.instructions,
-          tips: technique.tips,
-          tradition: technique.tradition,
-          tags: technique.tags
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Copied to library",
-        description: `A copy of ${technique.name} has been added to your library. You can now edit it.`,
-      });
-
-      setDetailsOpen(false);
-    } catch (error: any) {
-      toast({
-        title: "Error copying technique",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setAdding(false);
-    }
-  };
-
   const openDetails = (technique: GlobalTechnique) => {
     setSelectedTechnique(technique);
     setDetailsOpen(true);
@@ -466,31 +430,16 @@ export function GlobalLibraryTab() {
             {/* Fixed Footer */}
             <div className="flex-shrink-0 p-6 pt-4 border-t bg-card">
               <div className="space-y-3">
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <Button
-                    onClick={() => saveToPersonalLibrary(selectedTechnique)}
-                    disabled={adding}
-                    className="flex-1"
-                    variant="default"
-                    size="sm"
-                  >
-                    <Bookmark className="h-4 w-4 mr-2" />
-                    Save to Library
-                  </Button>
-                  <Button
-                    onClick={() => copyToPersonalLibrary(selectedTechnique)}
-                    disabled={adding}
-                    className="flex-1"
-                    variant="outline"
-                    size="sm"
-                  >
-                    <Copy className="h-4 w-4 mr-2" />
-                    Create Copy
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground text-center">
-                  Save keeps the original author attribution. Create Copy lets you edit freely.
-                </p>
+              <Button
+                  onClick={() => saveToPersonalLibrary(selectedTechnique)}
+                  disabled={adding}
+                  className="w-full"
+                  variant="default"
+                  size="sm"
+                >
+                  <Bookmark className="h-4 w-4 mr-2" />
+                  Save to My Library
+                </Button>
                 {isAdmin && (
                   <Button
                     onClick={() => handleDeleteClick(selectedTechnique)}
