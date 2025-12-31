@@ -58,6 +58,31 @@ function extractDurationFromTags(tags: string[] | null): string | null {
   return null;
 }
 
+// Helper to format instructions with proper spacing for numbered lists
+function formatInstructionText(text: string): React.ReactNode {
+  // Split by numbered patterns like "1.", "2.", etc.
+  const parts = text.split(/(?=\d+\.\s)/);
+  
+  if (parts.length > 1) {
+    return (
+      <div className="space-y-3">
+        {parts.map((part, index) => {
+          const trimmed = part.trim();
+          if (!trimmed) return null;
+          return (
+            <p key={index} className="text-sm text-foreground">
+              {trimmed}
+            </p>
+          );
+        })}
+      </div>
+    );
+  }
+  
+  // If no numbered list, just preserve whitespace
+  return <p className="text-sm text-foreground whitespace-pre-wrap">{text}</p>;
+}
+
 // Collapsible Section Component
 function CollapsibleSection({
   title,
@@ -71,7 +96,7 @@ function CollapsibleSection({
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="my-3">
       <CollapsibleTrigger
         className="flex items-center gap-2 font-medium cursor-pointer hover:text-foreground w-full text-left py-2"
         aria-expanded={isOpen}
@@ -84,7 +109,7 @@ function CollapsibleSection({
         />
         {title}
       </CollapsibleTrigger>
-      <CollapsibleContent className="pt-4 pb-2">
+      <CollapsibleContent className="pt-3 pb-2 pl-6">
         {children}
       </CollapsibleContent>
     </Collapsible>
@@ -332,32 +357,36 @@ export function GlobalLibraryTab() {
 
       {selectedTechnique && (
         <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-          <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
-            <DialogHeader className="space-y-2">
-              {/* Title */}
-              <DialogTitle className="text-2xl font-semibold">
-                {sanitizeUserContent(selectedTechnique.name)}
-              </DialogTitle>
-              
-              {/* Subtitle: as practiced by */}
-              {selectedTechnique.teacher_attribution && (
-                <p className="text-lg text-muted-foreground italic">
-                  as practiced by {sanitizeUserContent(selectedTechnique.teacher_attribution)}
+          <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col p-0 gap-0 overflow-hidden">
+            {/* Fixed Header */}
+            <div className="flex-shrink-0 p-6 pb-4 border-b">
+              <DialogHeader className="space-y-0">
+                {/* Title - reduced size */}
+                <DialogTitle className="text-xl font-semibold mb-1">
+                  {sanitizeUserContent(selectedTechnique.name)}
+                </DialogTitle>
+                
+                {/* Subtitle: as practiced by - reduced size */}
+                {selectedTechnique.teacher_attribution && (
+                  <p className="text-base text-muted-foreground italic mb-1">
+                    as practiced by {sanitizeUserContent(selectedTechnique.teacher_attribution)}
+                  </p>
+                )}
+                
+                {/* Metadata line */}
+                <p className="text-sm text-muted-foreground mb-4">
+                  {sanitizeUserContent(selectedTechnique.tradition)} • Submitted by @{getSubmitterHandle(selectedTechnique)}
                 </p>
-              )}
-              
-              {/* Metadata line */}
-              <p className="text-sm text-muted-foreground">
-                {sanitizeUserContent(selectedTechnique.tradition)} • Submitted by @{getSubmitterHandle(selectedTechnique)}
-              </p>
-            </DialogHeader>
+              </DialogHeader>
+            </div>
 
-            <ScrollArea className="flex-1 overflow-y-auto">
-              <div className="space-y-4 pr-4">
+            {/* Scrollable Content Area */}
+            <div className="flex-1 overflow-y-auto min-h-0 p-6">
+              <div className="space-y-4">
                 {/* Description section - always visible */}
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-2">Description</p>
-                  <p className="text-sm whitespace-pre-wrap">
+                  <p className="text-sm text-foreground whitespace-pre-wrap">
                     {sanitizeUserContent(selectedTechnique.origin_story) || "No description provided."}
                   </p>
                   
@@ -374,9 +403,7 @@ export function GlobalLibraryTab() {
 
                 {/* Instructions - collapsible, default open */}
                 <CollapsibleSection title="Instructions" defaultOpen={true}>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                    {sanitizeUserContent(selectedTechnique.instructions)}
-                  </p>
+                  {formatInstructionText(sanitizeUserContent(selectedTechnique.instructions))}
                 </CollapsibleSection>
 
                 {/* Tips for Practice - conditional */}
@@ -384,7 +411,7 @@ export function GlobalLibraryTab() {
                   <>
                     <div className="border-t my-4" />
                     <CollapsibleSection title="Tips for Practice" defaultOpen={false}>
-                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      <p className="text-sm text-foreground whitespace-pre-wrap">
                         {sanitizeUserContent(selectedTechnique.tips)}
                       </p>
                     </CollapsibleSection>
@@ -399,15 +426,15 @@ export function GlobalLibraryTab() {
                       <div className="space-y-4">
                         {selectedTechnique.lineage_info && (
                           <div>
-                            <p className="text-sm font-medium mb-1">Books:</p>
-                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                            <p className="text-sm font-medium text-foreground mb-1">Books:</p>
+                            <p className="text-sm text-foreground whitespace-pre-wrap">
                               {sanitizeUserContent(selectedTechnique.lineage_info)}
                             </p>
                           </div>
                         )}
                         {selectedTechnique.relevant_link && (
                           <div>
-                            <p className="text-sm font-medium mb-1">Online Resources:</p>
+                            <p className="text-sm font-medium text-foreground mb-1">Online Resources:</p>
                             <a
                               href={selectedTechnique.relevant_link}
                               target="_blank"
@@ -429,50 +456,55 @@ export function GlobalLibraryTab() {
                   <>
                     <div className="border-t my-4" />
                     <CollapsibleSection title="Submitter's Relationship to the Practice" defaultOpen={false}>
-                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      <p className="text-sm text-foreground whitespace-pre-wrap">
                         {sanitizeUserContent(selectedTechnique.worldview_context)}
                       </p>
                     </CollapsibleSection>
                   </>
                 )}
               </div>
-            </ScrollArea>
+            </div>
 
-            {/* Footer actions */}
-            <div className="space-y-3 pt-4 border-t">
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => saveToPersonalLibrary(selectedTechnique)}
-                  disabled={adding}
-                  className="flex-1"
-                  variant="default"
-                >
-                  <Bookmark className="h-4 w-4 mr-2" />
-                  Save to My Library
-                </Button>
-                <Button
-                  onClick={() => copyToPersonalLibrary(selectedTechnique)}
-                  disabled={adding}
-                  className="flex-1"
-                  variant="outline"
-                >
-                  <Copy className="h-4 w-4 mr-2" />
-                  Create Copy
-                </Button>
+            {/* Fixed Footer */}
+            <div className="flex-shrink-0 p-6 pt-4 border-t bg-card">
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button
+                    onClick={() => saveToPersonalLibrary(selectedTechnique)}
+                    disabled={adding}
+                    className="flex-1"
+                    variant="default"
+                    size="sm"
+                  >
+                    <Bookmark className="h-4 w-4 mr-2" />
+                    Save to Library
+                  </Button>
+                  <Button
+                    onClick={() => copyToPersonalLibrary(selectedTechnique)}
+                    disabled={adding}
+                    className="flex-1"
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Create Copy
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  <strong>Save</strong> keeps attribution • <strong>Copy</strong> is editable
+                </p>
+                {isAdmin && (
+                  <Button
+                    onClick={() => handleDeleteClick(selectedTechnique)}
+                    variant="destructive"
+                    size="sm"
+                    className="w-full"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
+                )}
               </div>
-              <p className="text-xs text-muted-foreground text-center">
-                <strong>Save</strong> keeps attribution (read-only) • <strong>Create Copy</strong> makes an editable version
-              </p>
-              {isAdmin && (
-                <Button
-                  onClick={() => handleDeleteClick(selectedTechnique)}
-                  variant="destructive"
-                  className="w-full"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete from Global Library
-                </Button>
-              )}
             </div>
           </DialogContent>
         </Dialog>
