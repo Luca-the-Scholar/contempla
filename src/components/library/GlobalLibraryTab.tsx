@@ -3,12 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Copy, Globe, Book, MapPin, Bookmark, Trash2, Clock, ExternalLink } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Copy, Globe, Bookmark, Trash2, ChevronRight, ExternalLink } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { sanitizeUserContent, sanitizeUserContentArray } from "@/lib/sanitize";
+import { sanitizeUserContent } from "@/lib/sanitize";
+import { cn } from "@/lib/utils";
 
 interface GlobalTechnique {
   id: string;
@@ -31,11 +33,67 @@ interface GlobalTechnique {
 interface SubmitterProfile {
   id: string;
   name: string | null;
+  handle: string | null;
+}
+
+// Helper to extract duration from tags
+function extractDurationFromTags(tags: string[] | null): string | null {
+  if (!tags || tags.length === 0) return null;
+  
+  const durationRegex = /(\d+)\s*(min|minute|minutes|hour|hours)/i;
+  
+  for (const tag of tags) {
+    const match = tag.match(durationRegex);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      const unit = match[2].toLowerCase();
+      
+      if (unit.startsWith('hour')) {
+        return `${num * 60} minutes`;
+      }
+      return `${num} minutes`;
+    }
+  }
+  
+  return null;
+}
+
+// Collapsible Section Component
+function CollapsibleSection({
+  title,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <CollapsibleTrigger
+        className="flex items-center gap-2 font-medium cursor-pointer hover:text-foreground w-full text-left py-2"
+        aria-expanded={isOpen}
+      >
+        <ChevronRight
+          className={cn(
+            "h-4 w-4 transition-transform duration-200",
+            isOpen ? "rotate-90" : "rotate-0"
+          )}
+        />
+        {title}
+      </CollapsibleTrigger>
+      <CollapsibleContent className="pt-4 pb-2">
+        {children}
+      </CollapsibleContent>
+    </Collapsible>
+  );
 }
 
 export function GlobalLibraryTab() {
   const [techniques, setTechniques] = useState<GlobalTechnique[]>([]);
-  const [submitterNames, setSubmitterNames] = useState<Record<string, string>>({});
+  const [submitterProfiles, setSubmitterProfiles] = useState<Record<string, SubmitterProfile>>({});
   const [loading, setLoading] = useState(true);
   const [selectedTechnique, setSelectedTechnique] = useState<GlobalTechnique | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -78,19 +136,19 @@ export function GlobalLibraryTab() {
       if (error) throw error;
       setTechniques(data || []);
 
-      // Fetch submitter names
+      // Fetch submitter profiles (name and handle)
       const submitterIds = [...new Set((data || []).map(t => t.submitted_by))];
       if (submitterIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, name')
+          .select('id, name, handle')
           .in('id', submitterIds);
 
-        const namesMap: Record<string, string> = {};
+        const profilesMap: Record<string, SubmitterProfile> = {};
         (profiles || []).forEach((p: SubmitterProfile) => {
-          namesMap[p.id] = p.name || 'Anonymous';
+          profilesMap[p.id] = p;
         });
-        setSubmitterNames(namesMap);
+        setSubmitterProfiles(profilesMap);
       }
     } catch (error: any) {
       toast({
@@ -103,14 +161,14 @@ export function GlobalLibraryTab() {
     }
   };
 
-  // Save to library (read-only, with attribution)
   const saveToPersonalLibrary = async (technique: GlobalTechnique) => {
     setAdding(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const authorName = submitterNames[technique.submitted_by] || 'Anonymous';
+      const profile = submitterProfiles[technique.submitted_by];
+      const authorName = profile?.name || 'Anonymous';
 
       const { error } = await supabase
         .from('techniques')
@@ -129,7 +187,7 @@ export function GlobalLibraryTab() {
 
       toast({
         title: "Saved to library",
-        description: `${technique.name} by ${authorName} has been saved to your library.`,
+        description: `${technique.name} has been saved to your library.`,
       });
 
       setDetailsOpen(false);
@@ -144,7 +202,6 @@ export function GlobalLibraryTab() {
     }
   };
 
-  // Copy to library (editable duplicate)
   const copyToPersonalLibrary = async (technique: GlobalTechnique) => {
     setAdding(true);
     try {
@@ -221,8 +278,9 @@ export function GlobalLibraryTab() {
     }
   };
 
-  const getAuthorName = (technique: GlobalTechnique) => {
-    return submitterNames[technique.submitted_by] || 'Anonymous';
+  const getSubmitterHandle = (technique: GlobalTechnique) => {
+    const profile = submitterProfiles[technique.submitted_by];
+    return profile?.handle || profile?.name || 'anonymous';
   };
 
   if (loading) {
@@ -242,52 +300,31 @@ export function GlobalLibraryTab() {
     <>
       <div className="space-y-3">
         {techniques.map((technique) => (
-          <Card key={technique.id} className="p-4">
-            <div className="space-y-3">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h3 className="font-semibold">{sanitizeUserContent(technique.name)}</h3>
-                  {technique.teacher_attribution && (
-                    <p className="text-sm text-muted-foreground italic mb-1">
-                      Attributed to {sanitizeUserContent(technique.teacher_attribution)}
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground">Submitted by {getAuthorName(technique)}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="secondary">{sanitizeUserContent(technique.tradition)}</Badge>
-                    {technique.home_region && (
-                      <Badge variant="outline" className="text-xs">
-                        <MapPin className="h-3 w-3 mr-1" />
-                        {sanitizeUserContent(technique.home_region)}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <p className="text-sm text-muted-foreground line-clamp-2">
-                {sanitizeUserContent(technique.instructions)}
+          <Card
+            key={technique.id}
+            className="p-4 cursor-pointer transition-all duration-200 hover:border-primary/50 hover:shadow-md"
+            onClick={() => openDetails(technique)}
+          >
+            <div className="space-y-2">
+              {/* Technique name and attribution as flowing sentence */}
+              <p className="text-base font-medium leading-relaxed">
+                {sanitizeUserContent(technique.name)}
+                {technique.teacher_attribution && (
+                  <span className="text-muted-foreground font-normal">
+                    {" "}as practiced by {sanitizeUserContent(technique.teacher_attribution)}
+                  </span>
+                )}
               </p>
 
-              {technique.tags && technique.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {sanitizeUserContentArray(technique.tags).map((tag, idx) => (
-                    <Badge key={idx} variant="outline" className="text-xs">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              )}
+              {/* Tradition badge */}
+              <div>
+                <Badge variant="secondary">{sanitizeUserContent(technique.tradition)}</Badge>
+              </div>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => openDetails(technique)}
-                className="w-full"
-              >
-                <Book className="h-3 w-3 mr-1" />
-                View Details
-              </Button>
+              {/* Submitted by handle */}
+              <p className="text-xs text-muted-foreground mt-2">
+                Submitted by @{getSubmitterHandle(technique)}
+              </p>
             </div>
           </Card>
         ))}
@@ -295,129 +332,113 @@ export function GlobalLibraryTab() {
 
       {selectedTechnique && (
         <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-          <DialogContent className="max-w-2xl max-h-[80vh]">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-bold mb-2">{sanitizeUserContent(selectedTechnique.name)}</DialogTitle>
+          <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+            <DialogHeader className="space-y-2">
+              {/* Title */}
+              <DialogTitle className="text-2xl font-semibold">
+                {sanitizeUserContent(selectedTechnique.name)}
+              </DialogTitle>
+              
+              {/* Subtitle: as practiced by */}
               {selectedTechnique.teacher_attribution && (
-                <p className="text-base text-muted-foreground italic mb-3">
-                  Attributed to {sanitizeUserContent(selectedTechnique.teacher_attribution)}
+                <p className="text-lg text-muted-foreground italic">
+                  as practiced by {sanitizeUserContent(selectedTechnique.teacher_attribution)}
                 </p>
               )}
-              <DialogDescription className="flex flex-wrap items-center gap-3">
-                <span>Submitted by {getAuthorName(selectedTechnique)}</span>
-                {selectedTechnique.tradition && (
-                  <>
-                    <span>•</span>
-                    <Badge variant="secondary">{sanitizeUserContent(selectedTechnique.tradition)}</Badge>
-                  </>
-                )}
-                {selectedTechnique.tags && selectedTechnique.tags.find(tag => tag.includes('min')) && (
-                  <>
-                    <span>•</span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {selectedTechnique.tags.find(tag => tag.includes('min'))}
-                    </span>
-                  </>
-                )}
-              </DialogDescription>
+              
+              {/* Metadata line */}
+              <p className="text-sm text-muted-foreground">
+                {sanitizeUserContent(selectedTechnique.tradition)} • Submitted by @{getSubmitterHandle(selectedTechnique)}
+              </p>
             </DialogHeader>
 
-            <ScrollArea className="max-h-[50vh]">
+            <ScrollArea className="flex-1 overflow-y-auto">
               <div className="space-y-4 pr-4">
-                {selectedTechnique.origin_story && (
-                  <div>
-                    <h4 className="font-semibold mb-2">About This Practice</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {sanitizeUserContent(selectedTechnique.origin_story)}
-                    </p>
-                  </div>
-                )}
-
+                {/* Description section - always visible */}
                 <div>
-                  <h4 className="font-semibold mb-2">Instructions</h4>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Description</p>
+                  <p className="text-sm whitespace-pre-wrap">
+                    {sanitizeUserContent(selectedTechnique.origin_story) || "No description provided."}
+                  </p>
+                  
+                  {/* Duration from tags */}
+                  {extractDurationFromTags(selectedTechnique.tags) && (
+                    <p className="text-sm text-muted-foreground italic mt-3">
+                      Suggested duration: {extractDurationFromTags(selectedTechnique.tags)}
+                    </p>
+                  )}
+                </div>
+
+                {/* Divider after description */}
+                <div className="border-t my-6" />
+
+                {/* Instructions - collapsible, default open */}
+                <CollapsibleSection title="Instructions" defaultOpen={true}>
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                     {sanitizeUserContent(selectedTechnique.instructions)}
                   </p>
-                </div>
+                </CollapsibleSection>
 
-                {selectedTechnique.tips && (
-                  <div>
-                    <h4 className="font-semibold mb-2">💡 Tips for Practice</h4>
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                      {sanitizeUserContent(selectedTechnique.tips)}
-                    </p>
-                  </div>
+                {/* Tips for Practice - conditional */}
+                {selectedTechnique.tips && selectedTechnique.tips.trim() && (
+                  <>
+                    <div className="border-t my-4" />
+                    <CollapsibleSection title="Tips for Practice" defaultOpen={false}>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                        {sanitizeUserContent(selectedTechnique.tips)}
+                      </p>
+                    </CollapsibleSection>
+                  </>
                 )}
 
-                {selectedTechnique.worldview_context && (
-                  <div>
-                    <h4 className="font-semibold mb-2">Cultural Context</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {sanitizeUserContent(selectedTechnique.worldview_context)}
-                    </p>
-                  </div>
+                {/* Relevant Texts or Sources - conditional */}
+                {(selectedTechnique.lineage_info || selectedTechnique.relevant_link) && (
+                  <>
+                    <div className="border-t my-4" />
+                    <CollapsibleSection title="Relevant Texts or Sources" defaultOpen={false}>
+                      <div className="space-y-4">
+                        {selectedTechnique.lineage_info && (
+                          <div>
+                            <p className="text-sm font-medium mb-1">Books:</p>
+                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                              {sanitizeUserContent(selectedTechnique.lineage_info)}
+                            </p>
+                          </div>
+                        )}
+                        {selectedTechnique.relevant_link && (
+                          <div>
+                            <p className="text-sm font-medium mb-1">Online Resources:</p>
+                            <a
+                              href={selectedTechnique.relevant_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-primary hover:underline inline-flex items-center gap-1 break-all"
+                            >
+                              {sanitizeUserContent(selectedTechnique.relevant_link)}
+                              <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </CollapsibleSection>
+                  </>
                 )}
 
-                {selectedTechnique.lineage_info && (
-                  <div>
-                    <h4 className="font-semibold mb-2">Source</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {sanitizeUserContent(selectedTechnique.lineage_info)}
-                    </p>
-                  </div>
-                )}
-
-                {selectedTechnique.relevant_link && (
-                  <div>
-                    <h4 className="font-semibold mb-2 flex items-center gap-2">
-                      <ExternalLink className="w-4 h-4" />
-                      Relevant Link
-                    </h4>
-                    <a
-                      href={selectedTechnique.relevant_link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-primary hover:underline break-all"
-                    >
-                      {sanitizeUserContent(selectedTechnique.relevant_link)}
-                    </a>
-                  </div>
-                )}
-
-                {selectedTechnique.relevant_texts && selectedTechnique.relevant_texts.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold mb-2">Relevant Texts</h4>
-                    <ul className="list-disc list-inside text-sm text-muted-foreground">
-                      {sanitizeUserContentArray(selectedTechnique.relevant_texts).map((text, idx) => (
-                        <li key={idx}>{text}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {selectedTechnique.external_links && selectedTechnique.external_links.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold mb-2">External Links</h4>
-                    <ul className="space-y-1">
-                      {sanitizeUserContentArray(selectedTechnique.external_links).map((link, idx) => (
-                        <li key={idx}>
-                          <a
-                            href={link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-primary hover:underline"
-                          >
-                            {link}
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                {/* Submitter's Relationship to the Practice - conditional */}
+                {selectedTechnique.worldview_context && selectedTechnique.worldview_context.trim() && (
+                  <>
+                    <div className="border-t my-4" />
+                    <CollapsibleSection title="Submitter's Relationship to the Practice" defaultOpen={false}>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                        {sanitizeUserContent(selectedTechnique.worldview_context)}
+                      </p>
+                    </CollapsibleSection>
+                  </>
                 )}
               </div>
             </ScrollArea>
 
+            {/* Footer actions */}
             <div className="space-y-3 pt-4 border-t">
               <div className="flex gap-2">
                 <Button
@@ -427,7 +448,7 @@ export function GlobalLibraryTab() {
                   variant="default"
                 >
                   <Bookmark className="h-4 w-4 mr-2" />
-                  Save to Library
+                  Save to My Library
                 </Button>
                 <Button
                   onClick={() => copyToPersonalLibrary(selectedTechnique)}
@@ -436,11 +457,11 @@ export function GlobalLibraryTab() {
                   variant="outline"
                 >
                   <Copy className="h-4 w-4 mr-2" />
-                  Duplicate
+                  Create Copy
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground text-center">
-                <strong>Save</strong> keeps attribution (read-only) • <strong>Duplicate</strong> creates an editable copy
+                <strong>Save</strong> keeps attribution (read-only) • <strong>Create Copy</strong> makes an editable version
               </p>
               {isAdmin && (
                 <Button
