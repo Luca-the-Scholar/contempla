@@ -22,16 +22,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Star, Trash2, Upload, Pencil, Copy, X, GripVertical } from "lucide-react";
+import { Plus, Star, Trash2, Upload, Pencil, Copy, X, GripVertical, Globe, Eye } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { GlobalLibraryTab } from "@/components/library/GlobalLibraryTab";
 import { UploadTechniqueDialog } from "@/components/library/UploadTechniqueDialog";
 import { trackEvent } from "@/hooks/use-analytics";
+import { formatTechniqueName, isGlobalLibraryTechnique } from "@/lib/technique-utils";
 
 interface Technique {
   id: string;
   name: string;
+  teacher_attribution?: string | null;
   description?: string | null;
   instructions: string | null;
   tips?: string | null;
@@ -78,7 +81,7 @@ export function LibraryView() {
     try {
       const { data: techniquesData, error: techError } = await supabase
         .from("techniques")
-        .select("id, name, description, instructions, tips, tradition, is_favorite, source_global_technique_id, original_author_name, tags")
+        .select("id, name, teacher_attribution, description, instructions, tips, tradition, is_favorite, source_global_technique_id, original_author_name, tags")
         .order("name", { ascending: true });
 
       if (techError) throw techError;
@@ -363,9 +366,14 @@ export function LibraryView() {
       const { error } = await supabase.from("techniques").insert({
         user_id: user.id,
         name: `${technique.name} (Copy)`,
+        teacher_attribution: technique.teacher_attribution,
         description: technique.description,
         instructions: technique.instructions,
+        tips: technique.tips,
         tradition: technique.tradition,
+        tags: technique.tags,
+        // IMPORTANT: Remove source reference to make it editable
+        source_global_technique_id: null,
       });
 
       if (error) throw error;
@@ -447,14 +455,22 @@ export function LibraryView() {
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <h3 className="font-semibold text-foreground truncate">{technique.name}</h3>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="font-semibold text-foreground">
+                                  {formatTechniqueName(technique)}
+                                </h3>
                                 {technique.is_favorite && (
                                   <Star className="h-4 w-4 fill-accent text-accent shrink-0" />
                                 )}
+                                {isGlobalLibraryTechnique(technique) && (
+                                  <Badge variant="outline" className="text-xs shrink-0">
+                                    <Globe className="h-3 w-3 mr-1" />
+                                    From Global Library
+                                  </Badge>
+                                )}
                               </div>
                               {technique.original_author_name && (
-                                <p className="text-xs text-accent mt-0.5">by {technique.original_author_name}</p>
+                                <p className="text-xs text-accent mt-0.5">Submitted by {technique.original_author_name}</p>
                               )}
                               {(technique.description || technique.instructions) && (
                                 <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
@@ -682,10 +698,16 @@ export function LibraryView() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {isEditing ? "Edit Technique" : detailTechnique?.name}
+              {isEditing ? "Edit Technique" : detailTechnique && formatTechniqueName(detailTechnique)}
             </DialogTitle>
             {!isEditing && detailTechnique?.original_author_name && (
-              <DialogDescription>by {detailTechnique.original_author_name}</DialogDescription>
+              <DialogDescription>Submitted by {detailTechnique.original_author_name}</DialogDescription>
+            )}
+            {!isEditing && detailTechnique && isGlobalLibraryTechnique(detailTechnique) && (
+              <Badge variant="outline" className="w-fit mt-2">
+                <Globe className="h-3 w-3 mr-1" />
+                From Global Library
+              </Badge>
             )}
           </DialogHeader>
 
@@ -849,33 +871,43 @@ export function LibraryView() {
                 </div>
               )}
 
-              {/* Source info */}
-              {detailTechnique?.source_global_technique_id && (
-                <div className="text-xs text-muted-foreground italic">
-                  Saved from Global Library
-                </div>
-              )}
-
               <div className="flex gap-2 pt-4 border-t">
-                <Button
-                  variant="outline"
-                  onClick={() => openEditMode(detailTechnique!)}
-                  className="flex-1"
-                >
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    handleDuplicateTechnique(detailTechnique!);
-                    setDetailTechnique(null);
-                  }}
-                  className="flex-1"
-                >
-                  <Copy className="h-4 w-4 mr-2" />
-                  Duplicate
-                </Button>
+                {detailTechnique && isGlobalLibraryTechnique(detailTechnique) ? (
+                  // Read-only Global Library technique - show "Duplicate to Edit" as primary action
+                  <Button
+                    onClick={() => {
+                      handleDuplicateTechnique(detailTechnique);
+                      setDetailTechnique(null);
+                    }}
+                    className="w-full"
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Duplicate to Edit
+                  </Button>
+                ) : (
+                  // Editable technique - show Edit and Duplicate
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => openEditMode(detailTechnique!)}
+                      className="flex-1"
+                    >
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        handleDuplicateTechnique(detailTechnique!);
+                        setDetailTechnique(null);
+                      }}
+                      className="flex-1"
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      Duplicate
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           )}

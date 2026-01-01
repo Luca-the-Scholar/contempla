@@ -200,6 +200,7 @@ export function GlobalLibraryTab() {
         .insert({
           user_id: user.id,
           name: technique.name,
+          teacher_attribution: technique.teacher_attribution,
           instructions: technique.instructions,
           tips: technique.tips,
           tradition: technique.tradition,

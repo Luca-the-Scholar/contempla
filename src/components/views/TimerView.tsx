@@ -17,9 +17,12 @@ import { shareSession, canShare } from "@/lib/native-share";
 import { scheduleTimerNotification, cancelTimerNotification } from "@/lib/notifications";
 import { formatDateForStorage } from "@/lib/date-utils";
 import { startSpotifyPlayback, stopSpotifyPlayback } from "@/hooks/use-spotify";
+import { formatTechniqueName } from "@/lib/technique-utils";
+
 interface Technique {
   id: string;
   name: string;
+  teacher_attribution?: string | null;
   instructions: string;
   tradition: string;
   original_author_name?: string | null;
@@ -115,7 +118,7 @@ export function TimerView() {
       const {
         data: techniquesData,
         error: techError
-      } = await supabase.from("techniques").select("id, name, instructions, tradition, original_author_name");
+      } = await supabase.from("techniques").select("id, name, teacher_attribution, instructions, tradition, original_author_name");
       if (techError) throw techError;
 
       // Get the most recent session for each technique to determine sort order
@@ -469,8 +472,8 @@ export function TimerView() {
 
             <Card className="p-6">
               <p className="text-sm text-muted-foreground mb-1">Technique</p>
-              <p className="font-semibold text-lg">{selectedTechnique?.name}</p>
-              {selectedTechnique?.original_author_name && <p className="text-sm text-primary">by {selectedTechnique.original_author_name}</p>}
+              <p className="font-semibold text-lg">{selectedTechnique && formatTechniqueName(selectedTechnique)}</p>
+              {selectedTechnique?.original_author_name && <p className="text-sm text-muted-foreground mt-1">Submitted by {selectedTechnique.original_author_name}</p>}
             </Card>
 
             <Button onClick={handleReset} size="lg" className="w-full">
@@ -514,8 +517,8 @@ export function TimerView() {
             </Alert>}
 
           <div className="text-center space-y-2">
-            <p className="text-sm text-muted-foreground">{selectedTechnique?.name}</p>
-            {selectedTechnique?.original_author_name && <p className="text-xs text-accent">by {selectedTechnique.original_author_name}</p>}
+            <p className="text-sm text-muted-foreground">{selectedTechnique && formatTechniqueName(selectedTechnique)}</p>
+            {selectedTechnique?.original_author_name && <p className="text-xs text-muted-foreground">Submitted by {selectedTechnique.original_author_name}</p>}
           </div>
 
           <div className="relative">
@@ -606,12 +609,7 @@ export function TimerView() {
               </SelectTrigger>
               <SelectContent>
                 {techniques.map(technique => <SelectItem key={technique.id} value={technique.id}>
-                    <div>
-                      <span>{technique.name}</span>
-                      {technique.original_author_name && <span className="text-xs text-muted-foreground ml-2">
-                          by {technique.original_author_name}
-                        </span>}
-                    </div>
+                    {formatTechniqueName(technique)}
                   </SelectItem>)}
               </SelectContent>
             </Select>
@@ -685,8 +683,8 @@ export function TimerView() {
       <Dialog open={instructionsModalOpen} onOpenChange={setInstructionsModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{selectedTechnique?.name}</DialogTitle>
-            {selectedTechnique?.original_author_name && <DialogDescription>by {selectedTechnique.original_author_name}</DialogDescription>}
+            <DialogTitle>{selectedTechnique && formatTechniqueName(selectedTechnique)}</DialogTitle>
+            {selectedTechnique?.original_author_name && <DialogDescription>Submitted by {selectedTechnique.original_author_name}</DialogDescription>}
           </DialogHeader>
           <div className="prose prose-sm dark:prose-invert max-w-none">
             <p className="whitespace-pre-wrap">{selectedTechnique?.instructions}</p>
