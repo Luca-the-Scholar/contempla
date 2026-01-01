@@ -598,6 +598,7 @@ export type Database = {
           original_author_name: string | null
           source_global_technique_id: string | null
           tags: string[] | null
+          teacher_attribution: string | null
           tips: string | null
           tradition: string | null
           updated_at: string | null
@@ -613,6 +614,7 @@ export type Database = {
           original_author_name?: string | null
           source_global_technique_id?: string | null
           tags?: string[] | null
+          teacher_attribution?: string | null
           tips?: string | null
           tradition?: string | null
           updated_at?: string | null
@@ -628,6 +630,7 @@ export type Database = {
           original_author_name?: string | null
           source_global_technique_id?: string | null
           tags?: string[] | null
+          teacher_attribution?: string | null
           tips?: string | null
           tradition?: string | null
           updated_at?: string | null
