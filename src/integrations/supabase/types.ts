@@ -594,8 +594,10 @@ export type Database = {
           id: string
           instructions: string | null
           is_favorite: boolean | null
+          lineage_info: string | null
           name: string
           original_author_name: string | null
+          relevant_link: string | null
           source_global_technique_id: string | null
           tags: string[] | null
           teacher_attribution: string | null
@@ -610,8 +612,10 @@ export type Database = {
           id?: string
           instructions?: string | null
           is_favorite?: boolean | null
+          lineage_info?: string | null
           name: string
           original_author_name?: string | null
+          relevant_link?: string | null
           source_global_technique_id?: string | null
           tags?: string[] | null
           teacher_attribution?: string | null
@@ -626,8 +630,10 @@ export type Database = {
           id?: string
           instructions?: string | null
           is_favorite?: boolean | null
+          lineage_info?: string | null
           name?: string
           original_author_name?: string | null
+          relevant_link?: string | null
           source_global_technique_id?: string | null
           tags?: string[] | null
           teacher_attribution?: string | null
