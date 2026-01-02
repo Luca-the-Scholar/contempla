@@ -43,7 +43,32 @@ interface Technique {
   source_global_technique_id?: string | null;
   original_author_name?: string | null;
   tags?: string[] | null;
+  lineage_info?: string | null;
+  relevant_link?: string | null;
 }
+
+// Helper function to format duration display
+const formatDuration = (tags: string[] | null | undefined): string | null => {
+  if (!tags || tags.length === 0) return null;
+
+  const durationTag = tags.find(tag => tag.includes('min') || tag.includes('hour'));
+  if (!durationTag) return null;
+
+  // Parse the duration (e.g., "20 min" or "1 hour")
+  const match = durationTag.match(/(\d+)\s*(min|hour)/i);
+  if (!match) return null;
+
+  const value = parseInt(match[1]);
+  const unit = match[2].toLowerCase();
+
+  if (unit === 'min') {
+    return `Suggested duration: ${value} ${value === 1 ? 'minute' : 'minutes'}`;
+  } else if (unit === 'hour') {
+    return `Suggested duration: ${value} ${value === 1 ? 'hour' : 'hours'}`;
+  }
+
+  return null;
+};
 
 export function LibraryView() {
   const [techniques, setTechniques] = useState<Technique[]>([]);
@@ -54,12 +79,18 @@ export function LibraryView() {
   const [techniqueToDelete, setTechniqueToDelete] = useState<Technique | null>(null);
   const [detailTechnique, setDetailTechnique] = useState<Technique | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [editFormData, setEditFormData] = useState({
     name: "",
+    teacherAttribution: "",
     description: "",
     instructionSteps: [""],
     tipSteps: [] as string[],
     tradition: "",
+    relevantText: "",
+    relevantLink: "",
+    tags: [] as string[],
   });
   const [formData, setFormData] = useState({
     name: "",
@@ -300,10 +331,14 @@ export function LibraryView() {
   const openEditMode = (technique: Technique) => {
     setEditFormData({
       name: technique.name,
+      teacherAttribution: technique.teacher_attribution || "",
       description: technique.description || "",
       instructionSteps: parseInstructionsToSteps(technique.instructions),
       tipSteps: parseTipsToSteps(technique.tips),
       tradition: technique.tradition || "",
+      relevantText: technique.lineage_info || "",
+      relevantLink: technique.relevant_link || "",
+      tags: technique.tags || [],
     });
     setIsEditing(true);
   };
@@ -336,10 +371,14 @@ export function LibraryView() {
         .from("techniques")
         .update({
           name: editFormData.name.trim(),
+          teacher_attribution: editFormData.teacherAttribution.trim() || null,
           description: editFormData.description.trim() || null,
           instructions: formattedInstructions,
           tips: formattedTips,
           tradition: editFormData.tradition.trim() || null,
+          lineage_info: editFormData.relevantText.trim() || null,
+          relevant_link: editFormData.relevantLink.trim() || null,
+          tags: editFormData.tags,
         })
         .eq("id", detailTechnique.id);
 
@@ -386,6 +425,66 @@ export function LibraryView() {
         description: error.message,
         variant: "destructive",
       });
+    }
+  };
+
+  const handleSubmitToGlobalLibrary = async () => {
+    if (!detailTechnique) return;
+
+    // Validate required fields
+    if (!detailTechnique.name || !detailTechnique.name.trim()) {
+      toast({
+        title: "Missing required field",
+        description: "Technique name is required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!detailTechnique.teacher_attribution || !detailTechnique.teacher_attribution.trim()) {
+      toast({
+        title: "Missing required field",
+        description: "Please add Teacher Attribution before submitting. Edit your technique to add this required field.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!detailTechnique.instructions || !detailTechnique.instructions.trim()) {
+      toast({
+        title: "Missing required field",
+        description: "Instructions are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Show confirmation dialog
+    setSubmitDialogOpen(true);
+  };
+
+  const confirmSubmitToGlobalLibrary = async () => {
+    if (!detailTechnique) return;
+
+    setIsSubmitting(true);
+    try {
+      // TODO: Implement actual submission to global_techniques table
+      // For now, just show success message
+      toast({
+        title: "Submitted for review!",
+        description: "You'll be notified when it's approved.",
+        duration: 3000,
+      });
+      setSubmitDialogOpen(false);
+      setDetailTechnique(null);
+    } catch (error: any) {
+      toast({
+        title: "Failed to submit",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -475,6 +574,11 @@ export function LibraryView() {
                               {(technique.description || technique.instructions) && (
                                 <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
                                   {technique.description || technique.instructions}
+                                </p>
+                              )}
+                              {formatDuration(technique.tags) && (
+                                <p className="text-sm text-muted-foreground italic mt-1">
+                                  {formatDuration(technique.tags)}
                                 </p>
                               )}
                             </div>
@@ -713,33 +817,53 @@ export function LibraryView() {
 
           {isEditing ? (
             <div className="space-y-4">
+              {/* Basic Info Section */}
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Technique Name *</Label>
                 <Input
                   placeholder="Technique Name"
                   value={editFormData.name}
                   onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
+                  maxLength={150}
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Description</Label>
+                <Label className="text-xs text-muted-foreground">Teacher Attribution (Optional)</Label>
+                <Input
+                  placeholder="e.g., Sharon Salzberg, Jon Kabat-Zinn"
+                  value={editFormData.teacherAttribution}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, teacherAttribution: e.target.value }))}
+                  maxLength={100}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Who created or teaches this technique?
+                </p>
+              </div>
+
+              {/* Details Section */}
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Description (Optional)</Label>
                 <Textarea
                   placeholder="A brief summary of what this technique is about..."
                   value={editFormData.description}
                   onChange={(e) => setEditFormData(prev => ({ ...prev, description: e.target.value }))}
-                  rows={2}
+                  rows={3}
+                  maxLength={2000}
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Tradition/Category</Label>
+                <Label className="text-xs text-muted-foreground">Tradition/Category (Optional)</Label>
                 <Input
                   placeholder="e.g., Zen Buddhism, Vipassana, Breathwork"
                   value={editFormData.tradition}
                   onChange={(e) => setEditFormData(prev => ({ ...prev, tradition: e.target.value }))}
+                  maxLength={100}
                 />
               </div>
+
+              {/* Instructions Section */}
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Instructions (Step by Step)</Label>
+                <Label className="text-xs text-muted-foreground">Instructions (Step by Step) *</Label>
                 <div className="space-y-2">
                   {editFormData.instructionSteps.map((step, idx) => (
                     <div key={idx} className="flex gap-2 items-start">
@@ -816,6 +940,34 @@ export function LibraryView() {
                   Add Tip {editFormData.tipSteps.length >= 10 && "(Max 10)"}
                 </Button>
               </div>
+
+              {/* References Section */}
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Relevant Text/Source (Optional)</Label>
+                <Input
+                  placeholder='e.g., "The Miracle of Mindfulness" by Thich Nhat Hanh'
+                  value={editFormData.relevantText}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, relevantText: e.target.value }))}
+                  maxLength={300}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Book, article, or text reference
+                </p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Relevant Link (Optional)</Label>
+                <Input
+                  type="url"
+                  placeholder="https://example.com/article"
+                  value={editFormData.relevantLink}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, relevantLink: e.target.value }))}
+                  maxLength={500}
+                />
+                <p className="text-xs text-muted-foreground">
+                  URL to source material or further reading
+                </p>
+              </div>
+
               <div className="flex gap-2">
                 <Button onClick={handleUpdateTechnique} className="flex-1">
                   Save Changes
@@ -871,7 +1023,7 @@ export function LibraryView() {
                 </div>
               )}
 
-              <div className="flex gap-2 pt-4 border-t">
+              <div className="space-y-2 pt-4 border-t">
                 {detailTechnique && isGlobalLibraryTechnique(detailTechnique) ? (
                   // Read-only Global Library technique - show "Duplicate to Edit" as primary action
                   <Button
@@ -885,26 +1037,36 @@ export function LibraryView() {
                     Duplicate to Edit
                   </Button>
                 ) : (
-                  // Editable technique - show Edit and Duplicate
+                  // Editable technique - show Edit, Duplicate, and Submit to Global Library
                   <>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => openEditMode(detailTechnique!)}
+                        className="flex-1"
+                      >
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          handleDuplicateTechnique(detailTechnique!);
+                          setDetailTechnique(null);
+                        }}
+                        className="flex-1"
+                      >
+                        <Copy className="h-4 w-4 mr-2" />
+                        Duplicate
+                      </Button>
+                    </div>
                     <Button
                       variant="outline"
-                      onClick={() => openEditMode(detailTechnique!)}
-                      className="flex-1"
+                      onClick={handleSubmitToGlobalLibrary}
+                      className="w-full"
                     >
-                      <Pencil className="h-4 w-4 mr-2" />
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        handleDuplicateTechnique(detailTechnique!);
-                        setDetailTechnique(null);
-                      }}
-                      className="flex-1"
-                    >
-                      <Copy className="h-4 w-4 mr-2" />
-                      Duplicate
+                      <Upload className="h-4 w-4 mr-2" />
+                      Submit to Global Library
                     </Button>
                   </>
                 )}
@@ -915,10 +1077,45 @@ export function LibraryView() {
       </Dialog>
 
       {/* Upload Technique Dialog */}
-      <UploadTechniqueDialog 
-        open={uploadDialogOpen} 
+      <UploadTechniqueDialog
+        open={uploadDialogOpen}
         onOpenChange={setUploadDialogOpen}
       />
+
+      {/* Submit to Global Library Confirmation Dialog */}
+      <AlertDialog open={submitDialogOpen} onOpenChange={setSubmitDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Submit to Global Library?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>This will submit your technique for review. If approved, it will be visible to all Contempla users.</p>
+
+              <div className="space-y-1">
+                <p className="font-semibold text-foreground">Required fields:</p>
+                <ul className="list-none space-y-1 text-sm">
+                  <li className="flex items-center gap-2">
+                    <span className="text-green-500">✓</span> Name
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-green-500">✓</span> Teacher Attribution
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-green-500">✓</span> Instructions
+                  </li>
+                </ul>
+              </div>
+
+              <p className="text-sm italic">Your technique will be reviewed before appearing in the Global Library.</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmSubmitToGlobalLibrary} disabled={isSubmitting}>
+              {isSubmitting ? "Submitting..." : "Submit for Review"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

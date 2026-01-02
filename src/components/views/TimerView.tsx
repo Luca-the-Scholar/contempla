@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Play, Pause, Square, Check, AlertTriangle, Volume2 } from "lucide-react";
+import { Play, Pause, Square, Check, AlertTriangle, Volume2, Music } from "lucide-react";
 import { DurationInput } from "@/components/ui/duration-input";
 import { useToast } from "@/hooks/use-toast";
 import { useNoSleep } from "@/hooks/use-nosleep";
@@ -54,6 +54,12 @@ export function TimerView() {
   const [showPartialSaveDialog, setShowPartialSaveDialog] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
+  // Spotify playback state - independent of timer state
+  // This allows users to control music separately from meditation timer
+  const [isSpotifyPlaying, setIsSpotifyPlaying] = useState(false);
+  const [currentPlaylistName, setCurrentPlaylistName] = useState<string | null>(null);
+  const [spotifyError, setSpotifyError] = useState<string | null>(null);
+
   // Timer timing state - use elapsed-time calculation for accuracy when screen locks
   const [timerStartTime, setTimerStartTime] = useState<number | null>(null);
   const [timerEndTime, setTimerEndTime] = useState<number | null>(null);
@@ -67,7 +73,7 @@ export function TimerView() {
   const hasPlayedStartSoundRef = useRef(false);
   const presetDurations = [10, 30, 45, 60];
 
-  // Load timer alert preferences from localStorage
+  // Load timer alert preferences and Spotify settings from localStorage
   useEffect(() => {
     const hapticStored = localStorage.getItem('hapticEnabled');
     if (hapticStored !== null) setHapticEnabled(hapticStored === 'true');
@@ -75,6 +81,10 @@ export function TimerView() {
     if (soundStored) setSelectedSound(soundStored as TimerSound);
     const wakeLockStored = localStorage.getItem('screenWakeLock');
     if (wakeLockStored !== null) setScreenWakeLockEnabled(wakeLockStored === 'true');
+
+    // Load Spotify playlist name from settings
+    const playlistName = localStorage.getItem('spotifyPlaylistName');
+    if (playlistName) setCurrentPlaylistName(playlistName);
   }, []);
   useEffect(() => {
     fetchTechniques();
@@ -169,6 +179,60 @@ export function TimerView() {
       });
     }
   };
+  // Music playback control handlers - independent of timer
+  const handlePlayMusic = async () => {
+    setSpotifyError(null);
+    try {
+      const result = await startSpotifyPlayback();
+
+      if (result.success) {
+        setIsSpotifyPlaying(true);
+        console.log('[Spotify] Playback started successfully');
+
+        // If Spotify app was opened, show toast to guide user back
+        if (result.spotifyAppOpened) {
+          toast({
+            title: "Music started!",
+            description: "Swipe back to Contempla",
+            duration: 3000,
+          });
+        }
+      } else {
+        setIsSpotifyPlaying(false);
+
+        // Handle specific error codes
+        if (result.code === 'NO_ACTIVE_DEVICE') {
+          setSpotifyError("Make sure Spotify is installed and running on your device");
+        } else if (result.code === 'PREMIUM_REQUIRED') {
+          setSpotifyError("Spotify Premium is required for music playback");
+        } else if (result.code === 'TOKEN_EXPIRED') {
+          setSpotifyError("Please reconnect your Spotify account in Settings");
+        } else if (result.code === 'RATE_LIMITED') {
+          setSpotifyError("Spotify API limit reached. Please wait a moment");
+        } else {
+          setSpotifyError("Failed to start music. Please try again");
+        }
+      }
+    } catch (error: any) {
+      setIsSpotifyPlaying(false);
+      setSpotifyError(error.message || "Failed to start music");
+    }
+  };
+
+  const handlePauseMusic = async () => {
+    try {
+      const result = await stopSpotifyPlayback();
+      if (result.success) {
+        setIsSpotifyPlaying(false);
+        console.log('[Spotify] Playback paused');
+      } else {
+        setSpotifyError("Failed to pause music. Please try again");
+      }
+    } catch (error: any) {
+      setSpotifyError(error.message || "Failed to pause music");
+    }
+  };
+
   const handleStart = async () => {
     if (!selectedTechniqueId) {
       toast({
@@ -224,71 +288,10 @@ export function TimerView() {
       setNotificationId(notifId);
     }
 
-    // CRITICAL: Delay Spotify playback to avoid audio conflict with timer start sound
-    // Timer sound lasts up to 10 seconds, so we delay Spotify by 11 seconds to be safe
-    // This prevents iOS from silencing Spotify music when timer sound plays
-    setTimeout(() => {
-      // Try to start Spotify playback if configured (don't await - fire and forget)
-      startSpotifyPlayback().then(result => {
-        if (result.success) {
-          // Success - music started
-          console.log('[Spotify] Playback started successfully');
-
-          // If Spotify app was opened, show toast to guide user back
-          if (result.spotifyAppOpened) {
-            toast({
-              title: "Music started!",
-              description: "Swipe back to Contempla to continue your meditation",
-              duration: 4000
-            });
-          }
-          return;
-        }
-
-        // Show user-friendly error messages based on error code
-        if (result.code === 'NO_ACTIVE_DEVICE') {
-          toast({
-            title: "Spotify couldn't start",
-            description: "Make sure Spotify is installed on your device. Your meditation will start without music.",
-            variant: "default",
-            duration: 6000
-          });
-          return;
-        }
-        if (result.code === 'PREMIUM_REQUIRED') {
-          toast({
-            title: "Spotify Premium required",
-            description: "Remote playback control requires Spotify Premium. Meditation will start without music.",
-            variant: "default",
-            duration: 6000
-          });
-          return;
-        }
-        if (result.code === 'TOKEN_EXPIRED') {
-          toast({
-            title: "Spotify connection expired",
-            description: "Please reconnect your Spotify account in Settings to enable music during meditation.",
-            variant: "destructive",
-            duration: 6000
-          });
-          return;
-        }
-        if (result.code === 'RATE_LIMITED') {
-          toast({
-            title: "Spotify API limit reached",
-            description: "Please wait a moment before starting another meditation session.",
-            variant: "default",
-            duration: 5000
-          });
-          return;
-        }
-
-        // Generic error - log but don't show toast (meditation still starts)
-        if (result.error) {
-          console.log('Spotify playback not started:', result.error, result.code);
-        }
-      });
-    }, 11000); // 11 seconds delay to allow timer start sound to finish
+    // Music playback is now controlled independently via Play Music button
+    // Start sound plays regardless of music state
+    // If music is already playing, start sound overlays it (both audible simultaneously)
+    // This provides better user control and eliminates race conditions
 
     setInitialDuration(duration);
     setSecondsLeft(duration * 60);
@@ -355,12 +358,10 @@ export function TimerView() {
       setNotificationId(null);
     }
 
-    // Stop Spotify playback if it was started
-    stopSpotifyPlayback().then(result => {
-      if (result.success) {
-        console.log('Spotify playback stopped');
-      }
-    });
+    // Music playback continues independently - user controls when to stop
+    // Completion sound plays over music if music is still playing
+    // This gives users flexibility to continue listening or stop manually
+
     try {
       await logSession(initialDuration);
     } finally {
@@ -607,9 +608,11 @@ export function TimerView() {
               <SelectTrigger>
                 <SelectValue placeholder="Choose a technique" />
               </SelectTrigger>
-              <SelectContent>
-                {techniques.map(technique => <SelectItem key={technique.id} value={technique.id}>
-                    {formatTechniqueName(technique)}
+              <SelectContent className="max-w-[calc(100vw-2rem)]">
+                {techniques.map(technique => <SelectItem key={technique.id} value={technique.id} className="py-3">
+                    <div className="line-clamp-2 whitespace-normal leading-snug">
+                      {formatTechniqueName(technique)}
+                    </div>
                   </SelectItem>)}
               </SelectContent>
             </Select>
@@ -620,6 +623,61 @@ export function TimerView() {
                 </p>
                 <p className="text-xs text-primary mt-2">Tap to view full instructions</p>
               </div>}
+          </div>
+
+          {/* Music Playback Control */}
+          <div>
+            <h2 className="text-sm font-medium text-muted-foreground mb-3">
+              Background Music (Optional)
+            </h2>
+
+            {/* Error Alert */}
+            {spotifyError && (
+              <Alert variant="destructive" className="mb-3">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription className="text-sm">
+                  {spotifyError}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <div className="flex gap-2 items-center">
+              {/* Play Music Button */}
+              <Button
+                variant={isSpotifyPlaying ? "default" : "outline"}
+                onClick={isSpotifyPlaying ? handlePauseMusic : handlePlayMusic}
+                className={`flex-1 ${isSpotifyPlaying ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                disabled={!currentPlaylistName}
+              >
+                <Music className={`w-4 h-4 mr-2 ${isSpotifyPlaying ? 'animate-pulse' : ''}`} />
+                {isSpotifyPlaying ? 'Music Playing ✓' : currentPlaylistName ? 'Play Music' : 'No Playlist Selected'}
+              </Button>
+
+              {/* Pause Button - shows when music is playing */}
+              {isSpotifyPlaying && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handlePauseMusic}
+                >
+                  <Pause className="w-5 h-5" />
+                </Button>
+              )}
+            </div>
+
+            {/* Playlist Name Display */}
+            {currentPlaylistName && (
+              <p className="text-xs text-muted-foreground mt-2 text-center">
+                Playlist: {currentPlaylistName}
+              </p>
+            )}
+
+            {/* Help Text */}
+            {!currentPlaylistName && (
+              <p className="text-xs text-muted-foreground mt-2 text-center italic">
+                Configure Spotify in Settings to enable music
+              </p>
+            )}
           </div>
 
           {/* Duration Selection */}
