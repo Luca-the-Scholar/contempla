@@ -70,8 +70,6 @@ export function TimerView() {
   const hasCompletedRef = useRef(false);
   // Guard to prevent multiple start sound plays
   const hasPlayedStartSoundRef = useRef(false);
-  // Track if Spotify was paused for meditation sound playback
-  const spotifyWasPausedForSound = useRef(false);
   const presetDurations = [10, 30, 45, 60];
 
   // Load timer alert preferences and Spotify settings from localStorage
@@ -295,48 +293,6 @@ export function TimerView() {
     }
   };
 
-  /**
-   * Resume Spotify music in the background after a meditation sound plays.
-   * Unlike handlePlayMusic, this function:
-   * - Never opens the Spotify app (no app switching)
-   * - Fails silently if the device is inactive
-   * - Used only in onAfterPlay callbacks for bell sounds
-   */
-  const handleResumeMusic = async () => {
-    console.log('[handleResumeMusic] Attempting background resume');
-
-    try {
-      // Pass skipDeviceActivation: true to prevent opening Spotify app
-      const result = await startSpotifyPlayback({ skipDeviceActivation: true });
-
-      if (result.success) {
-        console.log('[handleResumeMusic] Background resume successful');
-        setIsSpotifyPlaying(true);
-      } else {
-        // Resume failed - show subtle notification so user knows music stopped
-        console.log('[handleResumeMusic] Background resume failed:', result.code);
-        setIsSpotifyPlaying(false);
-        
-        // Show a brief, non-intrusive toast to inform user
-        toast({
-          title: "Music paused",
-          description: "Tap the music icon to restart",
-          duration: 3000,  // Auto-dismiss after 3 seconds
-        });
-      }
-    } catch (error) {
-      // Exception occurred - notify user
-      console.error('[handleResumeMusic] Exception:', error);
-      setIsSpotifyPlaying(false);
-      
-      toast({
-        title: "Music paused",
-        description: "Tap the music icon to restart",
-        duration: 3000,
-      });
-    }
-  };
-
   const handleStart = async () => {
     if (!selectedTechniqueId) {
       toast({
@@ -372,47 +328,16 @@ export function TimerView() {
     const isStartSoundEnabled = startSoundStored === null ? true : startSoundStored === 'true';
 
     // Play start sound exactly once if enabled
+    // Native audio (iOS) uses focus: false to mix with Spotify - no pause/resume needed
     if (isStartSoundEnabled && !hasPlayedStartSoundRef.current) {
       hasPlayedStartSoundRef.current = true;
       
-      // Capture Spotify state RIGHT NOW, before any async operations
-      // This is critical because isSpotifyPlaying may change by the time callbacks run
-      const shouldResumeAfterStartSound = isSpotifyPlaying;
-      console.log('[DEBUG] Captured Spotify state before start sound:', shouldResumeAfterStartSound);
-      
       playSound(selectedSound, {
         onBeforePlay: async () => {
-          console.log('[DEBUG] Start sound - onBeforePlay called');
-          
-          if (shouldResumeAfterStartSound) {
-            console.log('[DEBUG] Pausing Spotify for start sound (captured state was playing)');
-            try {
-              await handlePauseMusic();
-              console.log('[DEBUG] Spotify paused successfully');
-              spotifyWasPausedForSound.current = true;
-            } catch (error) {
-              console.error('[DEBUG] Failed to pause Spotify:', error);
-              spotifyWasPausedForSound.current = false;
-            }
-          } else {
-            console.log('[DEBUG] Music was not playing when timer started - will not resume');
-            spotifyWasPausedForSound.current = false;
-          }
+          console.log('[DEBUG] Start sound - playing (native audio mixes with background music)');
         },
         onAfterPlay: async () => {
-          console.log('[DEBUG] Start sound - onAfterPlay called');
-          console.log('[DEBUG] spotifyWasPausedForSound.current:', spotifyWasPausedForSound.current);
-          
-          if (spotifyWasPausedForSound.current) {
-            console.log('[DEBUG] Resuming Spotify after start sound (background, no app switch)');
-            // Wait 400ms for bell sound to fully finish and audio session to settle
-            await new Promise(resolve => setTimeout(resolve, 400));
-            // Use handleResumeMusic for background resume - never switches to Spotify app
-            await handleResumeMusic();
-            spotifyWasPausedForSound.current = false;
-          } else {
-            console.log('[DEBUG] Not resuming - music was not playing when timer started');
-          }
+          console.log('[DEBUG] Start sound - finished');
         }
       });
     }
@@ -488,45 +413,14 @@ export function TimerView() {
     setTimerStartTime(null);
     setTimerEndTime(null);
 
-    // Play completion sound with Spotify pause/resume
-    // Capture Spotify state RIGHT NOW, before any async operations
-    // This is critical because isSpotifyPlaying may change by the time callbacks run
-    const shouldResumeAfterCompletionSound = isSpotifyPlaying;
-    console.log('[DEBUG] Captured Spotify state before completion sound:', shouldResumeAfterCompletionSound);
-    
+    // Play completion sound
+    // Native audio (iOS) uses focus: false to mix with Spotify - no pause/resume needed
     playSound(selectedSound, {
       onBeforePlay: async () => {
-        console.log('[DEBUG] Completion sound - onBeforePlay called');
-        
-        if (shouldResumeAfterCompletionSound) {
-          console.log('[DEBUG] Pausing Spotify for completion sound (captured state was playing)');
-          try {
-            await handlePauseMusic();
-            console.log('[DEBUG] Spotify paused successfully');
-            spotifyWasPausedForSound.current = true;
-          } catch (error) {
-            console.error('[DEBUG] Failed to pause Spotify:', error);
-            spotifyWasPausedForSound.current = false;
-          }
-        } else {
-          console.log('[DEBUG] Music was not playing when timer completed - will not resume');
-          spotifyWasPausedForSound.current = false;
-        }
+        console.log('[DEBUG] Completion sound - playing (native audio mixes with background music)');
       },
       onAfterPlay: async () => {
-        console.log('[DEBUG] Completion sound - onAfterPlay called');
-        console.log('[DEBUG] spotifyWasPausedForSound.current:', spotifyWasPausedForSound.current);
-        
-        if (spotifyWasPausedForSound.current) {
-          console.log('[DEBUG] Resuming Spotify after completion sound (background, no app switch)');
-          // Wait 400ms for bell sound to fully finish and audio session to settle
-          await new Promise(resolve => setTimeout(resolve, 400));
-          // Use handleResumeMusic for background resume - never switches to Spotify app
-          await handleResumeMusic();
-          spotifyWasPausedForSound.current = false;
-        } else {
-          console.log('[DEBUG] Not resuming - music was not playing when timer completed');
-        }
+        console.log('[DEBUG] Completion sound - finished');
       }
     });
 
