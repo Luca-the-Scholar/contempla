@@ -70,6 +70,8 @@ export function TimerView() {
   const hasCompletedRef = useRef(false);
   // Guard to prevent multiple start sound plays
   const hasPlayedStartSoundRef = useRef(false);
+  // Track if Spotify was playing when timer started (for resume button on completion)
+  const spotifyWasPlayingRef = useRef(false);
   const presetDurations = [10, 30, 45, 60];
 
   // Load timer alert preferences and Spotify settings from localStorage
@@ -293,6 +295,45 @@ export function TimerView() {
     }
   };
 
+  // Resume music after meditation completes (Spotify device may have become inactive)
+  const handleResumeMusic = async () => {
+    console.log('[handleResumeMusic] Called');
+    
+    try {
+      // Use regular startSpotifyPlayback - allows device activation if needed
+      const result = await startSpotifyPlayback();
+      
+      if (result.success) {
+        console.log('[handleResumeMusic] Success - music resumed');
+        setIsSpotifyPlaying(true);
+        toast({
+          title: "Music resumed",
+          duration: 2000,
+        });
+      } else if (result.code === 'NO_ACTIVE_DEVICE' && result.spotifyAppOpened) {
+        // Spotify app was opened to activate device
+        console.log('[handleResumeMusic] Device activated via Spotify app');
+        setIsSpotifyPlaying(true);
+      } else {
+        console.log('[handleResumeMusic] Failed:', result.code, result.error);
+        toast({
+          title: "Could not resume music",
+          description: "Try opening Spotify manually",
+          variant: "destructive",
+          duration: 3000,
+        });
+      }
+    } catch (error: any) {
+      console.error('[handleResumeMusic] Exception:', error);
+      toast({
+        title: "Could not resume music",
+        description: error.message || "Try opening Spotify manually",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  };
+
   const handleStart = async () => {
     if (!selectedTechniqueId) {
       toast({
@@ -331,19 +372,12 @@ export function TimerView() {
     if (isStartSoundEnabled && !hasPlayedStartSoundRef.current) {
       hasPlayedStartSoundRef.current = true;
       
-      // Play timer sound - with AppDelegate's .playback + .mixWithOthers config,
-      // Spotify should continue playing. Do NOT try to resume Spotify after -
-      // that causes app switching when device reactivation is needed.
-      playSound(selectedSound, {
-        onBeforePlay: async () => {
-          console.log('[DEBUG] Start sound - playing');
-        },
-        onAfterPlay: async () => {
-          console.log('[DEBUG] Start sound - finished');
-          // Note: We do NOT resume Spotify here. With proper audio mixing,
-          // Spotify continues playing. Trying to resume causes app switching.
-        }
-      });
+      // Capture Spotify state for resume button on completion screen
+      spotifyWasPlayingRef.current = isSpotifyPlaying;
+      
+      // Play the bell sound - native audio will mix with Spotify if available
+      // Note: Spotify device may become inactive after bell, so we offer manual resume on completion
+      playSound(selectedSound);
     }
 
     // Enable NoSleep
@@ -561,9 +595,23 @@ export function TimerView() {
               {selectedTechnique?.original_author_name && <p className="text-sm text-muted-foreground mt-1">Submitted by {selectedTechnique.original_author_name}</p>}
             </Card>
 
-            <Button onClick={handleReset} size="lg" className="w-full">
-              Done
-            </Button>
+            <div className="space-y-3">
+              {spotifyWasPlayingRef.current && (
+                <Button 
+                  variant="outline" 
+                  onClick={handleResumeMusic}
+                  size="lg"
+                  className="w-full"
+                >
+                  <Music className="w-4 h-4 mr-2" />
+                  Resume Music
+                </Button>
+              )}
+              
+              <Button onClick={handleReset} size="lg" className="w-full">
+                Done
+              </Button>
+            </div>
           </div>
         </div>
       </>;
