@@ -36,13 +36,14 @@ export async function configureNativeAudioForMixing(): Promise<void> {
 
   try {
     // Configure native audio with focus: false to allow mixing with other apps
-    // fade: true provides a nice transition
+    // IMPORTANT: fade must be false! The plugin's playWithFade() starts at volume 0
+    // and only increments by 0.05 per call, resulting in inaudible audio
     await NativeAudio.configure({
-      fade: true,
-      focus: false,  // This is the key! Allows mixing with Spotify
+      fade: false,  // Play at full volume immediately
+      focus: false, // Allow mixing with Spotify (uses .ambient category)
     });
     
-    console.log('[NativeAudio] Configured for mixing with other audio (focus: false)');
+    console.log('[NativeAudio] Configured for mixing with other audio (focus: false, fade: false)');
     isConfigured = true;
   } catch (error) {
     console.error('[NativeAudio] Failed to configure:', error);
@@ -108,7 +109,16 @@ export async function playNativeSound(soundId: string): Promise<boolean> {
     
     // Play the sound
     await NativeAudio.play({ assetId: soundId });
-    console.log(`[NativeAudio] Playing sound: ${soundId} (mixing with background audio)`);
+    
+    // Ensure volume is at maximum (backup in case preload didn't set it)
+    try {
+      await NativeAudio.setVolume({ assetId: soundId, volume: 1.0 });
+    } catch (volError) {
+      // Volume set may fail if asset isn't ready yet, that's ok
+      console.log(`[NativeAudio] setVolume for ${soundId}:`, volError);
+    }
+    
+    console.log(`[NativeAudio] Playing sound: ${soundId} at full volume (mixing with background audio)`);
     
     return true;
   } catch (error) {
