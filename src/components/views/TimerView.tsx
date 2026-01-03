@@ -313,14 +313,27 @@ export function TimerView() {
         console.log('[handleResumeMusic] Background resume successful');
         setIsSpotifyPlaying(true);
       } else {
-        // Fail silently - don't show toast, don't switch apps
-        // User can manually tap the music icon to restart if needed
-        console.log('[handleResumeMusic] Background resume failed (silent):', result.code);
-        // Keep isSpotifyPlaying as false - user can manually restart
+        // Resume failed - show subtle notification so user knows music stopped
+        console.log('[handleResumeMusic] Background resume failed:', result.code);
+        setIsSpotifyPlaying(false);
+        
+        // Show a brief, non-intrusive toast to inform user
+        toast({
+          title: "Music paused",
+          description: "Tap the music icon to restart",
+          duration: 3000,  // Auto-dismiss after 3 seconds
+        });
       }
     } catch (error) {
-      // Fail silently - no toast, no app switch
-      console.error('[handleResumeMusic] Exception (silent):', error);
+      // Exception occurred - notify user
+      console.error('[handleResumeMusic] Exception:', error);
+      setIsSpotifyPlaying(false);
+      
+      toast({
+        title: "Music paused",
+        description: "Tap the music icon to restart",
+        duration: 3000,
+      });
     }
   };
 
@@ -392,7 +405,8 @@ export function TimerView() {
           
           if (spotifyWasPausedForSound.current) {
             console.log('[DEBUG] Resuming Spotify after start sound (background, no app switch)');
-            await new Promise(resolve => setTimeout(resolve, 200));
+            // Wait 400ms for bell sound to fully finish and audio session to settle
+            await new Promise(resolve => setTimeout(resolve, 400));
             // Use handleResumeMusic for background resume - never switches to Spotify app
             await handleResumeMusic();
             spotifyWasPausedForSound.current = false;
@@ -505,7 +519,8 @@ export function TimerView() {
         
         if (spotifyWasPausedForSound.current) {
           console.log('[DEBUG] Resuming Spotify after completion sound (background, no app switch)');
-          await new Promise(resolve => setTimeout(resolve, 200));
+          // Wait 400ms for bell sound to fully finish and audio session to settle
+          await new Promise(resolve => setTimeout(resolve, 400));
           // Use handleResumeMusic for background resume - never switches to Spotify app
           await handleResumeMusic();
           spotifyWasPausedForSound.current = false;
