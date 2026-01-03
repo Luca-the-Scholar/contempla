@@ -88,44 +88,86 @@ export function useTimerSound() {
    * Play a sound exactly once. Guarded against multiple calls.
    * IMPORTANT: On iOS, audio must be triggered from a user gesture context.
    * @param sound The sound to play
+   * @param options Optional callbacks for before/after sound playback (for audio mixing control)
    */
-  const playSound = useCallback((sound: TimerSound) => {
+  const playSound = useCallback((sound: TimerSound, options?: {
+    onBeforePlay?: () => Promise<void>;
+    onAfterPlay?: () => Promise<void>;
+  }) => {
     if (sound === 'none') return;
-    
+
     // Guard: prevent multiple simultaneous plays
     if (isPlayingRef.current) return;
-    
+
     // Stop any previous sound and mark as playing
     stopSound();
     isPlayingRef.current = true;
 
     const audio = new Audio(SOUND_FILES[sound]);
     currentAudioRef.current = audio;
-    
+
     // Clean up when sound ends or errors
-    const cleanup = () => {
+    const cleanup = async () => {
+      console.log('[use-timer-sound] Cleanup called');
       isPlayingRef.current = false;
+
+      // Clear safety timeout
       if (currentTimeoutRef.current) {
         clearTimeout(currentTimeoutRef.current);
         currentTimeoutRef.current = null;
       }
+
       if (currentAudioRef.current === audio) {
         currentAudioRef.current = null;
       }
+
+      // Call onAfterPlay callback AFTER sound finishes
+      if (options?.onAfterPlay) {
+        try {
+          console.log('[use-timer-sound] Calling onAfterPlay');
+          await options.onAfterPlay();
+          console.log('[use-timer-sound] onAfterPlay completed');
+        } catch (error) {
+          console.error('[use-timer-sound] Error in onAfterPlay callback:', error);
+        }
+      }
     };
-    
+
     audio.addEventListener('ended', cleanup);
-    audio.addEventListener('error', cleanup);
-    
+    audio.addEventListener('error', (error) => {
+      console.error('[Audio] Sound playback error:', error);
+      cleanup();
+    });
+
     // Set up safety cutoff timer (10 seconds max)
     currentTimeoutRef.current = setTimeout(() => {
       audio.pause();
       audio.currentTime = 0;
       cleanup();
     }, MAX_DURATION_MS);
-    
-    // Start playing - use .then().catch() for iOS compatibility
-    audio.play().catch(cleanup);
+
+    // Call onBeforePlay callback BEFORE playing sound
+    const startPlayback = async () => {
+      if (options?.onBeforePlay) {
+        try {
+          console.log('[use-timer-sound] Calling onBeforePlay');
+          await options.onBeforePlay();
+          console.log('[use-timer-sound] onBeforePlay completed');
+          // Small delay after pausing Spotify to ensure it's fully stopped
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (error) {
+          console.error('[use-timer-sound] Error in onBeforePlay callback:', error);
+        }
+      }
+
+      console.log('[use-timer-sound] Starting audio playback');
+      audio.play().catch((error) => {
+        console.error('[use-timer-sound] Failed to play sound:', error);
+        cleanup();
+      });
+    };
+
+    startPlayback();
   }, [stopSound]);
 
   return { playSound, stopSound, unlockAudio, preloadSound };

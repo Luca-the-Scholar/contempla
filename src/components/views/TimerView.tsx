@@ -58,7 +58,6 @@ export function TimerView() {
   // This allows users to control music separately from meditation timer
   const [isSpotifyPlaying, setIsSpotifyPlaying] = useState(false);
   const [currentPlaylistName, setCurrentPlaylistName] = useState<string | null>(null);
-  const [spotifyError, setSpotifyError] = useState<string | null>(null);
 
   // Timer timing state - use elapsed-time calculation for accuracy when screen locks
   const [timerStartTime, setTimerStartTime] = useState<number | null>(null);
@@ -71,6 +70,8 @@ export function TimerView() {
   const hasCompletedRef = useRef(false);
   // Guard to prevent multiple start sound plays
   const hasPlayedStartSoundRef = useRef(false);
+  // Track if Spotify was paused for meditation sound playback
+  const spotifyWasPausedForSound = useRef(false);
   const presetDurations = [10, 30, 45, 60];
 
   // Load timer alert preferences and Spotify settings from localStorage
@@ -82,9 +83,38 @@ export function TimerView() {
     const wakeLockStored = localStorage.getItem('screenWakeLock');
     if (wakeLockStored !== null) setScreenWakeLockEnabled(wakeLockStored === 'true');
 
-    // Load Spotify playlist name from settings
-    const playlistName = localStorage.getItem('spotifyPlaylistName');
-    if (playlistName) setCurrentPlaylistName(playlistName);
+    // Load Spotify settings from database
+    async function loadSpotifySettings() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.log('[Spotify] No user authenticated, skipping settings load');
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('spotify_settings')
+          .select('selected_playlist_name')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error('[Spotify] Failed to load settings:', error);
+          return;
+        }
+
+        if (data?.selected_playlist_name) {
+          console.log('[Spotify] Loaded saved playlist:', data.selected_playlist_name);
+          setCurrentPlaylistName(data.selected_playlist_name);
+        } else {
+          console.log('[Spotify] No playlist configured');
+        }
+      } catch (error) {
+        console.error('[Spotify] Error loading settings:', error);
+      }
+    }
+
+    loadSpotifySettings();
   }, []);
   useEffect(() => {
     fetchTechniques();
@@ -181,11 +211,14 @@ export function TimerView() {
   };
   // Music playback control handlers - independent of timer
   const handlePlayMusic = async () => {
-    setSpotifyError(null);
+    console.log('[handlePlayMusic] Called');
+    console.log('[handlePlayMusic] Current state - isSpotifyPlaying:', isSpotifyPlaying);
+
     try {
       const result = await startSpotifyPlayback();
 
       if (result.success) {
+        console.log('[handlePlayMusic] Success - setting isSpotifyPlaying to true');
         setIsSpotifyPlaying(true);
         console.log('[Spotify] Playback started successfully');
 
@@ -198,38 +231,67 @@ export function TimerView() {
           });
         }
       } else {
+        console.log('[handlePlayMusic] Failed - result:', result);
         setIsSpotifyPlaying(false);
 
-        // Handle specific error codes
+        // Handle specific error codes with toasts
+        let errorMessage = "Failed to start music";
         if (result.code === 'NO_ACTIVE_DEVICE') {
-          setSpotifyError("Make sure Spotify is installed and running on your device");
+          errorMessage = "Make sure Spotify is installed and running";
         } else if (result.code === 'PREMIUM_REQUIRED') {
-          setSpotifyError("Spotify Premium is required for music playback");
+          errorMessage = "Spotify Premium required";
         } else if (result.code === 'TOKEN_EXPIRED') {
-          setSpotifyError("Please reconnect your Spotify account in Settings");
+          errorMessage = "Reconnect Spotify in Settings";
         } else if (result.code === 'RATE_LIMITED') {
-          setSpotifyError("Spotify API limit reached. Please wait a moment");
-        } else {
-          setSpotifyError("Failed to start music. Please try again");
+          errorMessage = "Spotify API limit reached";
         }
+
+        toast({
+          title: "Music Error",
+          description: errorMessage,
+          variant: "destructive",
+          duration: 3000,
+        });
       }
     } catch (error: any) {
+      console.error('[handlePlayMusic] Exception:', error);
       setIsSpotifyPlaying(false);
-      setSpotifyError(error.message || "Failed to start music");
+      toast({
+        title: "Music Error",
+        description: error.message || "Failed to start music",
+        variant: "destructive",
+        duration: 3000,
+      });
     }
   };
 
   const handlePauseMusic = async () => {
+    console.log('[handlePauseMusic] Called');
+    console.log('[handlePauseMusic] Current state - isSpotifyPlaying:', isSpotifyPlaying);
+
     try {
       const result = await stopSpotifyPlayback();
       if (result.success) {
+        console.log('[handlePauseMusic] Success - setting isSpotifyPlaying to false');
         setIsSpotifyPlaying(false);
         console.log('[Spotify] Playback paused');
       } else {
-        setSpotifyError("Failed to pause music. Please try again");
+        console.log('[handlePauseMusic] Failed - result:', result);
+        toast({
+          title: "Music Error",
+          description: "Failed to pause music",
+          variant: "destructive",
+          duration: 2000,
+        });
       }
     } catch (error: any) {
-      setSpotifyError(error.message || "Failed to pause music");
+      console.error('[handlePauseMusic] Exception:', error);
+      toast({
+        title: "Music Error",
+        description: error.message || "Failed to pause music",
+        variant: "destructive",
+        duration: 2000,
+      });
     }
   };
 
@@ -270,7 +332,51 @@ export function TimerView() {
     // Play start sound exactly once if enabled
     if (isStartSoundEnabled && !hasPlayedStartSoundRef.current) {
       hasPlayedStartSoundRef.current = true;
-      playSound(selectedSound);
+      
+      // Capture Spotify state RIGHT NOW, before any async operations
+      // This is critical because isSpotifyPlaying may change by the time callbacks run
+      const shouldResumeAfterStartSound = isSpotifyPlaying;
+      console.log('[DEBUG] Captured Spotify state before start sound:', shouldResumeAfterStartSound);
+      
+      playSound(selectedSound, {
+        onBeforePlay: async () => {
+          console.log('[DEBUG] Start sound - onBeforePlay called');
+          
+          if (shouldResumeAfterStartSound) {
+            console.log('[DEBUG] Pausing Spotify for start sound (captured state was playing)');
+            try {
+              await handlePauseMusic();
+              console.log('[DEBUG] Spotify paused successfully');
+              spotifyWasPausedForSound.current = true;
+            } catch (error) {
+              console.error('[DEBUG] Failed to pause Spotify:', error);
+              spotifyWasPausedForSound.current = false;
+            }
+          } else {
+            console.log('[DEBUG] Music was not playing when timer started - will not resume');
+            spotifyWasPausedForSound.current = false;
+          }
+        },
+        onAfterPlay: async () => {
+          console.log('[DEBUG] Start sound - onAfterPlay called');
+          console.log('[DEBUG] spotifyWasPausedForSound.current:', spotifyWasPausedForSound.current);
+          
+          if (spotifyWasPausedForSound.current) {
+            console.log('[DEBUG] Resuming Spotify after start sound');
+            await new Promise(resolve => setTimeout(resolve, 200));
+            try {
+              await handlePlayMusic();
+              console.log('[DEBUG] Spotify resumed successfully');
+              spotifyWasPausedForSound.current = false;
+            } catch (error) {
+              console.error('[DEBUG] Failed to resume Spotify:', error);
+              spotifyWasPausedForSound.current = false;
+            }
+          } else {
+            console.log('[DEBUG] Not resuming - music was not playing when timer started');
+          }
+        }
+      });
     }
 
     // Enable NoSleep
@@ -344,8 +450,51 @@ export function TimerView() {
     setTimerStartTime(null);
     setTimerEndTime(null);
 
-    // Play sound exactly once
-    playSound(selectedSound);
+    // Play completion sound with Spotify pause/resume
+    // Capture Spotify state RIGHT NOW, before any async operations
+    // This is critical because isSpotifyPlaying may change by the time callbacks run
+    const shouldResumeAfterCompletionSound = isSpotifyPlaying;
+    console.log('[DEBUG] Captured Spotify state before completion sound:', shouldResumeAfterCompletionSound);
+    
+    playSound(selectedSound, {
+      onBeforePlay: async () => {
+        console.log('[DEBUG] Completion sound - onBeforePlay called');
+        
+        if (shouldResumeAfterCompletionSound) {
+          console.log('[DEBUG] Pausing Spotify for completion sound (captured state was playing)');
+          try {
+            await handlePauseMusic();
+            console.log('[DEBUG] Spotify paused successfully');
+            spotifyWasPausedForSound.current = true;
+          } catch (error) {
+            console.error('[DEBUG] Failed to pause Spotify:', error);
+            spotifyWasPausedForSound.current = false;
+          }
+        } else {
+          console.log('[DEBUG] Music was not playing when timer completed - will not resume');
+          spotifyWasPausedForSound.current = false;
+        }
+      },
+      onAfterPlay: async () => {
+        console.log('[DEBUG] Completion sound - onAfterPlay called');
+        console.log('[DEBUG] spotifyWasPausedForSound.current:', spotifyWasPausedForSound.current);
+        
+        if (spotifyWasPausedForSound.current) {
+          console.log('[DEBUG] Resuming Spotify after completion sound');
+          await new Promise(resolve => setTimeout(resolve, 200));
+          try {
+            await handlePlayMusic();
+            console.log('[DEBUG] Spotify resumed successfully');
+            spotifyWasPausedForSound.current = false;
+          } catch (error) {
+            console.error('[DEBUG] Failed to resume Spotify:', error);
+            spotifyWasPausedForSound.current = false;
+          }
+        } else {
+          console.log('[DEBUG] Not resuming - music was not playing when timer completed');
+        }
+      }
+    });
 
     // Vibrate - use iOS notification haptic for best effect
     if (hapticEnabled) {
@@ -598,7 +747,19 @@ export function TimerView() {
 
       <div className="min-h-screen bg-transparent pb-32 safe-top">
         <div className="max-w-2xl mx-auto px-[12px] pb-[25px]">
-        <Card className="p-6 space-y-6">
+        <Card className="p-6 space-y-6 relative">
+          {/* Minimal Spotify Button - Upper Right Corner */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-4 right-4 z-10"
+            onClick={isSpotifyPlaying ? handlePauseMusic : handlePlayMusic}
+            aria-label={isSpotifyPlaying ? "Pause music" : "Play music"}
+            disabled={!currentPlaylistName}
+          >
+            <Music className={`h-5 w-5 ${isSpotifyPlaying ? 'text-green-500 animate-pulse' : currentPlaylistName ? 'text-muted-foreground' : 'text-muted-foreground/30'}`} />
+          </Button>
+
           {/* Technique Selection */}
           <div>
             <h2 className="text-sm font-medium text-muted-foreground mb-3">
@@ -623,61 +784,6 @@ export function TimerView() {
                 </p>
                 <p className="text-xs text-primary mt-2">Tap to view full instructions</p>
               </div>}
-          </div>
-
-          {/* Music Playback Control */}
-          <div>
-            <h2 className="text-sm font-medium text-muted-foreground mb-3">
-              Background Music (Optional)
-            </h2>
-
-            {/* Error Alert */}
-            {spotifyError && (
-              <Alert variant="destructive" className="mb-3">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription className="text-sm">
-                  {spotifyError}
-                </AlertDescription>
-              </Alert>
-            )}
-
-            <div className="flex gap-2 items-center">
-              {/* Play Music Button */}
-              <Button
-                variant={isSpotifyPlaying ? "default" : "outline"}
-                onClick={isSpotifyPlaying ? handlePauseMusic : handlePlayMusic}
-                className={`flex-1 ${isSpotifyPlaying ? 'bg-green-600 hover:bg-green-700' : ''}`}
-                disabled={!currentPlaylistName}
-              >
-                <Music className={`w-4 h-4 mr-2 ${isSpotifyPlaying ? 'animate-pulse' : ''}`} />
-                {isSpotifyPlaying ? 'Music Playing ✓' : currentPlaylistName ? 'Play Music' : 'No Playlist Selected'}
-              </Button>
-
-              {/* Pause Button - shows when music is playing */}
-              {isSpotifyPlaying && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handlePauseMusic}
-                >
-                  <Pause className="w-5 h-5" />
-                </Button>
-              )}
-            </div>
-
-            {/* Playlist Name Display */}
-            {currentPlaylistName && (
-              <p className="text-xs text-muted-foreground mt-2 text-center">
-                Playlist: {currentPlaylistName}
-              </p>
-            )}
-
-            {/* Help Text */}
-            {!currentPlaylistName && (
-              <p className="text-xs text-muted-foreground mt-2 text-center italic">
-                Configure Spotify in Settings to enable music
-              </p>
-            )}
           </div>
 
           {/* Duration Selection */}
