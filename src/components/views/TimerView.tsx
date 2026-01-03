@@ -328,31 +328,20 @@ export function TimerView() {
     const isStartSoundEnabled = startSoundStored === null ? true : startSoundStored === 'true';
 
     // Play start sound exactly once if enabled
-    // Native audio (iOS) uses focus: false to mix with Spotify - no pause/resume needed
-    // Fallback: If native audio fails and web audio interrupts Spotify, resume it after
     if (isStartSoundEnabled && !hasPlayedStartSoundRef.current) {
       hasPlayedStartSoundRef.current = true;
       
-      // Capture state BEFORE playing sound (avoids race conditions)
-      const shouldResumeSpotify = isSpotifyPlaying;
-      
+      // Play timer sound - with AppDelegate's .playback + .mixWithOthers config,
+      // Spotify should continue playing. Do NOT try to resume Spotify after -
+      // that causes app switching when device reactivation is needed.
       playSound(selectedSound, {
         onBeforePlay: async () => {
           console.log('[DEBUG] Start sound - playing');
         },
         onAfterPlay: async () => {
           console.log('[DEBUG] Start sound - finished');
-          // Resume Spotify if it was playing (fallback when native audio doesn't work)
-          if (shouldResumeSpotify) {
-            console.log('[DEBUG] Resuming Spotify after start sound');
-            try {
-              // Allow device reactivation since iOS may have deactivated Spotify
-              await startSpotifyPlayback();
-              setIsSpotifyPlaying(true);
-            } catch (err) {
-              console.error('[DEBUG] Failed to resume Spotify:', err);
-            }
-          }
+          // Note: We do NOT resume Spotify here. With proper audio mixing,
+          // Spotify continues playing. Trying to resume causes app switching.
         }
       });
     }
@@ -428,29 +417,17 @@ export function TimerView() {
     setTimerStartTime(null);
     setTimerEndTime(null);
 
-    // Capture state BEFORE playing sound (avoids race conditions)
-    const shouldResumeSpotify = isSpotifyPlaying;
-
-    // Play completion sound
-    // Native audio (iOS) uses focus: false to mix with Spotify - no pause/resume needed
-    // Fallback: If native audio fails and web audio interrupts Spotify, resume it after
+    // Play completion sound - with AppDelegate's .playback + .mixWithOthers config,
+    // Spotify should continue playing. Do NOT try to resume Spotify after -
+    // that causes app switching when device reactivation is needed.
     playSound(selectedSound, {
       onBeforePlay: async () => {
         console.log('[DEBUG] Completion sound - playing');
       },
       onAfterPlay: async () => {
         console.log('[DEBUG] Completion sound - finished');
-        // Resume Spotify if it was playing (fallback when native audio doesn't work)
-        if (shouldResumeSpotify) {
-          console.log('[DEBUG] Resuming Spotify after completion sound');
-          try {
-            // Allow device reactivation since iOS may have deactivated Spotify
-            await startSpotifyPlayback();
-            setIsSpotifyPlaying(true);
-          } catch (err) {
-            console.error('[DEBUG] Failed to resume Spotify:', err);
-          }
-        }
+        // Note: We do NOT resume Spotify here. With proper audio mixing,
+        // Spotify continues playing. Trying to resume causes app switching.
       }
     });
 
