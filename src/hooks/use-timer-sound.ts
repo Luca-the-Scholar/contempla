@@ -106,10 +106,13 @@ export function useTimerSound() {
   /**
    * Play a sound exactly once. Guarded against multiple calls.
    * 
+   * CRITICAL iOS FIX: We start web audio SYNCHRONOUSLY to preserve the user gesture
+   * context. Native audio is attempted in parallel - if it succeeds, we stop web audio.
+   * This ensures sounds always work on iOS regardless of native plugin state.
+   * 
    * On native iOS, uses @capacitor-community/native-audio with focus: false
    * to allow mixing with Spotify. Falls back to web audio on other platforms.
    * 
-   * IMPORTANT: On iOS web fallback, audio must be triggered from a user gesture context.
    * @param sound The sound to play
    * @param options Optional callbacks for before/after sound playback
    */
@@ -126,122 +129,120 @@ export function useTimerSound() {
     stopSound();
     isPlayingRef.current = true;
 
-    // Try native audio first (allows mixing with Spotify on iOS)
-    const tryNativeAudio = async (): Promise<boolean> => {
-      if (!isNativeAudioAvailable()) {
-        return false;
+    // ============================================
+    // STEP 1: Start web audio SYNCHRONOUSLY
+    // This MUST happen in the same tick as the user gesture to work on iOS
+    // ============================================
+    const audio = new Audio(SOUND_FILES[sound]);
+    currentAudioRef.current = audio;
+    let webAudioStopped = false;
+
+    // Clean up when sound ends or errors
+    const cleanup = async () => {
+      if (webAudioStopped) return; // Already cleaned up by native audio
+      
+      console.log('[use-timer-sound] Web audio cleanup called');
+      isPlayingRef.current = false;
+
+      // Clear safety timeout
+      if (currentTimeoutRef.current) {
+        clearTimeout(currentTimeoutRef.current);
+        currentTimeoutRef.current = null;
       }
 
-      const nativeSoundId = NATIVE_SOUND_IDS[sound];
-      if (!nativeSoundId) {
-        return false;
+      if (currentAudioRef.current === audio) {
+        currentAudioRef.current = null;
       }
 
-      try {
-        // Call onBeforePlay if provided (now just for logging, no Spotify pause needed)
-        if (options?.onBeforePlay) {
-          console.log('[use-timer-sound] Calling onBeforePlay (native)');
-          await options.onBeforePlay();
+      // Call onAfterPlay callback AFTER sound finishes
+      if (options?.onAfterPlay) {
+        try {
+          console.log('[use-timer-sound] Calling onAfterPlay (web)');
+          await options.onAfterPlay();
+          console.log('[use-timer-sound] onAfterPlay completed');
+        } catch (error) {
+          console.error('[use-timer-sound] Error in onAfterPlay callback:', error);
         }
-
-        console.log('[use-timer-sound] Playing native audio with mixing:', nativeSoundId);
-        const played = await playNativeSound(nativeSoundId);
-        
-        if (played) {
-          // Set up a timeout for cleanup (native audio doesn't have 'ended' event via this API)
-          currentTimeoutRef.current = setTimeout(async () => {
-            console.log('[use-timer-sound] Native audio cleanup');
-            isPlayingRef.current = false;
-            
-            if (options?.onAfterPlay) {
-              console.log('[use-timer-sound] Calling onAfterPlay (native)');
-              await options.onAfterPlay();
-            }
-          }, 5000); // Most sounds are ~3-5 seconds
-          
-          return true;
-        }
-      } catch (error) {
-        console.error('[use-timer-sound] Native audio failed:', error);
       }
-
-      return false;
     };
 
-    // Start playback - try native first, then fall back to web
-    const startPlayback = async () => {
-      // Try native audio first (supports mixing with Spotify)
-      const playedNatively = await tryNativeAudio();
-      if (playedNatively) {
-        return;
-      }
+    audio.addEventListener('ended', cleanup);
+    audio.addEventListener('error', (error) => {
+      console.error('[Audio] Sound playback error:', error);
+      cleanup();
+    });
 
-      // Fall back to web audio (will interrupt Spotify on iOS)
-      console.log('[use-timer-sound] Falling back to web audio');
-      
-      const audio = new Audio(SOUND_FILES[sound]);
-      currentAudioRef.current = audio;
-
-      // Clean up when sound ends or errors
-      const cleanup = async () => {
-        console.log('[use-timer-sound] Web audio cleanup called');
-        isPlayingRef.current = false;
-
-        // Clear safety timeout
-        if (currentTimeoutRef.current) {
-          clearTimeout(currentTimeoutRef.current);
-          currentTimeoutRef.current = null;
-        }
-
-        if (currentAudioRef.current === audio) {
-          currentAudioRef.current = null;
-        }
-
-        // Call onAfterPlay callback AFTER sound finishes
-        if (options?.onAfterPlay) {
-          try {
-            console.log('[use-timer-sound] Calling onAfterPlay (web)');
-            await options.onAfterPlay();
-            console.log('[use-timer-sound] onAfterPlay completed');
-          } catch (error) {
-            console.error('[use-timer-sound] Error in onAfterPlay callback:', error);
-          }
-        }
-      };
-
-      audio.addEventListener('ended', cleanup);
-      audio.addEventListener('error', (error) => {
-        console.error('[Audio] Sound playback error:', error);
-        cleanup();
-      });
-
-      // Set up safety cutoff timer (10 seconds max)
-      currentTimeoutRef.current = setTimeout(() => {
+    // Set up safety cutoff timer (10 seconds max)
+    currentTimeoutRef.current = setTimeout(() => {
+      if (!webAudioStopped) {
         audio.pause();
         audio.currentTime = 0;
         cleanup();
-      }, MAX_DURATION_MS);
-
-      // Call onBeforePlay callback BEFORE playing sound (web fallback)
-      if (options?.onBeforePlay) {
-        try {
-          console.log('[use-timer-sound] Calling onBeforePlay (web)');
-          await options.onBeforePlay();
-          console.log('[use-timer-sound] onBeforePlay completed');
-          await new Promise(resolve => setTimeout(resolve, 100));
-        } catch (error) {
-          console.error('[use-timer-sound] Error in onBeforePlay callback:', error);
-        }
       }
+    }, MAX_DURATION_MS);
 
-      console.log('[use-timer-sound] Starting web audio playback');
-      audio.play().catch((error) => {
-        console.error('[use-timer-sound] Failed to play sound:', error);
-        cleanup();
-      });
-    };
+    // Call onBeforePlay synchronously if provided (fire-and-forget for logging)
+    if (options?.onBeforePlay) {
+      console.log('[use-timer-sound] Calling onBeforePlay');
+      options.onBeforePlay().catch(err => 
+        console.error('[use-timer-sound] onBeforePlay error:', err)
+      );
+    }
 
-    startPlayback();
+    // Start web audio IMMEDIATELY (synchronous - preserves iOS gesture context)
+    console.log('[use-timer-sound] Starting web audio playback (synchronous)');
+    audio.play().catch((error) => {
+      console.error('[use-timer-sound] Failed to play web audio:', error);
+      cleanup();
+    });
+
+    // ============================================
+    // STEP 2: Try native audio IN PARALLEL (async)
+    // If native works, stop web audio and use native instead
+    // This allows mixing with Spotify when the plugin is working
+    // ============================================
+    if (isNativeAudioAvailable()) {
+      const nativeSoundId = NATIVE_SOUND_IDS[sound];
+      if (nativeSoundId) {
+        console.log('[use-timer-sound] Attempting native audio in parallel:', nativeSoundId);
+        
+        playNativeSound(nativeSoundId).then(played => {
+          if (played) {
+            // Native audio succeeded! Stop web audio and use native instead
+            console.log('[use-timer-sound] Native audio succeeded, stopping web audio');
+            webAudioStopped = true;
+            audio.pause();
+            audio.currentTime = 0;
+            
+            // Clear the web audio timeout
+            if (currentTimeoutRef.current) {
+              clearTimeout(currentTimeoutRef.current);
+            }
+            
+            // Set up native audio cleanup timeout
+            currentTimeoutRef.current = setTimeout(async () => {
+              console.log('[use-timer-sound] Native audio cleanup');
+              isPlayingRef.current = false;
+              
+              if (options?.onAfterPlay) {
+                console.log('[use-timer-sound] Calling onAfterPlay (native)');
+                try {
+                  await options.onAfterPlay();
+                } catch (err) {
+                  console.error('[use-timer-sound] onAfterPlay error:', err);
+                }
+              }
+            }, 5000); // Most sounds are ~3-5 seconds
+          } else {
+            // Native failed, web audio continues (already playing)
+            console.log('[use-timer-sound] Native audio failed, web audio continues');
+          }
+        }).catch(error => {
+          console.error('[use-timer-sound] Native audio error:', error);
+          // Web audio continues (already playing)
+        });
+      }
+    }
   }, [stopSound]);
 
   return { playSound, stopSound, unlockAudio, preloadSound };
