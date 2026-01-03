@@ -328,66 +328,10 @@ export function TimerView() {
     const isStartSoundEnabled = startSoundStored === null ? true : startSoundStored === 'true';
 
     // Play start sound exactly once if enabled
+    // Native audio on iOS uses .mixWithOthers + .duckOthers, so Spotify continues playing
     if (isStartSoundEnabled && !hasPlayedStartSoundRef.current) {
       hasPlayedStartSoundRef.current = true;
-      
-      // TEST: Capture Spotify state BEFORE playing sound to test resume behavior
-      const shouldResumeSpotify = isSpotifyPlaying;
-      console.log('[TEST] Captured Spotify state before start sound:', shouldResumeSpotify);
-      
-      playSound(selectedSound, {
-        onBeforePlay: async () => {
-          console.log('[TEST] Bell about to play');
-        },
-        onAfterPlay: async () => {
-          console.log('[TEST] Bell finished - testing Spotify resume with retry');
-          
-          if (shouldResumeSpotify) {
-            console.log('[TEST] Attempting to resume Spotify (with retries)');
-            
-            // Retry up to 3 times with delays
-            let attempts = 0;
-            const maxAttempts = 3;
-            let succeeded = false;
-            
-            while (attempts < maxAttempts && !succeeded) {
-              attempts++;
-              console.log(`[TEST] Resume attempt ${attempts}/${maxAttempts}`);
-              
-              try {
-                const result = await startSpotifyPlayback({ skipDeviceActivation: true });
-                
-                if (result.success) {
-                  console.log('[TEST] Resume succeeded on attempt', attempts);
-                  setIsSpotifyPlaying(true);
-                  succeeded = true;
-                } else {
-                  console.log(`[TEST] Attempt ${attempts} failed:`, result.code);
-                  
-                  if (attempts < maxAttempts) {
-                    // Wait before retrying (device might need time to reactivate)
-                    const delay = attempts * 500; // 500ms, 1000ms, 1500ms
-                    console.log(`[TEST] Waiting ${delay}ms before retry...`);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                  } else {
-                    console.log('[TEST] All retry attempts failed - music will stay paused');
-                  }
-                }
-              } catch (error) {
-                console.error(`[TEST] Attempt ${attempts} threw error:`, error);
-                
-                if (attempts < maxAttempts) {
-                  await new Promise(resolve => setTimeout(resolve, attempts * 500));
-                }
-              }
-            }
-            
-            console.log('[TEST] Resume process completed after', attempts, 'attempts, succeeded:', succeeded);
-          } else {
-            console.log('[TEST] Spotify was not playing - no resume needed');
-          }
-        }
-      });
+      playSound(selectedSound);
     }
 
     // Enable NoSleep
@@ -461,19 +405,8 @@ export function TimerView() {
     setTimerStartTime(null);
     setTimerEndTime(null);
 
-    // Play completion sound - with AppDelegate's .playback + .mixWithOthers config,
-    // Spotify should continue playing. Do NOT try to resume Spotify after -
-    // that causes app switching when device reactivation is needed.
-    playSound(selectedSound, {
-      onBeforePlay: async () => {
-        console.log('[DEBUG] Completion sound - playing');
-      },
-      onAfterPlay: async () => {
-        console.log('[DEBUG] Completion sound - finished');
-        // Note: We do NOT resume Spotify here. With proper audio mixing,
-        // Spotify continues playing. Trying to resume causes app switching.
-      }
-    });
+    // Play completion sound - native audio on iOS uses .mixWithOthers + .duckOthers
+    playSound(selectedSound);
 
     // Vibrate - use iOS notification haptic for best effect
     if (hapticEnabled) {
