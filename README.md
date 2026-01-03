@@ -578,7 +578,10 @@ This ensures consistency between development and production.
 
 ## Recent Changes
 
-### Latest Updates (Dec 2024)
+### Latest Updates (Jan 2025)
+- ✅ **Audio Mixing Fix** — Meditation bells now play over Spotify without interruption (see [AUDIO_MIXING_SOLUTION.md](./AUDIO_MIXING_SOLUTION.md))
+
+### Previous Updates (Dec 2024)
 - ✅ **Flash Screen Removal** — Removed redundant flash overlay before completion screen
 - ✅ **Lock Screen Meditation Rollback** — Removed experimental time-sensitive notifications feature
 - ✅ **Timer Accuracy Fix** — Implemented elapsed-time calculation (survives screen lock)
