@@ -329,15 +329,28 @@ export function TimerView() {
 
     // Play start sound exactly once if enabled
     // Native audio (iOS) uses focus: false to mix with Spotify - no pause/resume needed
+    // Fallback: If native audio fails and web audio interrupts Spotify, resume it after
     if (isStartSoundEnabled && !hasPlayedStartSoundRef.current) {
       hasPlayedStartSoundRef.current = true;
       
+      // Capture state BEFORE playing sound (avoids race conditions)
+      const shouldResumeSpotify = isSpotifyPlaying;
+      
       playSound(selectedSound, {
         onBeforePlay: async () => {
-          console.log('[DEBUG] Start sound - playing (native audio mixes with background music)');
+          console.log('[DEBUG] Start sound - playing');
         },
         onAfterPlay: async () => {
           console.log('[DEBUG] Start sound - finished');
+          // Resume Spotify if it was playing (fallback when native audio doesn't work)
+          if (shouldResumeSpotify) {
+            console.log('[DEBUG] Resuming Spotify after start sound');
+            try {
+              await startSpotifyPlayback({ skipDeviceActivation: true });
+            } catch (err) {
+              console.error('[DEBUG] Failed to resume Spotify:', err);
+            }
+          }
         }
       });
     }
@@ -413,14 +426,27 @@ export function TimerView() {
     setTimerStartTime(null);
     setTimerEndTime(null);
 
+    // Capture state BEFORE playing sound (avoids race conditions)
+    const shouldResumeSpotify = isSpotifyPlaying;
+
     // Play completion sound
     // Native audio (iOS) uses focus: false to mix with Spotify - no pause/resume needed
+    // Fallback: If native audio fails and web audio interrupts Spotify, resume it after
     playSound(selectedSound, {
       onBeforePlay: async () => {
-        console.log('[DEBUG] Completion sound - playing (native audio mixes with background music)');
+        console.log('[DEBUG] Completion sound - playing');
       },
       onAfterPlay: async () => {
         console.log('[DEBUG] Completion sound - finished');
+        // Resume Spotify if it was playing (fallback when native audio doesn't work)
+        if (shouldResumeSpotify) {
+          console.log('[DEBUG] Resuming Spotify after completion sound');
+          try {
+            await startSpotifyPlayback({ skipDeviceActivation: true });
+          } catch (err) {
+            console.error('[DEBUG] Failed to resume Spotify:', err);
+          }
+        }
       }
     });
 
