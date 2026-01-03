@@ -95,7 +95,21 @@ export async function openSpotifyApp(
   }
 }
 
-export async function startSpotifyPlayback(): Promise<{ success: boolean; error?: string; code?: string; reqId?: string; spotifyAppOpened?: boolean }> {
+/**
+ * Options for Spotify playback control
+ */
+export interface SpotifyPlaybackOptions {
+  /**
+   * If true, never open Spotify app to activate device - just make the API call.
+   * Use this for background resume after meditation sounds to avoid app switching.
+   * If the device is inactive, the call will fail silently instead of opening Spotify.
+   */
+  skipDeviceActivation?: boolean;
+}
+
+export async function startSpotifyPlayback(
+  options?: SpotifyPlaybackOptions
+): Promise<{ success: boolean; error?: string; code?: string; reqId?: string; spotifyAppOpened?: boolean }> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false };
@@ -199,7 +213,15 @@ export async function startSpotifyPlayback(): Promise<{ success: boolean; error?
       const reqId = data?.reqId as string | undefined;
 
       // If NO_ACTIVE_DEVICE, try opening Spotify to register device, then retry
+      // UNLESS skipDeviceActivation is true (used for background resume after bell sounds)
       if (code === 'NO_ACTIVE_DEVICE') {
+        // If skipDeviceActivation is true, don't open Spotify - just fail silently
+        // This is used when resuming music after meditation sounds to avoid app switching
+        if (options?.skipDeviceActivation) {
+          console.log('[Spotify] No active device - skipDeviceActivation=true, failing silently (no app switch)');
+          return { success: false, error: errorMsg, code, reqId };
+        }
+
         console.log('[Spotify] No active device - opening Spotify app to register device...');
 
         // Open Spotify app with deep link to register the device
