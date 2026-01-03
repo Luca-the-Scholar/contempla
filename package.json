@@ -9,7 +9,8 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "generate-icons": "node scripts/generate-ios-icons.js"
+    "generate-icons": "node scripts/generate-ios-icons.js",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@capacitor-community/native-audio": "^8.0.0",

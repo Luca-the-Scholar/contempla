@@ -1,0 +1,59 @@
+diff --git a/node_modules/@capacitor-community/native-audio/.swiftpm/xcode/xcuserdata/lucadeldeo.xcuserdatad/xcschemes/xcschememanagement.plist b/node_modules/@capacitor-community/native-audio/.swiftpm/xcode/xcuserdata/lucadeldeo.xcuserdatad/xcschemes/xcschememanagement.plist
+new file mode 100644
+index 0000000..1d2d732
+--- /dev/null
++++ b/node_modules/@capacitor-community/native-audio/.swiftpm/xcode/xcuserdata/lucadeldeo.xcuserdatad/xcschemes/xcschememanagement.plist
+@@ -0,0 +1,14 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
++<plist version="1.0">
++<dict>
++	<key>SchemeUserState</key>
++	<dict>
++		<key>CapacitorCommunityNativeAudio.xcscheme_^#shared#^_</key>
++		<dict>
++			<key>orderHint</key>
++			<integer>3</integer>
++		</dict>
++	</dict>
++</dict>
++</plist>
+diff --git a/node_modules/@capacitor-community/native-audio/ios/Sources/NativeAudio/Plugin.swift b/node_modules/@capacitor-community/native-audio/ios/Sources/NativeAudio/Plugin.swift
+index 38051aa..cb7c62d 100644
+--- a/node_modules/@capacitor-community/native-audio/ios/Sources/NativeAudio/Plugin.swift
++++ b/node_modules/@capacitor-community/native-audio/ios/Sources/NativeAudio/Plugin.swift
+@@ -40,23 +40,25 @@ public class NativeAudio: CAPPlugin, CAPBridgedPlugin {
+         self.fadeMusic = false
+ 
+         do {
+-            try self.session.setCategory(AVAudioSession.Category.playback)
+-            try self.session.setActive(false)
++            // Use .mixWithOthers to allow bell sounds to play over Spotify
++            try self.session.setCategory(AVAudioSession.Category.playback, options: [.mixWithOthers])
++            // Keep session active, notify others when we deactivate
++            try self.session.setActive(true, options: .notifyOthersOnDeactivation)
++            print("[NativeAudio] Audio session configured: .playback + .mixWithOthers")
+         } catch {
+-            print("Failed to set session category")
++            print("Failed to set session category: \(error)")
+         }
+     }
+ 
+     @objc func configure(_ call: CAPPluginCall) {
+         self.fadeMusic = call.getBool(Constant.FadeKey, false)
+         do {
+-            if call.getBool(Constant.FocusAudio, false) {
+-                try self.session.setCategory(AVAudioSession.Category.playback)
+-            } else {
+-                try self.session.setCategory(AVAudioSession.Category.ambient)
+-            }
++            // Always use .mixWithOthers regardless of focus setting
++            try self.session.setCategory(AVAudioSession.Category.playback, options: [.mixWithOthers])
++            try self.session.setActive(true, options: .notifyOthersOnDeactivation)
++            print("[NativeAudio] Audio session reconfigured with mixing")
+         } catch {
+-            print("Failed to set setCategory audio")
++            print("Failed to set setCategory audio: \(error)")
+         }
+         call.resolve()
+     }
