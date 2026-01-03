@@ -20,34 +20,33 @@ const NATIVE_SOUND_ASSETS: Record<string, string> = {
 
 /**
  * Configure native audio for mixing with other audio sources.
- * This sets focus: false which allows bell sounds to play over Spotify.
- * On non-native platforms, this is a no-op.
+ * 
+ * NOTE: We intentionally do NOT call NativeAudio.configure() here.
+ * The audio session is already configured in AppDelegate.swift with:
+ *   .playback category (ignores silent switch)
+ *   .mixWithOthers option (allows Spotify to keep playing)
+ * 
+ * Calling NativeAudio.configure() would override this with either:
+ *   - focus: false → .ambient (respects silent switch - BAD)
+ *   - focus: true → .playback without mixWithOthers (interrupts Spotify - BAD)
+ * 
+ * By skipping the configure call, AppDelegate's settings remain in effect.
  */
 export async function configureNativeAudioForMixing(): Promise<void> {
   if (!Capacitor.isNativePlatform()) {
-    console.log('[NativeAudio] Skipping configuration - not a native platform');
+    console.log('[NativeAudio] Skipping - not a native platform');
     return;
   }
 
   if (isConfigured) {
-    console.log('[NativeAudio] Already configured for mixing');
+    console.log('[NativeAudio] Already configured');
     return;
   }
 
-  try {
-    // Configure native audio with focus: false to allow mixing with other apps
-    // IMPORTANT: fade must be false! The plugin's playWithFade() starts at volume 0
-    // and only increments by 0.05 per call, resulting in inaudible audio
-    await NativeAudio.configure({
-      fade: false,  // Play at full volume immediately
-      focus: false, // Allow mixing with Spotify (uses .ambient category)
-    });
-    
-    console.log('[NativeAudio] Configured for mixing with other audio (focus: false, fade: false)');
-    isConfigured = true;
-  } catch (error) {
-    console.error('[NativeAudio] Failed to configure:', error);
-  }
+  // Audio session is configured in AppDelegate.swift with .playback + .mixWithOthers
+  // Do NOT call NativeAudio.configure() as it would override those settings
+  console.log('[NativeAudio] Using AppDelegate audio session config (.playback + .mixWithOthers)');
+  isConfigured = true;
 }
 
 /**
