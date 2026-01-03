@@ -346,7 +346,9 @@ export function TimerView() {
           if (shouldResumeSpotify) {
             console.log('[DEBUG] Resuming Spotify after start sound');
             try {
-              await startSpotifyPlayback({ skipDeviceActivation: true });
+              // Allow device reactivation since iOS may have deactivated Spotify
+              await startSpotifyPlayback();
+              setIsSpotifyPlaying(true);
             } catch (err) {
               console.error('[DEBUG] Failed to resume Spotify:', err);
             }
@@ -442,7 +444,9 @@ export function TimerView() {
         if (shouldResumeSpotify) {
           console.log('[DEBUG] Resuming Spotify after completion sound');
           try {
-            await startSpotifyPlayback({ skipDeviceActivation: true });
+            // Allow device reactivation since iOS may have deactivated Spotify
+            await startSpotifyPlayback();
+            setIsSpotifyPlaying(true);
           } catch (err) {
             console.error('[DEBUG] Failed to resume Spotify:', err);
           }

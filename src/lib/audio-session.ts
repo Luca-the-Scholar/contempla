@@ -4,16 +4,18 @@ import { NativeAudio } from '@capacitor-community/native-audio';
 // Track if native audio has been configured
 let isConfigured = false;
 
-// Map of timer sound names to native asset IDs
+// Map of timer sound names to native asset paths
+// For iOS, files should be in ios/App/App/sounds/ and added to Xcode bundle resources
+// The assetPath should include the 'sounds/' subdirectory
 const NATIVE_SOUND_ASSETS: Record<string, string> = {
-  'gong-sweet': 'gong-sweet.wav',
-  'small-bell-1': 'small-bell-1.wav',
-  'small-bell-2': 'small-bell-2.wav',
-  'bowl-singing': 'tibetan-bowl-singing.wav',
-  'bowl-struck-1': 'tibetan-bowl-struck-1.wav',
-  'bowl-struck-2': 'tibetan-bowl-struck-2.wav',
-  'bowl-struck-3': 'tibetan-bowl-struck-3.wav',
-  'bowl-struck-4': 'tibetan-bowl-struck-4.wav',
+  'gong-sweet': 'sounds/gong-sweet.wav',
+  'small-bell-1': 'sounds/small-bell-1.wav',
+  'small-bell-2': 'sounds/small-bell-2.wav',
+  'bowl-singing': 'sounds/tibetan-bowl-singing.wav',
+  'bowl-struck-1': 'sounds/tibetan-bowl-struck-1.wav',
+  'bowl-struck-2': 'sounds/tibetan-bowl-struck-2.wav',
+  'bowl-struck-3': 'sounds/tibetan-bowl-struck-3.wav',
+  'bowl-struck-4': 'sounds/tibetan-bowl-struck-4.wav',
 };
 
 /**
