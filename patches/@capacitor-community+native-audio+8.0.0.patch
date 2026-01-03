@@ -19,20 +19,25 @@ index 0000000..1d2d732
 +</dict>
 +</plist>
 diff --git a/node_modules/@capacitor-community/native-audio/ios/Sources/NativeAudio/Plugin.swift b/node_modules/@capacitor-community/native-audio/ios/Sources/NativeAudio/Plugin.swift
-index 38051aa..cb7c62d 100644
+index 38051aa..079a113 100644
 --- a/node_modules/@capacitor-community/native-audio/ios/Sources/NativeAudio/Plugin.swift
 +++ b/node_modules/@capacitor-community/native-audio/ios/Sources/NativeAudio/Plugin.swift
-@@ -40,23 +40,25 @@ public class NativeAudio: CAPPlugin, CAPBridgedPlugin {
+@@ -40,23 +40,34 @@ public class NativeAudio: CAPPlugin, CAPBridgedPlugin {
          self.fadeMusic = false
  
          do {
 -            try self.session.setCategory(AVAudioSession.Category.playback)
 -            try self.session.setActive(false)
-+            // Use .mixWithOthers to allow bell sounds to play over Spotify
-+            try self.session.setCategory(AVAudioSession.Category.playback, options: [.mixWithOthers])
++            // Use .mixWithOthers + .duckOthers to allow bell sounds to play over Spotify
++            // .duckOthers lowers other audio volume instead of stopping it
++            try self.session.setCategory(
++                AVAudioSession.Category.playback,
++                mode: .default,
++                options: [.mixWithOthers, .duckOthers]
++            )
 +            // Keep session active, notify others when we deactivate
 +            try self.session.setActive(true, options: .notifyOthersOnDeactivation)
-+            print("[NativeAudio] Audio session configured: .playback + .mixWithOthers")
++            print("[NativeAudio] Audio session configured: .playback + .mixWithOthers + .duckOthers")
          } catch {
 -            print("Failed to set session category")
 +            print("Failed to set session category: \(error)")
@@ -47,13 +52,45 @@ index 38051aa..cb7c62d 100644
 -            } else {
 -                try self.session.setCategory(AVAudioSession.Category.ambient)
 -            }
-+            // Always use .mixWithOthers regardless of focus setting
-+            try self.session.setCategory(AVAudioSession.Category.playback, options: [.mixWithOthers])
++            // Always use .mixWithOthers + .duckOthers regardless of focus setting
++            try self.session.setCategory(
++                AVAudioSession.Category.playback,
++                mode: .default,
++                options: [.mixWithOthers, .duckOthers]
++            )
 +            try self.session.setActive(true, options: .notifyOthersOnDeactivation)
-+            print("[NativeAudio] Audio session reconfigured with mixing")
++            print("[NativeAudio] Audio session reconfigured with mixing + ducking")
          } catch {
 -            print("Failed to set setCategory audio")
 +            print("Failed to set setCategory audio: \(error)")
          }
          call.resolve()
      }
+@@ -72,12 +83,19 @@ public class NativeAudio: CAPPlugin, CAPBridgedPlugin {
+             let queue = DispatchQueue(label: "com.getcapacitor.community.audio.complex.queue", qos: .userInitiated)
+ 
+             queue.async {
++                // Log audio session state before playing
++                let category = self.session.category.rawValue
++                let options = self.session.categoryOptions.rawValue
++                let isActive = self.session.isOtherAudioPlaying
++                print("[NativeAudio] play() - category: \(category), options: \(options), otherAudioPlaying: \(isActive)")
++                
+                 if self.audioList.count > 0 {
+                     let asset = self.audioList[audioId]
+ 
+                     if asset != nil {
+                         if asset is AudioAsset {
+                             let audioAsset = asset as? AudioAsset
++                            print("[NativeAudio] Playing AudioAsset: \(audioId)")
+ 
+                             if self.fadeMusic {
+                                 audioAsset?.playWithFade(time: time)
+@@ -87,6 +105,7 @@ public class NativeAudio: CAPPlugin, CAPBridgedPlugin {
+                             call.resolve()
+                         } else if asset is Int32 {
+                             let audioAsset = asset as? NSNumber ?? 0
++                            print("[NativeAudio] Playing SystemSound: \(audioId)")
+                             AudioServicesPlaySystemSound(SystemSoundID(audioAsset.intValue ))
+                             call.resolve()
+                         } else {
