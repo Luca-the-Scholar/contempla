@@ -19,7 +19,7 @@ index 0000000..1d2d732
 +</dict>
 +</plist>
 diff --git a/node_modules/@capacitor-community/native-audio/ios/Sources/NativeAudio/Plugin.swift b/node_modules/@capacitor-community/native-audio/ios/Sources/NativeAudio/Plugin.swift
-index 38051aa..079a113 100644
+index 38051aa..a4c35d7 100644
 --- a/node_modules/@capacitor-community/native-audio/ios/Sources/NativeAudio/Plugin.swift
 +++ b/node_modules/@capacitor-community/native-audio/ios/Sources/NativeAudio/Plugin.swift
 @@ -40,23 +40,34 @@ public class NativeAudio: CAPPlugin, CAPBridgedPlugin {
@@ -28,16 +28,16 @@ index 38051aa..079a113 100644
          do {
 -            try self.session.setCategory(AVAudioSession.Category.playback)
 -            try self.session.setActive(false)
-+            // Use .mixWithOthers + .duckOthers to allow bell sounds to play over Spotify
-+            // .duckOthers lowers other audio volume instead of stopping it
++            // Use .mixWithOthers to allow bell sounds to play over Spotify
++            // Both sounds play at full volume simultaneously
 +            try self.session.setCategory(
 +                AVAudioSession.Category.playback,
 +                mode: .default,
-+                options: [.mixWithOthers, .duckOthers]
++                options: [.mixWithOthers]
 +            )
 +            // Keep session active, notify others when we deactivate
 +            try self.session.setActive(true, options: .notifyOthersOnDeactivation)
-+            print("[NativeAudio] Audio session configured: .playback + .mixWithOthers + .duckOthers")
++            print("[NativeAudio] Audio session configured: .playback + .mixWithOthers")
          } catch {
 -            print("Failed to set session category")
 +            print("Failed to set session category: \(error)")
@@ -52,14 +52,14 @@ index 38051aa..079a113 100644
 -            } else {
 -                try self.session.setCategory(AVAudioSession.Category.ambient)
 -            }
-+            // Always use .mixWithOthers + .duckOthers regardless of focus setting
++            // Always use .mixWithOthers regardless of focus setting
 +            try self.session.setCategory(
 +                AVAudioSession.Category.playback,
 +                mode: .default,
-+                options: [.mixWithOthers, .duckOthers]
++                options: [.mixWithOthers]
 +            )
 +            try self.session.setActive(true, options: .notifyOthersOnDeactivation)
-+            print("[NativeAudio] Audio session reconfigured with mixing + ducking")
++            print("[NativeAudio] Audio session reconfigured with mixing")
          } catch {
 -            print("Failed to set setCategory audio")
 +            print("Failed to set setCategory audio: \(error)")
