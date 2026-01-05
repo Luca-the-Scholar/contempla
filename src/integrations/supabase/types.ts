@@ -445,6 +445,7 @@ export type Database = {
           id: string
           manual_entry: boolean | null
           session_date: string | null
+          share_visibility: string | null
           technique_id: string
           technique_name: string | null
           user_id: string
@@ -457,6 +458,7 @@ export type Database = {
           id?: string
           manual_entry?: boolean | null
           session_date?: string | null
+          share_visibility?: string | null
           technique_id: string
           technique_name?: string | null
           user_id: string
@@ -469,6 +471,7 @@ export type Database = {
           id?: string
           manual_entry?: boolean | null
           session_date?: string | null
+          share_visibility?: string | null
           technique_id?: string
           technique_name?: string | null
           user_id?: string
