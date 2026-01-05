@@ -382,6 +382,7 @@ export function SessionFeed({
                     <div className="flex items-center gap-2">
                       <Input
                         type="time"
+                        step="1"
                         value={editTime}
                         onChange={(e) => setEditTime(e.target.value)}
                         className="h-7 w-28 text-xs"

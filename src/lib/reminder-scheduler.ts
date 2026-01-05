@@ -51,13 +51,16 @@ export async function requestReminderPermissions(): Promise<boolean> {
  */
 export async function scheduleReminders(settings: ReminderSettings): Promise<void> {
   if (!Capacitor.isNativePlatform()) {
-    console.log('Reminders not supported on web');
+    console.log('[Reminders] Not on native platform, skipping');
     return;
   }
+
+  console.log('[Reminders] Scheduling with settings:', settings);
 
   try {
     // First, cancel any existing reminders
     await cancelAllReminders();
+    console.log('[Reminders] Cancelled existing reminders');
 
     const notifications = [];
 
@@ -74,11 +77,10 @@ export async function scheduleReminders(settings: ReminderSettings): Promise<voi
             hour: hours,
             minute: minutes,
           },
-          // Repeat daily
-          every: 'day' as const,
+          repeats: true,  // ✅ Required for iOS daily notifications
+          allowWhileIdle: true,  // ✅ Ensures notification fires even in low power mode
         },
-        // Use default system sound (not custom meditation sounds)
-        sound: undefined,
+        sound: null,  // ✅ Use null instead of undefined for default sound
         actionTypeId: 'OPEN_TIMER',
         extra: {
           type: 'daily_reminder',
@@ -101,11 +103,10 @@ export async function scheduleReminders(settings: ReminderSettings): Promise<voi
             hour: hours,
             minute: minutes,
           },
-          // Repeat daily
-          every: 'day' as const,
+          repeats: true,  // ✅ Required for iOS daily notifications
+          allowWhileIdle: true,  // ✅ Ensures notification fires even in low power mode
         },
-        // Use default system sound
-        sound: undefined,
+        sound: null,  // ✅ Use null instead of undefined for default sound
         actionTypeId: 'OPEN_TIMER',
         extra: {
           type: 'daily_reminder',
@@ -117,11 +118,18 @@ export async function scheduleReminders(settings: ReminderSettings): Promise<voi
 
     // Schedule all enabled notifications
     if (notifications.length > 0) {
+      console.log('[Reminders] Scheduling notifications:', notifications);
       await LocalNotifications.schedule({ notifications });
-      console.log(`Scheduled ${notifications.length} daily reminder(s)`);
+      console.log(`[Reminders] Scheduled ${notifications.length} daily reminder(s)`);
+
+      // Verify pending notifications
+      const pending = await LocalNotifications.getPending();
+      console.log('[Reminders] Pending notifications:', pending.notifications);
+    } else {
+      console.log('[Reminders] No notifications to schedule');
     }
   } catch (err) {
-    console.error('Failed to schedule reminders:', err);
+    console.error('[Reminders] Failed to schedule:', err);
     throw err;
   }
 }
@@ -182,5 +190,46 @@ export async function getPendingReminders(): Promise<any[]> {
   } catch (err) {
     console.warn('Failed to get pending reminders:', err);
     return [];
+  }
+}
+
+/**
+ * Debug helper: Get detailed info about pending reminders
+ * Usage: Call from browser DevTools console or native debugger
+ */
+export async function debugReminders(): Promise<void> {
+  if (!Capacitor.isNativePlatform()) {
+    console.log('[Reminders Debug] Not on native platform');
+    return;
+  }
+
+  try {
+    const pending = await LocalNotifications.getPending();
+    console.log('========== REMINDER DEBUG ==========');
+    console.log('Total pending notifications:', pending.notifications.length);
+
+    const reminders = pending.notifications.filter(
+      (n) => n.extra?.type === 'daily_reminder'
+    );
+
+    console.log('Daily reminders found:', reminders.length);
+    reminders.forEach(n => {
+      console.log(`  ID ${n.id} (${n.extra?.reminderType}):`, {
+        title: n.title,
+        body: n.body,
+        schedule: n.schedule,
+        sound: n.sound,
+        extra: n.extra,
+      });
+    });
+
+    if (reminders.length === 0) {
+      console.warn('⚠️ No daily reminders scheduled!');
+      console.log('💡 Enable reminders in Settings > Daily Reminders');
+    }
+
+    console.log('====================================');
+  } catch (err) {
+    console.error('[Reminders Debug] Failed:', err);
   }
 }

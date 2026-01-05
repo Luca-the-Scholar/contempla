@@ -10,6 +10,7 @@ import { SessionFeed, FeedSession } from "@/components/shared/SessionFeed";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, getDay } from "date-fns";
 import { trackEvent } from "@/hooks/use-analytics";
 import { parseStoredDate, getLocalDateKey, isSameLocalDay } from "@/lib/date-utils";
+import { calculateStreakFromDates } from "@/lib/streak-calculator";
 interface Session {
   id: string;
   duration_minutes: number;
@@ -79,27 +80,10 @@ export function HistoryView() {
     return parseStoredDate(dateStr);
   };
   const calculateStreak = (sessionData: Session[]) => {
-    if (sessionData.length === 0) {
-      setCurrentStreak(0);
-      return;
-    }
-
-    // Use local date keys for consistency
-    const uniqueDates = new Set(sessionData.map(s => getLocalDateKey(parseSessionDate(s.session_date))));
-    const today = getLocalDateKey(new Date());
-    const yesterday = getLocalDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
-
-    // Check if practiced today or yesterday
-    if (!uniqueDates.has(today) && !uniqueDates.has(yesterday)) {
-      setCurrentStreak(0);
-      return;
-    }
-    let streak = 0;
-    let checkDate = uniqueDates.has(today) ? new Date() : new Date(Date.now() - 24 * 60 * 60 * 1000);
-    while (uniqueDates.has(getLocalDateKey(checkDate))) {
-      streak++;
-      checkDate = new Date(checkDate.getTime() - 24 * 60 * 60 * 1000);
-    }
+    console.log('[HistoryView] Calculating streak from', sessionData.length, 'sessions');
+    const dates = sessionData.map(s => s.session_date);
+    const streak = calculateStreakFromDates(dates);
+    console.log('[HistoryView] Calculated streak:', streak);
     setCurrentStreak(streak);
   };
   const handleEditSession = async (sessionId: string, newMinutes: number, newSessionDate?: string, newTechniqueId?: string) => {

@@ -84,8 +84,17 @@ export function ManualEntryDialog({ techniques, onEntryAdded }: ManualEntryDialo
       const selectedTechnique = techniques.find(t => t.id === techniqueId);
       if (!selectedTechnique) throw new Error('Technique not found');
 
+      // Get user's current privacy setting to capture at creation time
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("share_sessions_in_feed")
+        .eq("id", user.id)
+        .single();
+
+      const shareVisibility = profileData?.share_sessions_in_feed || 'friends';
+
       // Format with time if provided, otherwise just the date
-      const sessionDateStr = timeHour 
+      const sessionDateStr = timeHour
         ? formatDateForStorage(sessionDate, true)
         : formatDateForStorage(date, false);
 
@@ -96,6 +105,7 @@ export function ManualEntryDialog({ techniques, onEntryAdded }: ManualEntryDialo
         duration_minutes: duration,
         session_date: sessionDateStr,
         manual_entry: true,
+        share_visibility: shareVisibility, // Capture privacy setting at creation time
       });
 
       if (error) throw error;

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Bell, LogOut, User, Shield, Vibrate, Sparkles, Check, Heart, Pencil, Mail, Lock, Crown, Trash2, Music, Wifi } from "lucide-react";
+import { Bell, LogOut, User, Shield, Vibrate, Sparkles, Check, Heart, Pencil, Mail, Lock, Crown, Trash2, Music, Wifi, HelpCircle, PlayCircle } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -442,6 +442,7 @@ export function SettingsView() {
                     <Input
                       id="morning-time"
                       type="time"
+                      step="1"
                       value={morningTime}
                       onChange={(e) => handleTimeChange('morning', e.target.value)}
                       className="w-32 mt-1"
@@ -472,6 +473,7 @@ export function SettingsView() {
                     <Input
                       id="evening-time"
                       type="time"
+                      step="1"
                       value={eveningTime}
                       onChange={(e) => handleTimeChange('evening', e.target.value)}
                       className="w-32 mt-1"
@@ -562,12 +564,98 @@ export function SettingsView() {
             <SpotifySettings />
           </Card>
 
+          {/* Help & Support */}
+          <Card className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <HelpCircle className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold">Help & Support</h2>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Welcome Tutorial</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Review the app features and how to get started
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/?showWelcome=true')}
+                >
+                  <PlayCircle className="w-4 h-4 mr-2" />
+                  View Tutorial
+                </Button>
+              </div>
+            </div>
+          </Card>
+
           {/* Privacy */}
           <Card className="p-6">
             <div className="flex items-center gap-3 mb-4">
               <Shield className="w-5 h-5 text-primary" />
               <h2 className="text-lg font-semibold">Privacy</h2>
             </div>
+
+            {/* Privacy Presets */}
+            <div className="mb-6">
+              <Label className="mb-2 block">Quick Presets</Label>
+              <div className="grid grid-cols-3 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setStreakVisibility('all');
+                    setTechniqueVisibility('all');
+                    setHistoryVisibility('all');
+                    setSessionFeedVisibility('all');
+                    handlePrivacyUpdate('show_streak_to_friends', 'all');
+                    handlePrivacyUpdate('show_techniques_to_friends', 'all');
+                    handlePrivacyUpdate('show_practice_history', 'all');
+                    handlePrivacyUpdate('share_sessions_in_feed', 'all');
+                  }}
+                >
+                  Public
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setStreakVisibility('friends');
+                    setTechniqueVisibility('friends');
+                    setHistoryVisibility('friends');
+                    setSessionFeedVisibility('friends');
+                    handlePrivacyUpdate('show_streak_to_friends', 'friends');
+                    handlePrivacyUpdate('show_techniques_to_friends', 'friends');
+                    handlePrivacyUpdate('show_practice_history', 'friends');
+                    handlePrivacyUpdate('share_sessions_in_feed', 'friends');
+                  }}
+                >
+                  Friends Only
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setStreakVisibility('private');
+                    setTechniqueVisibility('private');
+                    setHistoryVisibility('private');
+                    setSessionFeedVisibility('none');
+                    handlePrivacyUpdate('show_streak_to_friends', 'private');
+                    handlePrivacyUpdate('show_techniques_to_friends', 'private');
+                    handlePrivacyUpdate('show_practice_history', 'private');
+                    handlePrivacyUpdate('share_sessions_in_feed', 'none');
+                  }}
+                >
+                  Private
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Or customize individual settings below
+              </p>
+            </div>
+
             <div className="space-y-4">
               
               <div className="space-y-2">

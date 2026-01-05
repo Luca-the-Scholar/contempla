@@ -239,6 +239,7 @@ export function ManualEntriesView({ onEntriesChanged }: ManualEntriesViewProps) 
                           <Clock className="h-3 w-3 text-muted-foreground" />
                           <Input
                             type="time"
+                            step="1"
                             value={editTime}
                             onChange={(e) => setEditTime(e.target.value)}
                             className="h-7 w-28 text-xs"

@@ -325,7 +325,7 @@ export function FriendsListDialog({ onViewFriend }: FriendsListDialogProps) {
           {showAddFriend ? (
             <div className="flex gap-2">
               <Input
-                placeholder="Enter handle (e.g. @username)"
+                placeholder="Enter handle (not case-sensitive)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && sendFriendRequest()}

@@ -41,17 +41,21 @@ export function ProfileEditDialog({
     setLoading(true);
 
     try {
-      // First verify current password by attempting to sign in
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.email) throw new Error("User not found");
 
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password: currentPassword,
-      });
+      // Only verify password for sensitive operations (email, password changes)
+      const requiresPasswordVerification = editType === "email" || editType === "password";
 
-      if (authError) {
-        throw new Error("Current password is incorrect");
+      if (requiresPasswordVerification) {
+        const { error: authError } = await supabase.auth.signInWithPassword({
+          email: user.email,
+          password: currentPassword,
+        });
+
+        if (authError) {
+          throw new Error("Current password is incorrect");
+        }
       }
 
       if (editType === "name") {
@@ -134,18 +138,21 @@ export function ProfileEditDialog({
           <DialogTitle>{titles[editType]}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="current-password">Current Password</Label>
-            <Input
-              id="current-password"
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              placeholder="Enter your current password"
-              required
-              className="min-h-[44px]"
-            />
-          </div>
+          {/* Only show password field for email/password changes */}
+          {(editType === "email" || editType === "password") && (
+            <div className="space-y-2">
+              <Label htmlFor="current-password">Current Password</Label>
+              <Input
+                id="current-password"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Enter your current password"
+                required
+                className="min-h-[44px]"
+              />
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="new-value">

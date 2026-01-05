@@ -1,38 +1,15 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Flame, ArrowLeft, Heart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
 import { FriendsListDialog } from "@/components/community/FriendsListDialog";
 import { ActivityFeed } from "@/components/community/ActivityFeed";
 import { SessionFeed, FeedSession } from "@/components/shared/SessionFeed";
 import { trackEvent } from "@/hooks/use-analytics";
-
-// Helper to calculate streak from practice days
-const calculateStreakFromDates = (dates: string[]): number => {
-  if (dates.length === 0) return 0;
-
-  const uniqueDates = new Set(dates);
-  const today = format(new Date(), "yyyy-MM-dd");
-  const yesterday = format(new Date(Date.now() - 24 * 60 * 60 * 1000), "yyyy-MM-dd");
-
-  // Check if practiced today or yesterday
-  if (!uniqueDates.has(today) && !uniqueDates.has(yesterday)) {
-    return 0;
-  }
-
-  let streak = 0;
-  let checkDate = uniqueDates.has(today) ? new Date() : new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-  while (uniqueDates.has(format(checkDate, "yyyy-MM-dd"))) {
-    streak++;
-    checkDate = new Date(checkDate.getTime() - 24 * 60 * 60 * 1000);
-  }
-
-  return streak;
-};
+import { calculateStreakFromDates } from "@/lib/streak-calculator";
 
 interface UserProfile {
   id: string;
@@ -59,6 +36,7 @@ export function CommunityView() {
   const [loading, setLoading] = useState(true);
   const [selectedFriend, setSelectedFriend] = useState<FriendProfile | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchUserProfile();
@@ -293,7 +271,14 @@ export function CommunityView() {
             <div className="flex-1">
               <h2 className="text-xl font-bold text-foreground">{userProfile?.name || "Meditator"}</h2>
               <div className="flex items-center gap-4 mt-1 flex-wrap">
-                <div className="flex items-center gap-1">
+                <div
+                  className="flex items-center gap-1 cursor-pointer hover:bg-accent/50 rounded-lg px-2 py-1 -ml-2 transition-colors"
+                  onClick={() => {
+                    trackEvent('streak_clicked_from_profile');
+                    navigate('/?tab=history');
+                  }}
+                  title="View your meditation calendar"
+                >
                   <Flame className="w-5 h-5 streak-flame" />
                   <span className="font-semibold text-gradient">{userProfile?.streak || 0} day streak</span>
                 </div>

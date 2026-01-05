@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+const SESSIONS_PER_PAGE = 20;
+
 interface FeedSession {
   id: string;
   user_id: string;
@@ -34,6 +36,9 @@ interface FeedSession {
 export function ActivityFeed() {
   const [sessions, setSessions] = useState<FeedSession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   const [givingKudos, setGivingKudos] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [sessionToHide, setSessionToHide] = useState<FeedSession | null>(null);
@@ -42,12 +47,24 @@ export function ActivityFeed() {
     return (localStorage.getItem('feed_filter') as 'friends' | 'all') || 'friends';
   });
   const { toast } = useToast();
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  const fetchFeed = useCallback(async () => {
+  const fetchFeed = useCallback(async (pageNum: number, reset = false) => {
+    const isLoadingMore = pageNum > 0 && !reset;
+
+    if (isLoadingMore) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      
+
+      console.log('[Feed] Fetching page:', pageNum, 'filter:', feedFilter, 'reset:', reset);
+      console.log('[Feed] Current user ID:', user.id);
+
       setCurrentUserId(user.id);
 
       // Get current user's profile to check their sharing setting
@@ -68,15 +85,11 @@ export function ActivityFeed() {
         f.user_id === user.id ? f.friend_id : f.user_id
       ) || [];
 
-      // Get friends' profiles who share sessions (friends or all)
+      // Get profiles for name lookups (get ALL friend profiles, not filtered by sharing)
       const { data: friendProfiles } = await supabase
         .from("profiles")
-        .select("id, name, share_sessions_in_feed")
-        .in("id", friendIds)
-        .in("share_sessions_in_feed", ["friends", "all"]);
-
-      // Build the list of user IDs whose sessions we want to fetch
-      const sharingFriendIds = friendProfiles?.map(p => p.id) || [];
+        .select("id, name")
+        .in("id", friendIds);
 
       // Build profile map for name lookups
       const profileMap = new Map<string, string>();
@@ -87,60 +100,77 @@ export function ActivityFeed() {
         profileMap.set(user.id, currentUserProfile.name || "You");
       }
 
-      // Determine which user IDs to fetch sessions for based on filter mode
-      let userIdsToFetch: string[] = [];
+      console.log('[Feed] Friend IDs:', friendIds.length);
 
-      if (feedFilter === 'all') {
-        // "All" mode: Fetch sessions from ALL users with share_sessions_in_feed = 'all'
-        const { data: allSharingProfiles } = await supabase
-          .from("profiles")
-          .select("id, name")
-          .eq("share_sessions_in_feed", "all");
+      // NEW APPROACH: Query sessions by their share_visibility column (non-retroactive)
+      // Instead of filtering by user's current profile privacy, use session's captured privacy
 
-        userIdsToFetch = allSharingProfiles?.map(p => p.id) || [];
-
-        // Add these users to profile map
-        allSharingProfiles?.forEach(p => {
-          if (!profileMap.has(p.id)) {
-            profileMap.set(p.id, p.name || "Unknown");
-          }
-        });
-      } else {
-        // "Friends" mode: Current behavior - only sharing friends
-        userIdsToFetch = [...sharingFriendIds];
-
-        // Include current user's sessions if their sharing setting is not 'none'
-        const currentUserShares = currentUserProfile?.share_sessions_in_feed &&
-          currentUserProfile.share_sessions_in_feed !== 'none';
-        if (currentUserShares) {
-          userIdsToFetch.push(user.id);
-        }
-      }
-
-      // If no one to fetch sessions from, show empty state
-      if (userIdsToFetch.length === 0) {
-        setSessions([]);
-        setLoading(false);
-        return;
-      }
-
-      // Get recent sessions (using denormalized technique_name to avoid RLS issues)
-      // Filter out sessions that are hidden from feed
-      const { data: sessionsData, error } = await supabase
+      let sessionsQuery = supabase
         .from("sessions")
         .select(`
           id,
           user_id,
           duration_minutes,
           session_date,
-          technique_name
+          technique_name,
+          share_visibility
         `)
-        .in("user_id", userIdsToFetch)
         .eq("hidden_from_feed", false)
         .order("session_date", { ascending: false })
-        .limit(50);
+        .range(
+          pageNum * SESSIONS_PER_PAGE,
+          (pageNum + 1) * SESSIONS_PER_PAGE - 1
+        );
 
-      if (error) throw error;
+      if (feedFilter === 'all') {
+        // "All" mode: Show sessions with share_visibility = 'all' from ANYONE
+        console.log('[Feed] Fetching public sessions (share_visibility = all)');
+        sessionsQuery = sessionsQuery.eq('share_visibility', 'all');
+      } else {
+        // "Friends" mode: Show sessions that are either:
+        // 1. From current user (any visibility except 'none')
+        // 2. From friends with visibility 'all' or 'friends'
+        console.log('[Feed] Fetching friend sessions');
+
+        // This is complex in a single query, so we'll use .or() with multiple conditions
+        const friendConditions = friendIds.map(id =>
+          `and(user_id.eq.${id},share_visibility.in.(all,friends))`
+        ).join(',');
+
+        const userCondition = `and(user_id.eq.${user.id},share_visibility.neq.none)`;
+
+        const allConditions = friendIds.length > 0
+          ? `${userCondition},${friendConditions}`
+          : userCondition;
+
+        sessionsQuery = sessionsQuery.or(allConditions);
+      }
+
+      // Execute the query
+      const { data: sessionsData, error } = await sessionsQuery;
+
+      if (error) {
+        console.error('[Feed] Error fetching sessions:', error);
+        throw error;
+      }
+
+      console.log('[Feed] Retrieved', sessionsData?.length || 0, 'sessions from database');
+
+      // Fetch names for any users not in profileMap (for "All" feed mode)
+      const unknownUserIds = sessionsData
+        ?.map(s => s.user_id)
+        .filter(uid => !profileMap.has(uid)) || [];
+
+      if (unknownUserIds.length > 0) {
+        const { data: unknownProfiles } = await supabase
+          .from("profiles")
+          .select("id, name")
+          .in("id", unknownUserIds);
+
+        unknownProfiles?.forEach(p => {
+          profileMap.set(p.id, p.name || "Unknown");
+        });
+      }
 
       // Get kudos counts and user's kudos
       const sessionIds = sessionsData?.map(s => s.id) || [];
@@ -171,7 +201,16 @@ export function ActivityFeed() {
         has_given_kudos: kudosBySession.get(s.id)?.hasGiven || false,
       }));
 
-      setSessions(feedSessions);
+      console.log('[Feed] Loaded', feedSessions.length, 'sessions for page', pageNum);
+
+      if (reset) {
+        setSessions(feedSessions);
+      } else {
+        setSessions(prev => [...prev, ...feedSessions]);
+      }
+
+      // Check if there are more sessions to load
+      setHasMore(feedSessions.length === SESSIONS_PER_PAGE);
     } catch (error: any) {
       console.error("Error fetching feed:", error);
       toast({
@@ -181,13 +220,18 @@ export function ActivityFeed() {
       });
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [toast, feedFilter]);
 
+  // Initial load and filter change handler
   useEffect(() => {
-    fetchFeed();
+    console.log('[Feed] Filter changed to:', feedFilter, '- resetting pagination');
+    setPage(0);
+    setHasMore(true);
+    fetchFeed(0, true);
     trackEvent('feed_opened');
-  }, [fetchFeed]);
+  }, [feedFilter, fetchFeed]);
 
   const handleFilterChange = (newFilter: 'friends' | 'all') => {
     setFeedFilter(newFilter);
@@ -197,7 +241,10 @@ export function ActivityFeed() {
 
   // Pull-to-refresh
   const handleRefresh = useCallback(async () => {
-    await fetchFeed();
+    console.log('[Feed] Pull to refresh triggered');
+    setPage(0);
+    setHasMore(true);
+    await fetchFeed(0, true);
   }, [fetchFeed]);
 
   const { pullDistance, isRefreshing, handlers } = usePullToRefresh({
@@ -206,6 +253,27 @@ export function ActivityFeed() {
   });
 
   const showPullToRefresh = shouldShowPullToRefresh();
+
+  // Infinite scroll: detect when user reaches bottom
+  useEffect(() => {
+    if (!loadMoreRef.current || !hasMore || loadingMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore) {
+          console.log('[Feed] Reached bottom, loading more sessions...');
+          const nextPage = page + 1;
+          setPage(nextPage);
+          fetchFeed(nextPage);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(loadMoreRef.current);
+
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, page, fetchFeed]);
 
   const toggleKudos = useCallback(async (session: FeedSession) => {
     setGivingKudos(session.id);
@@ -369,7 +437,10 @@ export function ActivityFeed() {
             <>
               <p className="font-medium">No public sessions yet</p>
               <p className="text-sm mt-1">
-                Check back soon to see sessions from the community.
+                Sessions appear here when users set their privacy to "Public".
+              </p>
+              <p className="text-sm mt-1 text-muted-foreground/70">
+                To share your sessions publicly, go to Settings → Privacy and select "Public" preset.
               </p>
             </>
           )}
@@ -489,6 +560,27 @@ export function ActivityFeed() {
           </div>
         </Card>
       ))}
+
+      {/* Loading indicator for infinite scroll */}
+      {loadingMore && (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-sm text-muted-foreground">Loading more sessions...</span>
+        </div>
+      )}
+
+      {/* Intersection observer target */}
+      {hasMore && !loadingMore && (
+        <div ref={loadMoreRef} className="h-20" />
+      )}
+
+      {/* End of list message */}
+      {!hasMore && sessions.length > 0 && (
+        <div className="text-center py-8 text-sm text-muted-foreground">
+          <p className="font-medium">You've reached the end</p>
+          <p className="text-xs mt-1">All sessions loaded</p>
+        </div>
+      )}
       </div>
 
       {/* Confirmation Dialog for Hiding Session */}

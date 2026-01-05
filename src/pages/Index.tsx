@@ -7,6 +7,7 @@ import { LibraryView } from "@/components/views/LibraryView";
 import { HistoryView } from "@/components/views/HistoryView";
 import { SettingsView } from "@/components/views/SettingsView";
 import { TimerView } from "@/components/views/TimerView";
+import { WelcomeModal } from "@/components/onboarding/WelcomeModal";
 import { Compass } from "lucide-react";
 
 type ViewType = 'community' | 'library' | 'history' | 'settings' | 'timer';
@@ -16,6 +17,7 @@ const Index = () => {
   const initialTab = (searchParams.get('tab') as ViewType) || 'timer';
   const [activeView, setActiveView] = useState<ViewType>(initialTab);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [showWelcome, setShowWelcome] = useState(false);
   const navigate = useNavigate();
 
   // Auth check with listener for session changes
@@ -71,6 +73,27 @@ const Index = () => {
     }
   }, [searchParams]);
 
+  // Welcome modal - check for first-time user or Settings re-trigger
+  useEffect(() => {
+    // Only show if authenticated
+    if (!isAuthenticated) return;
+
+    // Check URL parameter (for Settings re-trigger)
+    if (searchParams.get('showWelcome') === 'true') {
+      setShowWelcome(true);
+      // Clean URL
+      window.history.replaceState({}, '', '/');
+      return;
+    }
+
+    // Check first-time user
+    const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
+    if (!hasSeenWelcome) {
+      setShowWelcome(true);
+      localStorage.setItem('hasSeenWelcome', 'true');
+    }
+  }, [isAuthenticated, searchParams]);
+
   // Force views to remount when switching by using timestamp as key
   const [libraryKey, setLibraryKey] = useState(0);
   const [historyKey, setHistoryKey] = useState(0);
@@ -108,8 +131,10 @@ const Index = () => {
       {activeView === 'history' && <HistoryView key={historyKey} />}
       {activeView === 'settings' && <SettingsView />}
       {activeView === 'timer' && <TimerView />}
-      
+
       <BottomNav activeView={activeView} onViewChange={handleViewChange} />
+
+      <WelcomeModal open={showWelcome} onOpenChange={setShowWelcome} />
     </>
   );
 };

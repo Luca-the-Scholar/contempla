@@ -5,7 +5,8 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Play, Pause, Square, Check, AlertTriangle, Volume2, Music } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Play, Pause, Square, Check, AlertTriangle, Volume2, Music, ChevronRight } from "lucide-react";
 import { DurationInput } from "@/components/ui/duration-input";
 import { useToast } from "@/hooks/use-toast";
 import { useNoSleep } from "@/hooks/use-nosleep";
@@ -18,6 +19,7 @@ import { scheduleTimerNotification, cancelTimerNotification } from "@/lib/notifi
 import { formatDateForStorage } from "@/lib/date-utils";
 import { startSpotifyPlayback, stopSpotifyPlayback } from "@/hooks/use-spotify";
 import { formatTechniqueName } from "@/lib/technique-utils";
+import { useNavigate } from "react-router-dom";
 
 interface Technique {
   id: string;
@@ -32,6 +34,7 @@ export function TimerView() {
   const {
     toast
   } = useToast();
+  const navigate = useNavigate();
   const noSleep = useNoSleep();
   const {
     playSound,
@@ -71,6 +74,17 @@ export function TimerView() {
   // Guard to prevent multiple start sound plays
   const hasPlayedStartSoundRef = useRef(false);
   const presetDurations = [10, 30, 45, 60];
+
+  // Free Session - default option that allows meditation without creating a technique
+  const FREE_SESSION_ID = 'free-session';
+  const FREE_SESSION: Technique = {
+    id: FREE_SESSION_ID,
+    name: 'Free Session',
+    teacher_attribution: null,
+    instructions: 'Meditate freely without following a specific technique. Simply sit, breathe, and be present.',
+    tradition: 'None',
+    original_author_name: null,
+  };
 
   // Load timer alert preferences and Spotify settings from localStorage
   useEffect(() => {
@@ -119,8 +133,13 @@ export function TimerView() {
   }, []);
   useEffect(() => {
     if (selectedTechniqueId) {
-      const technique = techniques.find(t => t.id === selectedTechniqueId);
-      setSelectedTechnique(technique || null);
+      // Check if it's the free session
+      if (selectedTechniqueId === FREE_SESSION_ID) {
+        setSelectedTechnique(FREE_SESSION);
+      } else {
+        const technique = techniques.find(t => t.id === selectedTechniqueId);
+        setSelectedTechnique(technique || null);
+      }
     }
   }, [selectedTechniqueId, techniques]);
   // CRITICAL: Use elapsed-time calculation instead of countdown
@@ -196,8 +215,9 @@ export function TimerView() {
         return a.name.localeCompare(b.name);
       });
       setTechniques(sortedTechniques);
-      if (sortedTechniques.length > 0 && !selectedTechniqueId) {
-        setSelectedTechniqueId(sortedTechniques[0].id);
+      // Default to Free Session if no technique is selected
+      if (!selectedTechniqueId) {
+        setSelectedTechniqueId(FREE_SESSION_ID);
       }
     } catch (error: any) {
       toast({
@@ -294,14 +314,8 @@ export function TimerView() {
   };
 
   const handleStart = async () => {
-    if (!selectedTechniqueId) {
-      toast({
-        title: "Select a technique",
-        description: "Please select a technique before starting",
-        variant: "destructive"
-      });
-      return;
-    }
+    // Note: selectedTechniqueId can be FREE_SESSION_ID, which is allowed
+    // No validation needed - free sessions are permitted
 
     // Reset guards for new timer run
     hasCompletedRef.current = false;
@@ -437,16 +451,29 @@ export function TimerView() {
           user
         }
       } = await supabase.auth.getUser();
-      if (!user || !selectedTechniqueId || !selectedTechnique) return;
+      if (!user) return;
+
+      // Get user's current privacy setting to capture at creation time
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("share_sessions_in_feed")
+        .eq("id", user.id)
+        .single();
+
+      const shareVisibility = profileData?.share_sessions_in_feed || 'friends';
+
+      // Free sessions save with null technique_id and technique_name
+      const isFreeSession = selectedTechniqueId === FREE_SESSION_ID;
       const {
         error: sessionError
       } = await supabase.from("sessions").insert({
         user_id: user.id,
-        technique_id: selectedTechniqueId,
-        technique_name: selectedTechnique.name,
+        technique_id: isFreeSession ? null : selectedTechniqueId,
+        technique_name: isFreeSession ? null : selectedTechnique?.name || null,
         duration_minutes: minutesPracticed,
         session_date: formatDateForStorage(new Date(), true),
-        manual_entry: false
+        manual_entry: false,
+        share_visibility: shareVisibility, // Capture privacy setting at creation time
       });
       if (sessionError) throw sessionError;
 
@@ -504,16 +531,7 @@ export function TimerView() {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
   const progress = timerState === 'running' || timerState === 'paused' ? (initialDuration * 60 - secondsLeft) / (initialDuration * 60) * 100 : 0;
-  if (techniques.length === 0) {
-    return <div className="min-h-screen flex items-center justify-center pb-32 px-4">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">No Techniques Yet</h2>
-          <p className="text-muted-foreground">
-            Add a technique in your Library to start practicing.
-          </p>
-        </div>
-      </div>;
-  }
+  // No longer block users with empty library - Free Session is always available
 
   // Completion Screen
   if (timerState === 'complete') {
@@ -657,46 +675,96 @@ export function TimerView() {
         </DialogContent>
       </Dialog>
 
-      <div className="min-h-screen bg-transparent pb-32 safe-top">
-        <div className="max-w-2xl mx-auto px-[12px] pb-[25px]">
-        <Card className="p-6 space-y-6 relative">
-          {/* Minimal Spotify Button - Upper Right Corner */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-4 right-4 z-10"
-            onClick={isSpotifyPlaying ? handlePauseMusic : handlePlayMusic}
-            aria-label={isSpotifyPlaying ? "Pause music" : "Play music"}
-            disabled={!currentPlaylistName}
-          >
-            <Music className={`h-5 w-5 ${isSpotifyPlaying ? 'text-green-500 animate-pulse' : currentPlaylistName ? 'text-muted-foreground' : 'text-muted-foreground/30'}`} />
-          </Button>
+      <div className="h-full flex flex-col bg-transparent overflow-hidden safe-top">
+        <div className="flex-1 flex items-center justify-center overflow-y-auto px-[12px] py-4 pb-24">
+          <div className="w-full max-w-2xl">
+            <Card className="p-6 space-y-6 relative mx-auto">
+          {/* Spotify Button - Upper Right Corner */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute top-4 right-4 z-10"
+                onClick={isSpotifyPlaying ? handlePauseMusic : handlePlayMusic}
+                aria-label={isSpotifyPlaying ? "Pause music" : "Play music"}
+                disabled={!currentPlaylistName}
+              >
+                <Music className={`h-5 w-5 ${isSpotifyPlaying ? 'text-green-500 animate-pulse' : currentPlaylistName ? 'text-muted-foreground' : 'text-muted-foreground/30'}`} />
+                <span className="ml-2 text-sm">
+                  {isSpotifyPlaying ? 'Pause' : 'Music'}
+                </span>
+              </Button>
+            </TooltipTrigger>
+            {!currentPlaylistName && (
+              <TooltipContent>
+                <p className="text-xs">Set up Spotify in Settings to play music</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
 
           {/* Technique Selection */}
           <div>
             <h2 className="text-sm font-medium text-muted-foreground mb-3">
-              Select Technique
+              Select Technique <span className="text-xs font-normal">(optional)</span>
             </h2>
             <Select value={selectedTechniqueId} onValueChange={setSelectedTechniqueId}>
               <SelectTrigger>
                 <SelectValue placeholder="Choose a technique" />
               </SelectTrigger>
               <SelectContent className="max-w-[calc(100vw-2rem)]">
-                {techniques.map(technique => <SelectItem key={technique.id} value={technique.id} className="py-3">
-                    <div className="line-clamp-2 whitespace-normal leading-snug">
-                      {formatTechniqueName(technique)}
+                {/* Free Session - always first */}
+                <SelectItem value={FREE_SESSION_ID} className="py-3">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{FREE_SESSION.name}</span>
+                    <span className="text-xs text-muted-foreground">(no specific technique)</span>
+                  </div>
+                </SelectItem>
+
+                {/* User's techniques */}
+                {techniques.length > 0 && (
+                  <>
+                    <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                      Your Techniques
                     </div>
-                  </SelectItem>)}
+                    {techniques.map(technique => <SelectItem key={technique.id} value={technique.id} className="py-3">
+                      <div className="line-clamp-2 whitespace-normal leading-snug">
+                        {formatTechniqueName(technique)}
+                      </div>
+                    </SelectItem>)}
+                  </>
+                )}
               </SelectContent>
             </Select>
 
-            {selectedTechnique && <div className="mt-4 p-4 rounded-lg bg-primary/5 border border-primary/20 cursor-pointer hover:bg-primary/10 hover:border-primary/30 transition-all" onClick={() => setInstructionsModalOpen(true)}>
-              <p className="text-sm text-foreground/80 line-clamp-4 whitespace-pre-wrap">
+            {selectedTechnique && <div className="mt-4 p-4 rounded-lg bg-primary/5 border border-primary/20 cursor-pointer hover:bg-primary/10 hover:border-primary/30 transition-all flex justify-between items-start gap-3" onClick={() => setInstructionsModalOpen(true)}>
+              <div className="flex-1">
+                <p className="text-sm text-foreground/80 line-clamp-4 whitespace-pre-wrap">
                   {selectedTechnique.instructions}
                 </p>
                 <p className="text-xs text-primary mt-2">Tap to view full instructions</p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-primary shrink-0 mt-1" />
               </div>}
           </div>
+
+          {/* Spotify Setup Hint */}
+          {!currentPlaylistName && (
+            <Alert className="bg-accent/10 border-accent/30">
+              <Music className="h-4 w-4 text-accent" />
+              <AlertDescription className="text-sm flex items-center justify-between">
+                <span>Play music during meditation</span>
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="text-accent h-auto p-0"
+                  onClick={() => navigate('/?tab=settings')}
+                >
+                  Set up Spotify →
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Duration Selection */}
           <div>
@@ -748,11 +816,13 @@ export function TimerView() {
           </div>
 
           {/* Start Button */}
-          <Button onClick={handleStart} variant="accent" size="lg" className="w-full text-lg" disabled={!selectedTechniqueId || duration === 0}>
+          <Button onClick={handleStart} variant="accent" size="lg" className="w-full text-lg" disabled={duration === 0}>
             <Play className="w-5 h-5 mr-2" />
             Start Meditation
           </Button>
         </Card>
+          </div>
+        </div>
       </div>
 
       {/* Instructions Modal */}
@@ -767,6 +837,5 @@ export function TimerView() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
     </>;
 }

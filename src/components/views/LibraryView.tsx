@@ -303,18 +303,33 @@ export function LibraryView() {
     if (!techniqueToDelete) return;
 
     try {
+      console.log('[Delete Technique] Attempting to delete:', {
+        id: techniqueToDelete.id,
+        name: techniqueToDelete.name,
+        source_global_technique_id: techniqueToDelete.source_global_technique_id,
+      });
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
       const { error } = await supabase
         .from("techniques")
         .delete()
-        .eq("id", techniqueToDelete.id);
+        .eq("id", techniqueToDelete.id)
+        .eq("user_id", user.id); // Ensure ownership (redundant with RLS but explicit)
 
-      if (error) throw error;
+      if (error) {
+        console.error('[Delete Technique] Error:', error);
+        throw error;
+      }
 
+      console.log('[Delete Technique] Successfully deleted');
       toast({ description: "Technique deleted", duration: 1500 });
       setDeleteDialogOpen(false);
       setTechniqueToDelete(null);
       fetchTechniques();
     } catch (error: any) {
+      console.error('[Delete Technique] Failed:', error);
       toast({
         title: "Error deleting technique",
         description: error.message,
