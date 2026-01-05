@@ -303,33 +303,103 @@ export function LibraryView() {
     if (!techniqueToDelete) return;
 
     try {
-      console.log('[Delete Technique] Attempting to delete:', {
+      console.log('[Delete Technique] Starting deletion process');
+      console.log('[Delete Technique] Technique to delete:', {
         id: techniqueToDelete.id,
         name: techniqueToDelete.name,
         source_global_technique_id: techniqueToDelete.source_global_technique_id,
       });
 
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      if (!user) {
+        console.error('[Delete Technique] User not authenticated');
+        throw new Error("Not authenticated");
+      }
 
-      const { error } = await supabase
+      console.log('[Delete Technique] Current user ID:', user.id);
+
+      // Step 1: Verify technique exists and belongs to user
+      const { data: verifyData, error: verifyError } = await supabase
+        .from("techniques")
+        .select("*")
+        .eq("id", techniqueToDelete.id)
+        .single();
+
+      console.log('[Delete Technique] Verification query result:', {
+        data: verifyData,
+        error: verifyError,
+      });
+
+      if (verifyError) {
+        console.error('[Delete Technique] Verification error:', verifyError);
+        throw new Error(`Cannot verify technique: ${verifyError.message}`);
+      }
+
+      if (!verifyData) {
+        console.error('[Delete Technique] Technique not found');
+        throw new Error("Technique not found");
+      }
+
+      if (verifyData.user_id !== user.id) {
+        console.error('[Delete Technique] Technique belongs to different user:', {
+          technique_user_id: verifyData.user_id,
+          current_user_id: user.id,
+        });
+        throw new Error("You don't own this technique");
+      }
+
+      console.log('[Delete Technique] Verification passed, proceeding with deletion');
+
+      // Step 2: Check for sessions using this technique
+      const { data: sessionsData, error: sessionsError } = await supabase
+        .from("sessions")
+        .select("id")
+        .eq("technique_id", techniqueToDelete.id)
+        .limit(5);
+
+      console.log('[Delete Technique] Sessions using this technique:', {
+        count: sessionsData?.length || 0,
+        sessions: sessionsData,
+        error: sessionsError,
+      });
+
+      // Step 3: Attempt deletion
+      console.log('[Delete Technique] Executing delete query');
+      const { data: deleteData, error: deleteError } = await supabase
         .from("techniques")
         .delete()
         .eq("id", techniqueToDelete.id)
-        .eq("user_id", user.id); // Ensure ownership (redundant with RLS but explicit)
+        .eq("user_id", user.id)
+        .select();
 
-      if (error) {
-        console.error('[Delete Technique] Error:', error);
-        throw error;
+      console.log('[Delete Technique] Delete query result:', {
+        data: deleteData,
+        error: deleteError,
+      });
+
+      if (deleteError) {
+        console.error('[Delete Technique] Delete error:', {
+          message: deleteError.message,
+          details: deleteError.details,
+          hint: deleteError.hint,
+          code: deleteError.code,
+        });
+        throw deleteError;
       }
 
-      console.log('[Delete Technique] Successfully deleted');
+      console.log('[Delete Technique] Deletion successful!');
       toast({ description: "Technique deleted", duration: 1500 });
       setDeleteDialogOpen(false);
       setTechniqueToDelete(null);
       fetchTechniques();
     } catch (error: any) {
-      console.error('[Delete Technique] Failed:', error);
+      console.error('[Delete Technique] Exception caught:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        stack: error.stack,
+      });
       toast({
         title: "Error deleting technique",
         description: error.message,
