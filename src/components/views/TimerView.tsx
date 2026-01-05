@@ -675,10 +675,10 @@ export function TimerView() {
         </DialogContent>
       </Dialog>
 
-      <div className="h-full flex flex-col bg-transparent overflow-hidden safe-top">
-        <div className="flex-1 flex items-center justify-center overflow-y-auto px-[12px] py-4 pb-24">
-          <div className="w-full max-w-2xl">
-            <Card className="p-6 space-y-6 relative mx-auto">
+      <div className="h-[calc(100vh-5rem)] overflow-hidden flex flex-col bg-transparent">
+        <div className="flex-1 flex items-center justify-center px-[12px] safe-top">
+          <div className="w-full max-w-md py-4">
+            <Card className="p-5 space-y-5 relative mx-auto">
           {/* Spotify Button - Upper Right Corner */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -705,7 +705,7 @@ export function TimerView() {
 
           {/* Technique Selection */}
           <div>
-            <h2 className="text-sm font-medium text-muted-foreground mb-3">
+            <h2 className="text-sm font-medium text-muted-foreground mb-2">
               Select Technique <span className="text-xs font-normal">(optional)</span>
             </h2>
             <Select value={selectedTechniqueId} onValueChange={setSelectedTechniqueId}>
@@ -737,14 +737,14 @@ export function TimerView() {
               </SelectContent>
             </Select>
 
-            {selectedTechnique && <div className="mt-4 p-4 rounded-lg bg-primary/5 border border-primary/20 cursor-pointer hover:bg-primary/10 hover:border-primary/30 transition-all flex justify-between items-start gap-3" onClick={() => setInstructionsModalOpen(true)}>
+            {selectedTechnique && <div className="mt-3 p-3 rounded-lg bg-primary/5 border border-primary/20 cursor-pointer hover:bg-primary/10 hover:border-primary/30 transition-all flex justify-between items-start gap-2" onClick={() => setInstructionsModalOpen(true)}>
               <div className="flex-1">
-                <p className="text-sm text-foreground/80 line-clamp-4 whitespace-pre-wrap">
+                <p className="text-sm text-foreground/80 line-clamp-3 whitespace-pre-wrap">
                   {selectedTechnique.instructions}
                 </p>
-                <p className="text-xs text-primary mt-2">Tap to view full instructions</p>
+                <p className="text-xs text-primary mt-1">Tap to view full instructions</p>
               </div>
-              <ChevronRight className="w-5 h-5 text-primary shrink-0 mt-1" />
+              <ChevronRight className="w-4 h-4 text-primary shrink-0 mt-1" />
               </div>}
           </div>
 
@@ -768,10 +768,10 @@ export function TimerView() {
 
           {/* Duration Selection */}
           <div>
-            <h2 className="text-sm font-medium text-muted-foreground mb-3">
+            <h2 className="text-sm font-medium text-muted-foreground mb-2">
               Duration
             </h2>
-            <div className="flex gap-2 mb-4 justify-center max-w-full overflow-hidden">
+            <div className="flex gap-2 mb-3 justify-center max-w-full overflow-hidden">
               {presetDurations.map(preset => <Button key={preset} variant={duration === preset ? "default" : "outline"} className="px-5 py-2.5 text-base min-w-0" onClick={() => setDuration(preset)}>
                   {preset}m
                 </Button>)}
@@ -782,7 +782,7 @@ export function TimerView() {
 
           {/* Sound Selection */}
           <div>
-            <h2 className="text-sm font-medium text-muted-foreground mb-3">
+            <h2 className="text-sm font-medium text-muted-foreground mb-2">
               Completion Sound
             </h2>
             <div className="flex gap-2">
