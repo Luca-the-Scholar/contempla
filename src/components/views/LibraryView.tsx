@@ -387,10 +387,23 @@ export function LibraryView() {
         throw deleteError;
       }
 
-      console.log('[Delete Technique] Deletion successful!');
+      // Check if deletion actually occurred
+      if (!deleteData || deleteData.length === 0) {
+        console.error('[Delete Technique] Deletion silently failed - no rows deleted');
+        console.error('[Delete Technique] This indicates an RLS policy is blocking deletion');
+        console.error('[Delete Technique] The migration 20260105000000_allow_delete_global_duplicates.sql needs to be applied');
+        throw new Error('Deletion blocked by database policy. Migration not applied - check Supabase dashboard.');
+      }
+
+      console.log('[Delete Technique] Deletion successful! Deleted rows:', deleteData);
       toast({ description: "Technique deleted", duration: 1500 });
       setDeleteDialogOpen(false);
       setTechniqueToDelete(null);
+
+      // Optimistically remove from UI immediately
+      setTechniques(prev => prev.filter(t => t.id !== techniqueToDelete.id));
+
+      // Also refresh to ensure consistency
       fetchTechniques();
     } catch (error: any) {
       console.error('[Delete Technique] Exception caught:', {
