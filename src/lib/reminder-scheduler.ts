@@ -218,7 +218,6 @@ export async function debugReminders(): Promise<void> {
         title: n.title,
         body: n.body,
         schedule: n.schedule,
-        sound: n.sound,
         extra: n.extra,
       });
     });

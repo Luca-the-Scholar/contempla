@@ -24,7 +24,8 @@ export type AnalyticsEventType =
   | 'kudos_removed'
   | 'feed_profile_clicked'
   | 'practice_posted_to_feed'
-  | 'session_hidden_from_feed';
+  | 'session_hidden_from_feed'
+  | 'streak_clicked_from_profile';
 
 export interface AnalyticsMetadata {
   technique_id?: string;
