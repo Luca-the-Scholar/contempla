@@ -58,6 +58,7 @@ export default {
         glow: {
           gold: "hsl(var(--glow-gold))",
           amber: "hsl(var(--glow-amber))",
+          purple: "hsl(var(--glow-purple))",
           // Legacy names for compatibility
           blue: "hsl(var(--glow-blue))",
           orange: "hsl(var(--glow-orange))",
